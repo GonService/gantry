@@ -1,0 +1,13 @@
+# nome: Lab de switches Cisco (IOSvL2)
+# categoria: Redes
+# descrição: Três switches IOSvL2 ligados em triângulo, com 4 portas cada e console serial (botão Console). Troque os cabos em Cabos, na página do projeto, sem reiniciar. Precisa da imagem cisco-iosvl2 (Configurações › Geral › Imagens de VM) num host Linux x86 com KVM.
+x-vms:
+  sw1:
+    image: cisco-iosvl2
+    interfaces: [sw1-sw2, sw1-sw3, none, none]
+  sw2:
+    image: cisco-iosvl2
+    interfaces: [sw1-sw2, sw2-sw3, none, none]
+  sw3:
+    image: cisco-iosvl2
+    interfaces: [sw1-sw3, sw2-sw3, none, none]

@@ -1,0 +1,26 @@
+# nome: Misto: containers e VM
+# categoria: VMs
+# descrição: Um banco no Docker, um cache no Podman e uma VM, num projeto só (x-gantry e x-vms).
+x-gantry:
+  runtime: docker
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina a senha do banco}
+    ports:
+      - "${PORTA_DB:-5432}:5432"
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "${PORTA_CACHE:-6379}:6379"
+    x-gantry:
+      runtime: podman
+
+x-vms:
+  app:
+    image: debian-12
+    cpus: 1
+    memory: 1g
+    ports: ["${PORTA_VM:-8082}:80"]

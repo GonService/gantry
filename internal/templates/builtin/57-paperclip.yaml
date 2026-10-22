@@ -1,0 +1,33 @@
+# nome: Paperclip (agentes de IA)
+# categoria: IA
+# descrição: Paperclip usando um PostgreSQL que já existe (por exemplo outro container no host). O que os agentes gravam em /trabalho aparece na pasta de trabalho do host. O primeiro usuário que se cadastrar vira administrador.
+x-gantry:
+  # O assistente oferece usar um PostgreSQL que já roda na máquina e cria
+  # um banco e um usuário só para o Paperclip.
+  usa:
+    postgres: {host: PG_HOST, porta: PG_PORTA, usuario: PG_USUARIO, senha: PG_SENHA, banco: PG_BANCO}
+services:
+  paperclip:
+    image: ghcr.io/paperclipai/paperclip:${VERSAO:-latest}
+    restart: unless-stopped
+    pids_limit: 2048
+    stop_grace_period: 90s
+    environment:
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${PG_USUARIO:-paperclip}:${PG_SENHA:?senha do banco}@${PG_HOST:-host.containers.internal}:${PG_PORTA:-5432}/${PG_BANCO:-paperclip}
+      BETTER_AUTH_SECRET: ${SEGREDO_AUTH:?gere com openssl rand -hex 32}
+      PAPERCLIP_AGENT_JWT_SECRET: ${SEGREDO_AGENTES:?gere com openssl rand -hex 32}
+      PAPERCLIP_DEPLOYMENT_MODE: authenticated
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: private
+      PAPERCLIP_PUBLIC_URL: ${URL_PUBLICA:-http://localhost:3100}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    ports:
+      - "${PORTA_PAPERCLIP:-3100}:3100"
+    volumes:
+      - dados:/paperclip
+      - ${PASTA_TRABALHO:-./trabalho}:/trabalho
+volumes:
+  dados: {}

@@ -1,0 +1,13 @@
+# nome: Lab Dynamips (7200 e 3725 com IOL)
+# categoria: Redes
+# descrição: Um 7200 e um 3725 emulados pelo Dynamips, ligados entre si e a um roteador IOL (r7200 f0/0 — r3725 f0/0; r7200 f1/0 — iol e0/0). Bom para estudar o IOS clássico (OSPF, EIGRP, BGP, NAT) junto com o IOL. Roda em Linux ou Mac com o dynamips instalado; o IOL precisa de Linux x86_64. Depois de subir, calcule o idle-PC de cada roteador em Gerenciar. Precisa das imagens cisco-c7200, cisco-c3725 e cisco-iol (Configurações › Geral › Imagens de VM).
+x-vms:
+  r7200:
+    image: cisco-c7200
+    interfaces: [r7200-r3725, r7200-iol, none]
+  r3725:
+    image: cisco-c3725
+    interfaces: [r7200-r3725, none]
+  iol:
+    image: cisco-iol
+    interfaces: [r7200-iol, none, none, none]

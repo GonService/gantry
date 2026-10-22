@@ -1,0 +1,13 @@
+# nome: VM com Podman
+# categoria: VMs
+# descrição: Debian 12 com Podman e podman-compose, pronta para virar um host do Gantry (adicione por ssh:// com a porta SSH da VM).
+x-vms:
+  podman:
+    image: debian-12
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: ${DISCO:-20G}
+    packages: [podman, podman-compose, uidmap, slirp4netns, curl]
+    run:
+      - loginctl enable-linger gantry
+      - sudo -u gantry XDG_RUNTIME_DIR=/run/user/1000 systemctl --user enable --now podman.socket || true

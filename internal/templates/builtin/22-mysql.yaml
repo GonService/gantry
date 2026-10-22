@@ -1,0 +1,16 @@
+# nome: MySQL
+# categoria: Bancos de dados
+# descrição: MySQL 8 com os dados num volume.
+services:
+  db:
+    image: mysql:${VERSAO_MYSQL:-8.4}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina a senha do root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+    ports:
+      - "${PORTA:-3306}:3306"
+    volumes:
+      - dados:/var/lib/mysql
+volumes:
+  dados: {}

@@ -1,0 +1,2934 @@
+{
+  "uid": "topologia",
+  "title": "Topologia",
+  "tags": [
+    "lab",
+    "mpls"
+  ],
+  "timezone": "browser",
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "canvas",
+      "title": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prom"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "expr": "up{job=\"rede\"}",
+          "legendFormat": "{{device}}",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "expr": "max by (device) (cpmCPUTotal5minRev{job=\"rede\"}) or max by (device) (avgBusy5{job=\"rede\"})",
+          "legendFormat": "cpu {{device}}",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "expr": "ifOperStatus{job=\"rede\",ifName=~\"Et.*\"}",
+          "legendFormat": "if {{device}} {{ifName}}",
+          "instant": true
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prom"
+          },
+          "expr": "(rate(ifHCInOctets{job=\"rede\",ifName=~\"Et.*\"}[2m]) + rate(ifHCOutOctets{job=\"rede\",ifName=~\"Et.*\"}[2m])) * 8",
+          "legendFormat": "bps {{device}} {{ifName}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#c4162a",
+                "value": null
+              },
+              {
+                "color": "#37872d",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^cpu .*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#c7d0d9",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 60
+                    },
+                    {
+                      "color": "red",
+                      "value": 85
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^if .*"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#73bf69",
+                      "value": null
+                    },
+                    {
+                      "color": "#f2495c",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^bps .*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 60000
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "inlineEditing": false,
+        "showAdvancedTypes": true,
+        "panZoom": true,
+        "infinitePan": false,
+        "root": {
+          "type": "frame",
+          "name": "Topologia",
+          "elements": [
+            {
+              "type": "rectangle",
+              "name": "cli-a1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 4.5,
+                "right": 89.5,
+                "top": 10.0,
+                "bottom": 84.889
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-a1b",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 4.5,
+                "right": 89.5,
+                "top": 25.556,
+                "bottom": 69.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a1b"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "SW-A1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 15.5,
+                "right": 78.5,
+                "top": 16.667,
+                "bottom": 78.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "SW-A1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "SW-A1",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#3274d9"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -1.0,
+                    "y": 0.711
+                  },
+                  "target": {
+                    "x": 1.0,
+                    "y": -0.711
+                  },
+                  "targetName": "cli-a1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A1 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A1 Et0/1"
+                  }
+                },
+                {
+                  "source": {
+                    "x": -1.0,
+                    "y": -0.949
+                  },
+                  "target": {
+                    "x": 1.0,
+                    "y": 0.949
+                  },
+                  "targetName": "cli-a1b",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A1 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A1 Et0/2"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do SW-A1",
+                  "url": "/d/equipamento/equipamento?var-device=SW-A1&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no SW-A1 (telnet 172.16.1.2)",
+                  "url": "/terminal/?arg=172.16.1.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "CE-A1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 26.5,
+                "right": 67.5,
+                "top": 16.667,
+                "bottom": 78.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "CE-A1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "CE-A1",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#e0752d"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "SW-A1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if CE-A1 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps CE-A1 Et0/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do CE-A1",
+                  "url": "/d/equipamento/equipamento?var-device=CE-A1&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no CE-A1 (telnet 10.255.1.1)",
+                  "url": "/terminal/?arg=10.255.1.1",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-b1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 15.5,
+                "right": 78.5,
+                "top": 45.556,
+                "bottom": 49.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-b1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "CE-B1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 26.5,
+                "right": 67.5,
+                "top": 45.556,
+                "bottom": 49.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "CE-B1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "CE-B1",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#e0752d"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "cli-b1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if CE-B1 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps CE-B1 Et0/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do CE-B1",
+                  "url": "/d/equipamento/equipamento?var-device=CE-B1&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no CE-B1 (telnet 10.255.2.1)",
+                  "url": "/terminal/?arg=10.255.2.1",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "PE1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 37.5,
+                "right": 56.5,
+                "top": 31.111,
+                "bottom": 63.778
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "PE1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "PE1",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8f3bb8"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -0.649,
+                    "y": 1.0
+                  },
+                  "target": {
+                    "x": 0.649,
+                    "y": -1.0
+                  },
+                  "targetName": "CE-A1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE1 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE1 Et0/2"
+                  }
+                },
+                {
+                  "source": {
+                    "x": -0.649,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.649,
+                    "y": 1.0
+                  },
+                  "targetName": "CE-B1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE1 Et0/3",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE1 Et0/3"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do PE1",
+                  "url": "/d/equipamento/equipamento?var-device=PE1&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no PE1 (telnet 10.255.0.11)",
+                  "url": "/terminal/?arg=10.255.0.11",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "P1",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 16.667,
+                "bottom": 78.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "P1"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "P1",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#1f60c4"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 0.0,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.0,
+                    "y": 1.0
+                  },
+                  "targetName": "P2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P1 Et0/0",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P1 Et0/0"
+                  }
+                },
+                {
+                  "source": {
+                    "x": -0.649,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.649,
+                    "y": 1.0
+                  },
+                  "targetName": "PE1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P1 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P1 Et0/1"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "PE2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P1 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P1 Et0/2"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.324,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": -0.324,
+                    "y": 1.0
+                  },
+                  "targetName": "PE3",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P1 Et0/3",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P1 Et0/3"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do P1",
+                  "url": "/d/equipamento/equipamento?var-device=P1&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no P1 (telnet 10.255.0.1)",
+                  "url": "/terminal/?arg=10.255.0.1",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "P2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 45.556,
+                "bottom": 49.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "P2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "P2",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#1f60c4"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -0.649,
+                    "y": 1.0
+                  },
+                  "target": {
+                    "x": 0.649,
+                    "y": -1.0
+                  },
+                  "targetName": "PE1",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P2 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P2 Et0/1"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.324,
+                    "y": 1.0
+                  },
+                  "target": {
+                    "x": -0.324,
+                    "y": -1.0
+                  },
+                  "targetName": "PE2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P2 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P2 Et0/2"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "PE3",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if P2 Et0/3",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps P2 Et0/3"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do P2",
+                  "url": "/d/equipamento/equipamento?var-device=P2&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no P2 (telnet 10.255.0.2)",
+                  "url": "/terminal/?arg=10.255.0.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "PE2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 16.667,
+                "bottom": 78.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "PE2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "PE2",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8f3bb8"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.711
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": -0.711
+                  },
+                  "targetName": "CE-A2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE2 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE2 Et0/2"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do PE2",
+                  "url": "/d/equipamento/equipamento?var-device=PE2&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no PE2 (telnet 10.255.0.12)",
+                  "url": "/terminal/?arg=10.255.0.12",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "PE3",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 45.556,
+                "bottom": 49.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "PE3"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "PE3",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8f3bb8"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 0.843,
+                    "y": 1.0
+                  },
+                  "target": {
+                    "x": -0.843,
+                    "y": -1.0
+                  },
+                  "targetName": "CE-A3",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE3 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE3 Et0/2"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.602,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": -0.602,
+                    "y": 1.0
+                  },
+                  "targetName": "CE-B2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE3 Et0/3",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE3 Et0/3"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.0,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.0,
+                    "y": 1.0
+                  },
+                  "targetName": "NOC",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE3 Et1/0",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE3 Et1/0"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.35,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.35,
+                    "y": 1.0
+                  },
+                  "targetName": "NOC",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if PE3 Et1/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps PE3 Et1/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do PE3",
+                  "url": "/d/equipamento/equipamento?var-device=PE3&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no PE3 (telnet 10.255.0.13)",
+                  "url": "/terminal/?arg=10.255.0.13",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "CE-A2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 10.0,
+                "bottom": 84.889
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "CE-A2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "CE-A2",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#e0752d"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "SW-A2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if CE-A2 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps CE-A2 Et0/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do CE-A2",
+                  "url": "/d/equipamento/equipamento?var-device=CE-A2&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no CE-A2 (telnet 10.255.1.2)",
+                  "url": "/terminal/?arg=10.255.1.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "SW-A2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 10.0,
+                "bottom": 84.889
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "SW-A2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "SW-A2",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#3274d9"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.474
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": -0.474
+                  },
+                  "targetName": "cli-a2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A2 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A2 Et0/1"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.937,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": -0.937,
+                    "y": 1.0
+                  },
+                  "targetName": "cli-a2b",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A2 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A2 Et0/2"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do SW-A2",
+                  "url": "/d/equipamento/equipamento?var-device=SW-A2&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no SW-A2 (telnet 172.16.2.2)",
+                  "url": "/terminal/?arg=172.16.2.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-a2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 5.556,
+                "bottom": 89.333
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-a2b",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 20.0,
+                "bottom": 74.889
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a2b"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "CE-A3",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 34.444,
+                "bottom": 60.444
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "CE-A3"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "CE-A3",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#e0752d"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "SW-A3",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if CE-A3 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps CE-A3 Et0/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do CE-A3",
+                  "url": "/d/equipamento/equipamento?var-device=CE-A3&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no CE-A3 (telnet 10.255.1.3)",
+                  "url": "/terminal/?arg=10.255.1.3",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "SW-A3",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 34.444,
+                "bottom": 60.444
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "SW-A3"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "SW-A3",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#3274d9"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.119
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": -0.119
+                  },
+                  "targetName": "cli-a3",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A3 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A3 Et0/1"
+                  }
+                },
+                {
+                  "source": {
+                    "x": 0.703,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": -0.703,
+                    "y": 1.0
+                  },
+                  "targetName": "cli-a3b",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if SW-A3 Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps SW-A3 Et0/2"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do SW-A3",
+                  "url": "/d/equipamento/equipamento?var-device=SW-A3&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no SW-A3 (telnet 172.16.3.2)",
+                  "url": "/terminal/?arg=172.16.3.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-a3",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 33.333,
+                "bottom": 61.556
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a3"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-a3b",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 47.778,
+                "bottom": 47.111
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-a3b"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "CE-B2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 61.111,
+                "bottom": 33.778
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "CE-B2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "CE-B2",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#e0752d"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "cli-b2",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if CE-B2 Et0/1",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps CE-B2 Et0/1"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do CE-B2",
+                  "url": "/d/equipamento/equipamento?var-device=CE-B2&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no CE-B2 (telnet 10.255.2.2)",
+                  "url": "/terminal/?arg=10.255.2.2",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "cli-b2",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 61.111,
+                "bottom": 33.778
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "cli-b2"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#3d4757"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "NOC",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 72.222,
+                "bottom": 22.667
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "NOC"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "field": "NOC",
+                  "fixed": "#5a5a5a"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#56a64b"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -0.469,
+                    "y": -1.0
+                  },
+                  "target": {
+                    "x": 0.469,
+                    "y": 1.0
+                  },
+                  "targetName": "prometheus",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "field": "if NOC Et0/2",
+                    "fixed": "#6e7681"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 9,
+                    "field": "bps NOC Et0/2"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Detalhes do NOC",
+                  "url": "/d/equipamento/equipamento?var-device=NOC&${__url_time_range}"
+                },
+                {
+                  "title": "Terminal no NOC (telnet 10.255.0.100)",
+                  "url": "/terminal/?arg=10.255.0.100",
+                  "targetBlank": true
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "name": "prometheus",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 92.222,
+                "bottom": 2.667
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "prometheus"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#2c6b5f"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "rectangle",
+              "name": "grafana",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 92.222,
+                "bottom": 2.667
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "grafana"
+                },
+                "size": 15,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#ffffff"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "#2c6b5f"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "#8e8e8e"
+                },
+                "width": 3,
+                "radius": 8
+              },
+              "oneClickMode": "off",
+              "connections": [
+                {
+                  "source": {
+                    "x": -1.0,
+                    "y": 0.0
+                  },
+                  "target": {
+                    "x": 1.0,
+                    "y": 0.0
+                  },
+                  "targetName": "prometheus",
+                  "path": "straight",
+                  "direction": "none",
+                  "color": {
+                    "fixed": "#3d4757"
+                  },
+                  "size": {
+                    "fixed": 2,
+                    "min": 2,
+                    "max": 2
+                  },
+                  "lineStyle": {
+                    "style": "dashed"
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "title": "Visão geral da rede",
+                  "url": "/d/rede-mpls"
+                }
+              ]
+            },
+            {
+              "type": "metric-value",
+              "name": "SW-A1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 15.5,
+                "right": 78.5,
+                "top": 21.778,
+                "bottom": 75.333
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu SW-A1",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "CE-A1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 26.5,
+                "right": 67.5,
+                "top": 21.778,
+                "bottom": 75.333
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu CE-A1",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "CE-B1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 26.5,
+                "right": 67.5,
+                "top": 50.667,
+                "bottom": 46.444
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu CE-B1",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "PE1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 37.5,
+                "right": 56.5,
+                "top": 36.222,
+                "bottom": 60.889
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu PE1",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "P1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 21.778,
+                "bottom": 75.333
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu P1",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "P2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 50.667,
+                "bottom": 46.444
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu P2",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "PE2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 21.778,
+                "bottom": 75.333
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu PE2",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "PE3 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 50.667,
+                "bottom": 46.444
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu PE3",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "CE-A2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 15.111,
+                "bottom": 82.0
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu CE-A2",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "SW-A2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 15.111,
+                "bottom": 82.0
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu SW-A2",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "CE-A3 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 39.555,
+                "bottom": 57.555
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu CE-A3",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "SW-A3 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 39.555,
+                "bottom": 57.555
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu SW-A3",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "CE-B2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 70.5,
+                "right": 23.5,
+                "top": 66.222,
+                "bottom": 30.889
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu CE-B2",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "metric-value",
+              "name": "NOC ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 59.5,
+                "right": 34.5,
+                "top": 77.333,
+                "bottom": 19.778
+              },
+              "config": {
+                "text": {
+                  "mode": "field",
+                  "field": "cpu NOC",
+                  "fixed": ""
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 4.5,
+                "right": 89.5,
+                "top": 15.111,
+                "bottom": 82.0
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.1.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a1b ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 4.5,
+                "right": 89.5,
+                "top": 30.667,
+                "bottom": 66.444
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.1.11"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 10.667,
+                "bottom": 86.444
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.2.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a2b ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 25.111,
+                "bottom": 72.0
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.2.11"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a3 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 38.444,
+                "bottom": 58.667
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.3.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-a3b ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 92.5,
+                "right": 1.5,
+                "top": 52.889,
+                "bottom": 44.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.16.3.11"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-b1 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 15.5,
+                "right": 78.5,
+                "top": 50.667,
+                "bottom": 46.444
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.17.1.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "cli-b2 ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 81.5,
+                "right": 12.5,
+                "top": 66.222,
+                "bottom": 30.889
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "172.17.2.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            },
+            {
+              "type": "text",
+              "name": "prometheus ·",
+              "constraint": {
+                "horizontal": "scale",
+                "vertical": "scale"
+              },
+              "placement": {
+                "left": 48.5,
+                "right": 45.5,
+                "top": 97.333,
+                "bottom": -0.222
+              },
+              "config": {
+                "text": {
+                  "mode": "fixed",
+                  "fixed": "10.250.0.10"
+                },
+                "size": 12,
+                "align": "center",
+                "valign": "middle",
+                "color": {
+                  "fixed": "#c7d0d9"
+                }
+              },
+              "background": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "border": {
+                "color": {
+                  "fixed": "transparent"
+                }
+              },
+              "oneClickMode": "off",
+              "connections": [],
+              "links": []
+            }
+          ],
+          "background": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "border": {
+            "color": {
+              "fixed": "transparent"
+            }
+          },
+          "constraint": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "placement": {
+            "left": 0,
+            "top": 0,
+            "width": 100,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Como ler:** caixa verde = equipamento respondendo (SNMP), vermelha = sem resposta; o número embaixo é a CPU (5 min). Borda: azul escuro P, roxo PE, laranja CE, azul L2, verde NOC. Cabo verde = interface up, vermelho = down; mais grosso = mais tráfego. **Passe o mouse num equipamento** para abrir os detalhes dele ou um terminal (telnet, admin/admin). Roda do mouse aproxima, arrastar move o desenho."
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Painéis do lab",
+      "type": "dashboards",
+      "tags": [
+        "lab"
+      ],
+      "asDropdown": true
+    }
+  ]
+}

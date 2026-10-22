@@ -1,0 +1,11 @@
+# A fonte de dados do Grafana: o Prometheus do lab.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prom
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 30s

@@ -1,0 +1,24 @@
+# nome: Prometheus + Grafana
+# categoria: Observabilidade
+# descrição: Coleta de métricas e dashboards.
+services:
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.0
+    restart: unless-stopped
+    ports:
+      - "${PORTA_PROMETHEUS:-9090}:9090"
+    volumes:
+      - prom:/prometheus
+  grafana:
+    image: docker.io/grafana/grafana:11.1.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SENHA:?senha do admin}
+    ports:
+      - "${PORTA_GRAFANA:-3000}:3000"
+    volumes:
+      - grafana:/var/lib/grafana
+    depends_on: [prometheus]
+volumes:
+  prom: {}
+  grafana: {}

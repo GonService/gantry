@@ -1,0 +1,14 @@
+{
+  "+ Nova pasta": "+ New folder",
+  "Criar e usar esta pasta": "Create and use this folder",
+  "Ir": "Go",
+  "Mostrar pastas ocultas": "Show hidden folders",
+  "Nenhuma pasta aqui.": "No folders here.",
+  "Nome da nova pasta": "Name of the new folder",
+  "Pasta de cima": "Parent folder",
+  "Sem permissão para criar pastas aqui": "No permission to create folders here",
+  "Usar esta pasta": "Use this folder",
+  "nome-da-pasta": "folder-name",
+  "{path} ainda não existe. A lista mostra a pasta mais próxima que existe.": "{path} does not exist yet. The list shows the nearest folder that exists.",
+  "Este host não dá acesso às pastas da máquina: digite o caminho.": "This host gives no access to the machine's folders: type the path."
+}

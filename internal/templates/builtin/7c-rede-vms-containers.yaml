@@ -1,0 +1,28 @@
+# nome: Rede: VMs e containers
+# categoria: VMs
+# descrição: Demonstração da rede do projeto: um Nginx numa VM, outra VM e um container que acessam o Nginx pelo nome "web". Veja nos Logs do container. Precisa da rede entre VMs ativada na máquina.
+x-gantry:
+  runtime: ${ENGINE:-podman}
+  lan: true
+
+services:
+  verificador:
+    image: docker.io/curlimages/curl:8.10.1
+    restart: unless-stopped
+    entrypoint: ["sh", "-c"]
+    command:
+      - while true; do date; curl -s -m 3 http://web/ || echo "web ainda não responde"; echo; sleep 10; done
+
+x-vms:
+  web:
+    image: debian-12
+    packages: [nginx]
+    run:
+      - echo '<meta charset="utf-8"><h1>Olá da VM web, pela rede do projeto</h1>' > /var/www/html/index.html
+      - systemctl restart nginx
+  cliente:
+    image: debian-12
+    packages: [curl]
+    run:
+      - sleep 30
+      - curl -s -m 5 http://web/ > /root/resposta-do-web.html

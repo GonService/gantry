@@ -1,0 +1,16 @@
+# nome: VM NixOS com Nginx
+# categoria: VMs
+# descrição: Uma VM NixOS configurada pelo módulo web.nix do projeto. Edite o arquivo e use Aplicar na página do projeto: a VM roda nixos-rebuild sem recriar o disco. Precisa da imagem nixos-lab-26.05 (Configurações › Geral › Imagens de VM).
+x-vms:
+  web:
+    image: nixos-lab-26.05
+    cpus: 2
+    memory: 2048
+    disk: 10G
+    nix:
+      module: ./web.nix
+      params:
+        httpPort: ${HTTP_PORT:-80}
+        title: "${TITLE:-Lab web}"
+    ports:
+      - "8080:${HTTP_PORT:-80}"

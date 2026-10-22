@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gantry</title>
+<meta name="description" content="One desktop app for containers, compose projects, VMs, network labs and Kubernetes clusters, on this computer and on your servers over SSH. Free software (AGPL-3.0).">
+<meta property="og:title" content="Gantry">
+<meta property="og:description" content="Containers, compose projects, VMs, Cisco network labs and Kubernetes in one desktop app. Local and over SSH, no agent required.">
+<meta property="og:image" content="img/en/topology.png">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #eef2f1;
+  --surface: #ffffff;
+  --ink: #14211e;
+  --muted: #55665f;
+  --line: #d3dcd9;
+  --green: #1e6f5c;
+  --green-ink: #ffffff;
+  --beam: #f2b705;
+  --beam-ink: #2a2100;
+  --code-bg: #14211e;
+  --code-ink: #dfe9e6;
+  --shadow: 0 1px 0 rgba(20, 33, 30, .06), 0 18px 40px -24px rgba(20, 33, 30, .35);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1614;
+    --surface: #15201d;
+    --ink: #e4ecea;
+    --muted: #93a49f;
+    --line: #26332f;
+    --green: #3fa58b;
+    --green-ink: #06120f;
+    --beam: #f2b705;
+    --beam-ink: #2a2100;
+    --code-bg: #0a100e;
+    --code-ink: #d4e2de;
+    --shadow: 0 18px 40px -24px rgba(0, 0, 0, .8);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1614; --surface: #15201d; --ink: #e4ecea; --muted: #93a49f; --line: #26332f;
+  --green: #3fa58b; --green-ink: #06120f; --code-bg: #0a100e; --code-ink: #d4e2de;
+  --shadow: 0 18px 40px -24px rgba(0, 0, 0, .8); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
+  font-variation-settings: "wdth" 100;
+}
+a { color: var(--green); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--beam); outline-offset: 2px; border-radius: 4px; }
+img { max-width: 100%; height: auto; display: block; }
+html, body { overflow-x: clip; }
+code, pre { font-family: "JetBrains Mono", ui-monospace, monospace; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+header.top { display: flex; align-items: center; gap: 24px; padding: 20px 0; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 750; font-size: 20px; font-variation-settings: "wdth" 115; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; }
+nav.links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+nav.links a { color: var(--ink); text-decoration: none; font-size: 15px; }
+nav.links a:hover { color: var(--green); }
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.lang button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 5px 11px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+/* Hero */
+.hero { padding: 48px 0 0; }
+.hero h1 {
+  font-size: clamp(40px, 6.4vw, 84px);
+  line-height: .98;
+  letter-spacing: -.02em;
+  font-weight: 800;
+  font-variation-settings: "wdth" 120;
+  margin: 0 0 24px;
+  max-width: 14ch;
+}
+.hero p.lead { font-size: clamp(18px, 2vw, 21px); color: var(--muted); max-width: 58ch; margin: 0 0 32px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 22px; border-radius: 10px; font-weight: 650; font-size: 16px;
+  text-decoration: none; border: 1.5px solid transparent; cursor: pointer;
+}
+.btn.primary { background: var(--green); color: var(--green-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+.btn.ghost:hover { border-color: var(--ink); }
+.hero .note { color: var(--muted); font-size: 14px; margin-top: 14px; }
+
+/* The gantry: a yellow beam the screenshot hangs from */
+.gantry { position: relative; margin: 64px 0 0; padding-top: 56px; }
+.gantry .beam {
+  position: absolute; top: 0; left: -24px; right: -24px; height: 18px;
+  background: var(--beam); border-radius: 3px;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .12);
+}
+.gantry .trolley {
+  position: absolute; top: -6px; width: 64px; height: 30px; border-radius: 4px;
+  background: var(--ink);
+}
+.gantry .trolley::after {
+  content: ""; position: absolute; left: 50%; top: 30px; width: 2px; height: 26px; background: var(--ink); transform: translateX(-50%);
+}
+.gantry .t1 { left: 18%; }
+.gantry .t2 { right: 18%; }
+.shot {
+  border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  background: var(--surface); box-shadow: var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .gantry .shot { animation: lower 1.1s cubic-bezier(.2, .7, .2, 1) .15s both; }
+  .gantry .trolley { animation: roll 1.1s cubic-bezier(.2, .7, .2, 1) both; }
+  @keyframes lower { from { transform: translateY(-36px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes roll { from { transform: translateX(-40px); } to { transform: none; } }
+}
+
+/* Sections */
+section.block { padding: 96px 0 0; }
+h2 {
+  font-size: clamp(30px, 3.6vw, 46px); line-height: 1.05; letter-spacing: -.015em;
+  font-weight: 780; font-variation-settings: "wdth" 115; margin: 0 0 16px; max-width: 22ch;
+}
+.sub { color: var(--muted); max-width: 62ch; margin: 0 0 40px; font-size: 18px; }
+
+/* Feature switcher */
+.tour { display: grid; grid-template-columns: 300px 1fr; gap: 32px; align-items: start; }
+.tour [role="tablist"] { display: flex; flex-direction: column; gap: 4px; }
+.tour [role="tab"] {
+  text-align: left; font: inherit; color: var(--ink); background: transparent; cursor: pointer;
+  border: 0; border-left: 3px solid var(--line); padding: 12px 16px;
+}
+.tour [role="tab"] b { display: block; font-size: 17px; font-weight: 680; }
+.tour [role="tab"] span { display: block; color: var(--muted); font-size: 14.5px; line-height: 1.45; margin-top: 2px; }
+.tour [role="tab"][aria-selected="true"] { border-left-color: var(--beam); background: var(--surface); border-radius: 0 10px 10px 0; }
+.tour [role="tab"]:not([aria-selected="true"]) span { display: none; }
+
+/* Labs */
+.labs { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; align-items: start; }
+pre.compose {
+  margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 12px;
+  padding: 22px 22px; font-size: 13px; line-height: 1.6; overflow-x: auto;
+}
+pre.compose .k { color: #8fd3c0; }
+pre.compose .c { color: #7d8f8a; }
+pre.compose .y { color: #f2c94c; }
+.labs .stack { display: grid; gap: 20px; }
+.labs ul { margin: 24px 0 0; padding-left: 20px; color: var(--muted); }
+.labs li { margin: 6px 0; }
+
+/* Without */
+.without { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; border-top: 2px solid var(--ink); }
+.without div { padding: 22px 0; border-bottom: 1px solid var(--line); }
+.without h3 { margin: 0 0 6px; font-size: 20px; font-weight: 700; font-variation-settings: "wdth" 110; }
+.without p { margin: 0; color: var(--muted); }
+
+/* Download */
+.dl { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 40px; align-items: start; }
+table.files { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+table.files th, table.files td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.files tr:last-child td { border-bottom: 0; }
+table.files th { font-size: 14px; color: var(--muted); font-weight: 600; }
+table.files td:first-child { font-weight: 600; }
+table.files td a { overflow-wrap: anywhere; }
+table.files td small { display: block; color: var(--muted); font-weight: 400; font-size: 14px; }
+.brew { background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 18px 20px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.brew code { font-size: 14px; overflow-x: auto; white-space: nowrap; }
+.brew button { font: inherit; font-size: 13px; border: 1px solid #3a4b46; background: transparent; color: var(--code-ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.side h3 { margin: 28px 0 8px; font-size: 18px; }
+.side p, .side li { color: var(--muted); font-size: 15.5px; }
+.side ul { padding-left: 20px; margin: 0; }
+.version { color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+footer { margin-top: 120px; padding: 40px 0 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+footer a { color: var(--ink); }
+
+@media (max-width: 900px) {
+  nav.links a.opt { display: none; }
+  .tour, .labs, .dl { grid-template-columns: minmax(0, 1fr); }
+  .tour [role="tablist"] { flex-direction: row; overflow-x: auto; gap: 0; }
+  .tour [role="tab"] { border-left: 0; border-bottom: 3px solid var(--line); white-space: nowrap; }
+  .tour [role="tab"][aria-selected="true"] { border-bottom-color: var(--beam); border-radius: 10px 10px 0 0; }
+  .tour [role="tab"] span { display: none !important; }
+  .without { grid-template-columns: 1fr; }
+  .gantry .trolley { width: 40px; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  header.top { gap: 12px; }
+  nav.links { gap: 12px; }
+  .gantry .beam { left: 0; right: 0; }
+  table.files th, table.files td { padding: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#"><img src="icon.png" alt="">Gantry</a>
+    <nav class="links" aria-label="Site">
+      <a class="opt" href="#tour" data-i="nav.tour">What it does</a>
+      <a class="opt" href="#labs" data-i="nav.labs">Network labs</a>
+      <a href="#download" data-i="nav.dl">Download</a>
+      <a class="opt" href="https://github.com/GonService/gantry">GitHub</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="pt" aria-pressed="false">PT</button>
+      </span>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1 data-i="hero.title">Every container, VM and lab you run, in one window.</h1>
+      <p class="lead" data-i="hero.lead">Gantry is a desktop app for Docker, Podman and containerd projects, QEMU virtual machines, Cisco network labs and Kubernetes clusters, on this computer and on your servers over SSH. Your compose files stay the source of truth, and nothing needs to be installed on the servers.</p>
+      <div class="actions">
+        <a class="btn primary" href="#download" data-i="hero.dl">Download Gantry</a>
+        <a class="btn ghost" href="https://github.com/GonService/gantry" data-i="hero.src">Source code on GitHub</a>
+      </div>
+      <p class="note" data-i="hero.note">Free software under AGPL-3.0. macOS, Linux and Windows (experimental).</p>
+
+      <div class="gantry">
+        <div class="beam" aria-hidden="true"></div>
+        <div class="trolley t1" aria-hidden="true"></div>
+        <div class="trolley t2" aria-hidden="true"></div>
+        <div class="shot">
+          <picture>
+            <source data-src="topology-dark" media="(prefers-color-scheme: dark)" srcset="img/en/topology-dark.png">
+            <img data-src="topology" src="img/en/topology.png" width="1440" height="900" alt="Gantry showing a network lab: three routers, two LANs, a PC and a server, wired by cables" data-alt="alt.hero">
+          </picture>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="tour">
+      <h2 data-i="tour.title">The machines you use, and what runs on them</h2>
+      <p class="sub" data-i="tour.sub">Gantry reads the state from each engine, so what you start in a terminal shows up right away. Pick a part to see it.</p>
+      <div class="tour">
+        <div role="tablist" aria-label="Features" data-alabel="tour.tabs">
+          <button role="tab" aria-selected="true" aria-controls="tour-shot" data-shot="machine"><b data-i="t1.b">Machines</b><span data-i="t1.s">This computer and your servers over SSH in one sidebar, with folders. Hardware and live usage, no agent.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="project"><b data-i="t2.b">Projects</b><span data-i="t2.s">Every compose project with its containers, ports that open in the browser, and one-click up, stop, restart and pull.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="editor"><b data-i="t3.b">Compose editor</b><span data-i="t3.s">Edit compose.yaml and .env in the app or in your editor. Gantry shows which services differ from the file and applies only what changed.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="templates"><b data-i="t4.b">Templates</b><span data-i="t4.s">More than 30 ready projects, or paste a compose or a docker run. Free ports and passwords are handled before anything starts.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="metrics"><b data-i="t5.b">Metrics</b><span data-i="t5.s">CPU and memory per container and VM, from 15 minutes to 24 hours.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="container"><b data-i="t6.b">Containers</b><span data-i="t6.s">Logs with filters, shell, files, resources, events, edit and recreate.</span></button>
+          <button role="tab" aria-selected="false" aria-controls="tour-shot" data-shot="tools"><b data-i="t7.b">Tools</b><span data-i="t7.s">What each machine is missing, with the install command for its system.</span></button>
+        </div>
+        <div class="shot" id="tour-shot" role="tabpanel">
+          <img id="tour-img" src="img/en/machine.png" width="1440" height="900" alt="" loading="lazy">
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="labs">
+      <h2 data-i="labs.title">Network labs that run on your laptop</h2>
+      <p class="sub" data-i="labs.sub">Cisco IOL, Dynamips and VPCS sit next to containers such as FRR or any Linux, in the same compose file, wired by cables. Gantry draws the topology, captures any cable live and imports PNETLab and EVE-NG labs as they are.</p>
+      <div class="labs">
+        <div>
+<pre class="compose" aria-label="compose.yaml"><span class="k">services:</span>
+  <span class="k">r1:</span>
+    <span class="k">image:</span> frrouting/frr:8.4.4
+    <span class="k">x-interfaces:</span>
+      - {<span class="k">rede:</span> lan-a, <span class="k">ip:</span> 10.0.1.1/24}
+      - {<span class="k">link:</span> r1-r2, <span class="k">ip:</span> 10.0.12.1/30}
+  <span class="k">r2:</span>
+    <span class="k">image:</span> frrouting/frr:8.4.4
+    <span class="k">x-interfaces:</span>
+      - {<span class="k">link:</span> r1-r2, <span class="k">ip:</span> 10.0.12.2/30}
+
+<span class="k">x-vms:</span>
+  <span class="k">pc1:</span>
+    <span class="k">image:</span> <span class="y">vpcs</span>
+    <span class="k">interfaces:</span> [lan-a]
+  <span class="k">R3:</span>
+    <span class="k">image:</span> <span class="y">cisco-c7200</span>   <span class="c"># or cisco-iol</span>
+    <span class="k">interfaces:</span> [r1-r3, r2-r3]</pre>
+          <ul>
+            <li data-i="labs.l1">Drag a port to another to wire a cable; right-click a device for its console.</li>
+            <li data-i="labs.l2">Save the state of every device and go back to it, like a save point in an exercise.</li>
+            <li data-i="labs.l3">Imports keep the same devices, cards, cables and configs, mistakes included. What had to change is written down.</li>
+          </ul>
+        </div>
+        <div class="stack">
+          <div class="shot"><img data-src="capture" src="img/en/capture.png" width="1440" height="900" alt="A live capture of a lab network showing OSPF hellos and pings" data-alt="alt.capture" loading="lazy"></div>
+          <div class="shot"><img data-src="cables" src="img/en/cables.png" width="1440" height="900" alt="The cables of each device, with addresses" data-alt="alt.cables" loading="lazy"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2 data-i="w.title">What you don't need</h2>
+      <p class="sub" data-i="w.sub">Gantry is one binary on your computer. Everything else is what you already have.</p>
+      <div class="without">
+        <div><h3 data-i="w1.h">A server to host the dashboard</h3><p data-i="w1.p">The interface runs inside the app, on 127.0.0.1, with a new token at every launch.</p></div>
+        <div><h3 data-i="w2.h">An agent on every server</h3><p data-i="w2.p">SSH and the engine socket are enough. A small optional agent adds 24 h of metrics history and a direct TLS link.</p></div>
+        <div><h3 data-i="w3.h">A new project format</h3><p data-i="w3.p">A project is a compose.yaml that docker compose still runs without Gantry. The extras are optional x- keys.</p></div>
+        <div><h3 data-i="w4.h">A dedicated lab appliance</h3><p data-i="w4.p">Routers, switches, PCs, containers and VMs share one compose, on a Mac or any Linux box.</p></div>
+        <div><h3 data-i="w5.h">kubectl and another IDE for clusters</h3><p data-i="w5.p">Workloads, logs, shell, port forward, Helm and CRDs sit next to your machines, with a read-only mode per cluster.</p></div>
+        <div><h3 data-i="w6.h">Passwords in plain .env files</h3><p data-i="w6.p">Secrets can live in the system keychain and are handed to compose only when it runs.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="download">
+      <h2 data-i="dl.title">Download</h2>
+      <p class="sub" data-i="dl.sub">Pick your system. The apps are not signed yet: Homebrew handles it on macOS; with the zip, open it the first time with right-click › Open.</p>
+      <div class="dl">
+        <div>
+          <table class="files">
+            <thead><tr><th data-i="dl.sys">System</th><th data-i="dl.file">File</th></tr></thead>
+            <tbody>
+              <tr><td><span data-i="dl.mac">macOS</span><small data-i="dl.mac.s">Apple Silicon and Intel</small></td><td><a data-file="Gantry-{v}-macos.zip" href="#">Gantry-macos.zip</a></td></tr>
+              <tr><td><span data-i="dl.linux">Linux desktop app</span><small data-i="dl.linux.s">x86_64, needs WebKitGTK 4.1; run ./instalar.sh</small></td><td><a data-file="Gantry-{v}-linux-amd64.tar.gz" href="#">Gantry-linux-amd64.tar.gz</a></td></tr>
+              <tr><td><span data-i="dl.win">Windows</span><small data-i="dl.win.s">Experimental, runs engines and VMs inside WSL2</small></td><td><a data-file="Gantry-{v}-windows.zip" href="#">Gantry-windows.zip</a></td></tr>
+              <tr><td><span data-i="dl.srv">Headless Linux server</span><small data-i="dl.srv.s">No window: the interface opens in a browser</small></td><td><a data-file="gantry-servidor-{v}-linux-amd64.tar.gz" href="#">amd64</a> · <a data-file="gantry-servidor-{v}-linux-arm64.tar.gz" href="#">arm64</a></td></tr>
+            </tbody>
+          </table>
+          <p class="version"><span data-i="dl.ver">Version</span> <b id="ver">0.47.1</b> · <a id="all" href="https://github.com/GonService/gantry/releases" data-i="dl.all">all versions and checksums</a></p>
+        </div>
+        <div class="side">
+          <div class="brew"><code id="brew">brew install --cask gonservice/tap/gantry</code><button type="button" id="copy" data-i="dl.copy">Copy</button></div>
+          <h3 data-i="dl.next">Then</h3>
+          <ul>
+            <li data-i="dl.n1">The first screen shows what Gantry found on this computer and offers the servers in ~/.ssh/config and the clusters in ~/.kube/config.</li>
+            <li data-i="dl.n2">Your running compose projects are already listed.</li>
+            <li><a href="https://github.com/GonService/gantry/blob/main/docs/guide/README.md" data-guide data-i="dl.n3">Read the step-by-step guide</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span data-i="f.made">Gantry by GonService. Free software under the GNU AGPL-3.0.</span>
+    <span>
+      <a href="https://github.com/GonService/gantry">GitHub</a> ·
+      <a href="https://github.com/GonService/gantry/blob/main/docs/guide/README.md" data-guide data-i="f.guide">Guide</a> ·
+      <a href="https://github.com/GonService/gantry/blob/main/docs/reference.md" data-ref data-i="f.ref">Reference</a> ·
+      <a href="https://github.com/GonService/gantry/blob/main/SECURITY.md" data-i="f.sec">Security</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var PT = {
+    "nav.tour": "O que faz", "nav.labs": "Labs de rede", "nav.dl": "Baixar",
+    "hero.title": "Todos os containers, VMs e labs que você roda, numa janela só.",
+    "hero.lead": "O Gantry é um app desktop para projetos no Docker, no Podman e no containerd, máquinas virtuais QEMU, labs de rede Cisco e clusters Kubernetes, neste computador e nos seus servidores via SSH. Os seus arquivos compose continuam sendo a fonte, e nada precisa ser instalado nos servidores.",
+    "hero.dl": "Baixar o Gantry", "hero.src": "Código no GitHub",
+    "hero.note": "Software livre sob a AGPL-3.0. macOS, Linux e Windows (experimental).",
+    "alt.hero": "O Gantry mostrando um lab de rede: três roteadores, duas LANs, um PC e um servidor, ligados por cabos",
+    "tour.title": "As máquinas que você usa, e o que roda nelas",
+    "tour.sub": "O Gantry lê o estado de cada engine, então o que você sobe no terminal aparece na hora. Escolha uma parte para ver.",
+    "tour.tabs": "Funções",
+    "t1.b": "Máquinas", "t1.s": "Este computador e os seus servidores via SSH numa barra lateral, com pastas. Hardware e uso ao vivo, sem agente.",
+    "t2.b": "Projetos", "t2.s": "Todo projeto compose com os containers, as portas que abrem no navegador e subir, parar, reiniciar e atualizar com um clique.",
+    "t3.b": "Editor do compose", "t3.s": "Edite o compose.yaml e o .env no app ou no seu editor. O Gantry mostra quais serviços estão diferentes do arquivo e aplica só o que mudou.",
+    "t4.b": "Modelos", "t4.s": "Mais de 30 projetos prontos, ou cole um compose ou um docker run. Portas livres e senhas são resolvidas antes de qualquer coisa subir.",
+    "t5.b": "Métricas", "t5.s": "CPU e memória por container e VM, de 15 minutos a 24 horas.",
+    "t6.b": "Containers", "t6.s": "Logs com filtros, shell, arquivos, recursos, eventos, editar e recriar.",
+    "t7.b": "Ferramentas", "t7.s": "O que falta em cada máquina, com o comando de instalação do sistema dela.",
+    "labs.title": "Labs de rede que rodam no seu notebook",
+    "labs.sub": "Cisco IOL, Dynamips e VPCS ficam junto de containers como o FRR ou qualquer Linux, no mesmo compose, ligados por cabos. O Gantry desenha a topologia, captura qualquer cabo ao vivo e importa labs do PNETLab e do EVE-NG como eles são.",
+    "labs.l1": "Arraste uma porta até outra para ligar um cabo; botão direito num equipamento abre o console.",
+    "labs.l2": "Guarde o estado de todos os equipamentos e volte a ele, como um ponto de salvamento do exercício.",
+    "labs.l3": "A importação mantém os mesmos equipamentos, placas, cabos e configurações, erros incluídos. O que precisou mudar fica escrito.",
+    "alt.capture": "Captura ao vivo de uma rede do lab mostrando hellos do OSPF e pings",
+    "alt.cables": "Os cabos de cada equipamento, com os endereços",
+    "w.title": "O que você não precisa",
+    "w.sub": "O Gantry é um binário no seu computador. O resto é o que você já tem.",
+    "w1.h": "Um servidor para hospedar o painel", "w1.p": "A interface roda dentro do app, em 127.0.0.1, com um token novo a cada abertura.",
+    "w2.h": "Um agente em cada servidor", "w2.p": "SSH e o socket do engine bastam. Um agente pequeno e opcional acrescenta 24 h de histórico de métricas e uma conexão direta com TLS.",
+    "w3.h": "Um formato novo de projeto", "w3.p": "Um projeto é um compose.yaml que o docker compose roda sem o Gantry. Os extras são chaves x- opcionais.",
+    "w4.h": "Um servidor dedicado de labs", "w4.p": "Roteadores, switches, PCs, containers e VMs dividem um compose, num Mac ou em qualquer Linux.",
+    "w5.h": "kubectl e outra IDE para os clusters", "w5.p": "Workloads, logs, shell, encaminhar porta, Helm e CRDs ficam junto das suas máquinas, com modo só leitura por cluster.",
+    "w6.h": "Senhas em .env de texto puro", "w6.p": "Os segredos podem ficar no chaveiro do sistema e só são entregues ao compose na hora de rodar.",
+    "dl.title": "Baixar",
+    "dl.sub": "Escolha o seu sistema. Os apps ainda não são assinados: no macOS o Homebrew resolve; com o zip, abra a primeira vez com botão direito › Abrir.",
+    "dl.sys": "Sistema", "dl.file": "Arquivo",
+    "dl.mac": "macOS", "dl.mac.s": "Apple Silicon e Intel",
+    "dl.linux": "Linux, app desktop", "dl.linux.s": "x86_64, precisa do WebKitGTK 4.1; rode ./instalar.sh",
+    "dl.win": "Windows", "dl.win.s": "Experimental, roda os engines e as VMs dentro do WSL2",
+    "dl.srv": "Servidor Linux sem tela", "dl.srv.s": "Sem janela: a interface abre no navegador",
+    "dl.ver": "Versão", "dl.all": "todas as versões e checksums", "dl.copy": "Copiar", "dl.copied": "Copiado",
+    "dl.next": "Depois",
+    "dl.n1": "A primeira tela mostra o que o Gantry achou neste computador e oferece os servidores do ~/.ssh/config e os clusters do ~/.kube/config.",
+    "dl.n2": "Os projetos compose que já rodam aparecem na lista.",
+    "dl.n3": "Leia o guia passo a passo",
+    "f.made": "Gantry, da GonService. Software livre sob a GNU AGPL-3.0.",
+    "f.guide": "Guia", "f.ref": "Referência", "f.sec": "Segurança"
+  };
+  var EN = {};
+  var nodes = document.querySelectorAll("[data-i]");
+  nodes.forEach(function (n) { EN[n.getAttribute("data-i")] = n.textContent; });
+  document.querySelectorAll("[data-alt]").forEach(function (n) { EN[n.getAttribute("data-alt")] = n.getAttribute("alt"); });
+  EN["dl.copied"] = "Copied";
+  EN["tour.tabs"] = "Features";
+  var lang = "en";
+  var tr = function (k) { return (lang === "pt" ? PT : EN)[k] || EN[k] || ""; };
+  var store = { get: function () { try { return localStorage.getItem("gantry.site.lang"); } catch (e) { return null; } },
+                set: function (v) { try { localStorage.setItem("gantry.site.lang", v); } catch (e) {} } };
+  var GH = "https://github.com/GonService/gantry/blob/main/";
+
+  function apply(l) {
+    lang = l;
+    document.documentElement.lang = l === "pt" ? "pt-BR" : "en";
+    nodes.forEach(function (n) { n.textContent = tr(n.getAttribute("data-i")); });
+    document.querySelectorAll("[data-alt]").forEach(function (n) { n.setAttribute("alt", tr(n.getAttribute("data-alt"))); });
+    document.querySelectorAll("[data-alabel]").forEach(function (n) { n.setAttribute("aria-label", tr(n.getAttribute("data-alabel"))); });
+    document.querySelectorAll("img[data-src]").forEach(function (n) { n.src = "img/" + l + "/" + n.getAttribute("data-src") + ".png"; });
+    document.querySelectorAll("source[data-src]").forEach(function (n) { n.srcset = "img/" + l + "/" + n.getAttribute("data-src") + ".png"; });
+    document.querySelectorAll("[data-guide]").forEach(function (n) { n.href = GH + (l === "pt" ? "docs/guia/README.md" : "docs/guide/README.md"); });
+    document.querySelectorAll("[data-ref]").forEach(function (n) { n.href = GH + (l === "pt" ? "docs/referencia.md" : "docs/reference.md"); });
+    document.querySelectorAll(".lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === l)); });
+    showTab(current);
+  }
+
+  // Feature switcher
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tour [role="tab"]'));
+  var current = tabs[0];
+  var img = document.getElementById("tour-img");
+  var dark = window.matchMedia("(prefers-color-scheme: dark)");
+  function showTab(t) {
+    current = t;
+    tabs.forEach(function (x) { x.setAttribute("aria-selected", String(x === t)); x.tabIndex = x === t ? 0 : -1; });
+    var name = t.getAttribute("data-shot");
+    var hasDark = ["machine", "editor", "metrics", "topology"].indexOf(name) >= 0;
+    img.src = "img/" + lang + "/" + name + (hasDark && dark.matches ? "-dark" : "") + ".png";
+    img.alt = t.querySelector("b").textContent + ": " + t.querySelector("span").textContent;
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { showTab(t); });
+    t.addEventListener("keydown", function (e) {
+      var d = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var n = tabs[(i + d + tabs.length) % tabs.length];
+      n.focus(); showTab(n);
+    });
+  });
+  if (dark.addEventListener) dark.addEventListener("change", function () { showTab(current); });
+
+  document.querySelectorAll(".lang button").forEach(function (b) {
+    b.addEventListener("click", function () { var l = b.getAttribute("data-lang"); store.set(l); apply(l); });
+  });
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var b = this;
+    var done = function () { b.textContent = tr("dl.copied"); setTimeout(function () { b.textContent = tr("dl.copy"); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById("brew").textContent).then(done, function () {});
+  });
+
+  // Downloads: the newest release, from this repository (tags vX.Y.Z) or
+  // its copy in the homebrew-tap (tags gantry-vX.Y.Z), whichever is newer.
+  var SRC = {
+    repo: { api: "https://api.github.com/repos/GonService/gantry/releases?per_page=40", re: /^v(\d+\.\d+\.\d+)$/, dl: "https://github.com/GonService/gantry/releases/download/v", all: "https://github.com/GonService/gantry/releases" },
+    tap: { api: "https://api.github.com/repos/GonService/homebrew-tap/releases?per_page=40", re: /^gantry-v(\d+\.\d+\.\d+)$/, dl: "https://github.com/GonService/homebrew-tap/releases/download/gantry-v", all: "https://github.com/GonService/homebrew-tap/releases?q=gantry" }
+  };
+  function setVersion(v, src) {
+    document.getElementById("ver").textContent = v;
+    document.getElementById("all").href = src.all;
+    document.querySelectorAll("[data-file]").forEach(function (a) {
+      var f = a.getAttribute("data-file").replace("{v}", v);
+      a.href = src.dl + v + "/" + f;
+      if (a.textContent.indexOf("Gantry") === 0) a.textContent = f;
+    });
+  }
+  function newer(a, b) {
+    var x = a.split(".").map(Number), y = b.split(".").map(Number);
+    for (var i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+    return false;
+  }
+  function newest(src) {
+    return fetch(src.api).then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var m = src.re.exec(list[i].tag_name || "");
+        if (m && !list[i].draft && !list[i].prerelease) return { v: m[1], src: src };
+      }
+      return null;
+    }).catch(function () { return null; });
+  }
+  setVersion(document.getElementById("ver").textContent, SRC.tap);
+  Promise.all([newest(SRC.repo), newest(SRC.tap)]).then(function (r) {
+    var best = null;
+    r.forEach(function (x) { if (x && (!best || newer(x.v, best.v))) best = x; });
+    if (best) setVersion(best.v, best.src);
+  });
+
+  var q = new URLSearchParams(location.search).get("lang");
+  var start = q === "pt" || q === "en" ? q : store.get() || ((navigator.language || "").toLowerCase().indexOf("pt") === 0 ? "pt" : "en");
+  apply(start);
+})();
+</script>
+</body>
+</html>

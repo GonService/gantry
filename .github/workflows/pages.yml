@@ -1,0 +1,46 @@
+name: Site
+
+# The website (site/) on GitHub Pages, with the screenshots of docs/images.
+# Needs Settings › Pages › Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths: [site/**, docs/images/**, build/appicon.png, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp -r site/. _site/
+          cp -r docs/images _site/img
+          convert build/appicon.png -resize 192x192 _site/icon.png 2>/dev/null || cp build/appicon.png _site/icon.png
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,250 @@
+# Lab MPLS: um provedor com núcleo MPLS (OSPF + LDP) e L3VPN (MP-BGP) para
+# dois clientes, com switches L2 e computadores nos sites. A gerência é pela
+# própria rede: o Prometheus fica no NOC, um site atrás do PE3, e coleta tudo
+# por SNMP; o Grafana mostra a topologia e os painéis.
+#
+#   cli-a1/a1b─SW-A1─CE-A1─┐            ┌─PE2─CE-A2─SW-A2─cli-a2/a2b
+#                         PE1══P1══P2══┤
+#          cli-b1──CE-B1─┘   (MPLS)     └─PE3─CE-A3─SW-A3─cli-a3/a3b
+#                                        ├──CE-B2──cli-b2
+#                                        └══NOC──Prometheus, Grafana
+#
+# Arquivos do lab (todos nesta pasta):
+#   equipamentos/*.cfg   configuração IOS de cada equipamento (primeiro boot)
+#   prometheus/          prometheus.yml (o que coletar) e snmp.yml (as OIDs)
+#   grafana/             fonte de dados, provisionamento e os painéis (paineis/*.json)
+#   web/nginx.conf       Grafana e o terminal web no mesmo endereço
+#
+# Grafana: http://<host>:3000 (admin/admin)   Prometheus: http://<host>:9090
+name: lab-mpls
+
+# As imagens dos equipamentos, pelo nome usado em image:. O valor é o arquivo:
+# só o nome (o Gantry procura nas pastas de imagens da máquina) ou o caminho
+# completo. Trocar a versão do IOS é trocar esta linha.
+x-imagens:
+  iol-l3: i86bi_Linux-L3-AdvEnterpriseK9-M2_157_3_May_2018.bin     # roteadores (IOS 15.7)
+  iol-l2: i86bi_Linux-L2-Adventerprisek9-ms.SSA.high_iron_20190423.bin   # switches L2
+
+# Os equipamentos. interfaces: são os cabos, na ordem das portas (Et0/0,
+# Et0/1, ... quatro por slot); dois nós com o mesmo nome de cabo estão ligados.
+# pos: é o lugar no desenho da topologia do Gantry.
+x-vms:
+  # Núcleo
+  P1:
+    image: iol-l3
+    interfaces: [p1-p2, pe1-p1, pe2-p1, pe3-p1]
+    config: equipamentos/P1.cfg
+    pos: [920, 100]
+  P2:
+    image: iol-l3
+    interfaces: [p1-p2, pe1-p2, pe2-p2, pe3-p2]
+    config: equipamentos/P2.cfg
+    pos: [920, 360]
+  # Borda
+  PE1:
+    image: iol-l3
+    interfaces: [pe1-p1, pe1-p2, pe1-cea1, pe1-ceb1]
+    config: equipamentos/PE1.cfg
+    pos: [700, 230]
+  PE2:
+    image: iol-l3
+    interfaces: [pe2-p1, pe2-p2, pe2-cea2]
+    config: equipamentos/PE2.cfg
+    pos: [1140, 100]
+  PE3:
+    image: iol-l3
+    interfaces: [pe3-p1, pe3-p2, pe3-cea3, pe3-ceb2, pe3-noc, pe3-noc-vrf]
+    config: equipamentos/PE3.cfg
+    pos: [1140, 360]
+  # Gerência
+  NOC:
+    image: iol-l3
+    interfaces: [pe3-noc, pe3-noc-vrf, noc-lan]
+    config: equipamentos/NOC.cfg
+    pos: [1140, 600]
+  # CLIENTE-A
+  CE-A1:
+    image: iol-l3
+    interfaces: [pe1-cea1, cea1-swa1]
+    config: equipamentos/CE-A1.cfg
+    pos: [480, 100]
+  CE-A2:
+    image: iol-l3
+    interfaces: [pe2-cea2, cea2-swa2]
+    config: equipamentos/CE-A2.cfg
+    pos: [1360, 40]
+  CE-A3:
+    image: iol-l3
+    interfaces: [pe3-cea3, cea3-swa3]
+    config: equipamentos/CE-A3.cfg
+    pos: [1360, 260]
+  SW-A1:
+    image: iol-l2
+    interfaces: [cea1-swa1, swa1-cli1, swa1-cli2]
+    config: equipamentos/SW-A1.cfg
+    pos: [260, 100]
+  SW-A2:
+    image: iol-l2
+    interfaces: [cea2-swa2, swa2-cli1, swa2-cli2]
+    config: equipamentos/SW-A2.cfg
+    pos: [1580, 40]
+  SW-A3:
+    image: iol-l2
+    interfaces: [cea3-swa3, swa3-cli1, swa3-cli2]
+    config: equipamentos/SW-A3.cfg
+    pos: [1580, 260]
+  # CLIENTE-B
+  CE-B1:
+    image: iol-l3
+    interfaces: [pe1-ceb1, ceb1-lan]
+    config: equipamentos/CE-B1.cfg
+    pos: [480, 360]
+  CE-B2:
+    image: iol-l3
+    interfaces: [pe3-ceb2, ceb2-lan]
+    config: equipamentos/CE-B2.cfg
+    pos: [1360, 500]
+
+services:
+  # --- Monitoramento, na LAN do NOC (10.250.0.0/24, o NOC é o .1)
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.2
+    # root no container (no Podman sem root é o seu usuário): lê os arquivos
+    # montados qualquer que seja a permissão que eles chegaram ao host
+    user: "0:0"
+    ports: ["9090:9090"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
+              "--storage.tsdb.retention.time=15d", "--web.enable-lifecycle"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - prometheus:/prometheus
+    x-interfaces: [{link: noc-lan, ip: 10.250.0.10/24}]
+    x-icon: server
+    x-pos: [920, 780]
+  # Os containers abaixo usam a rede do Prometheus (network_mode), então
+  # também estão na LAN do NOC.
+  snmp-exporter:
+    image: docker.io/prom/snmp-exporter:v0.26.0
+    user: "0:0"
+    network_mode: "service:prometheus"
+    volumes: ["./prometheus/snmp.yml:/etc/snmp_exporter/snmp.yml:ro,z"]
+  # As rotas até a rede do lab: tudo pelo roteador NOC
+  rotas:
+    image: docker.io/library/busybox:1.36
+    network_mode: "service:prometheus"
+    cap_add: [NET_ADMIN]
+    command: ["sh", "-c", "while true; do ip route replace 10.0.0.0/8 via 10.250.0.1 dev eth1 2>/dev/null; ip route replace 172.16.0.0/15 via 10.250.0.1 dev eth1 2>/dev/null; sleep 10; done"]
+  # Ferramentas (snmpwalk, curl, telnet) e o terminal web dos links da
+  # Topologia: /terminal/?arg=<ip> abre um telnet para aquele equipamento
+  ferramentas:
+    image: docker.io/library/alpine:3.20
+    network_mode: "service:prometheus"
+    command: ["sh", "-c", "apk add --no-cache net-snmp-tools curl busybox-extras ttyd >/dev/null 2>&1; exec ttyd -W -a -p 7681 -b /terminal -t titleFixed=Lab telnet"]
+
+  # --- Grafana em :3000, atrás do nginx (web) que também entrega o terminal
+  grafana:
+    image: docker.io/grafana/grafana:11.3.0
+    user: "0:0"
+    ports: ["3000:80"]
+    depends_on: [prometheus, ferramentas]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/topologia.json
+    volumes:
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro,z
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/lab.yaml:ro,z
+      - ./grafana/paineis:/var/lib/grafana/dashboards:ro,z
+    x-icon: server
+    x-pos: [1360, 780]
+  web:
+    image: docker.io/library/nginx:1.27-alpine
+    network_mode: "service:grafana"
+    depends_on: [grafana]
+    environment:
+      NGINX_ENTRYPOINT_LOCAL_RESOLVERS: "1"
+    volumes: ["./web/nginx.conf:/etc/nginx/templates/default.conf.template:ro,z"]
+
+  # --- Sondas de ping (blackbox_exporter) dentro dos sites, na rede dos computadores
+  sonda-a:
+    image: docker.io/prom/blackbox-exporter:v0.25.0
+    network_mode: "service:cli-a1"
+    user: "0:0"
+    cap_add: [NET_RAW]
+  sonda-b:
+    image: docker.io/prom/blackbox-exporter:v0.25.0
+    network_mode: "service:cli-b1"
+    user: "0:0"
+    cap_add: [NET_RAW]
+
+  # --- Computadores dos clientes: busybox (ping, telnet, traceroute, wget).
+  # x-interfaces: o cabo até o switch (ou o CE) e o IP; o gateway é o CE.
+  cli-a1:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a1
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.1.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.1.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa1-cli1, ip: 172.16.1.10/24}]
+    x-icon: pc
+    x-pos: [40, 40]
+  cli-a1b:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a1b
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.1.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.1.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa1-cli2, ip: 172.16.1.11/24}]
+    x-icon: pc
+    x-pos: [40, 180]
+  cli-a2:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a2
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.2.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.2.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa2-cli1, ip: 172.16.2.10/24}]
+    x-icon: pc
+    x-pos: [1800, 0]
+  cli-a2b:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a2b
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.2.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.2.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa2-cli2, ip: 172.16.2.11/24}]
+    x-icon: pc
+    x-pos: [1800, 130]
+  cli-a3:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a3
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.3.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.3.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa3-cli1, ip: 172.16.3.10/24}]
+    x-icon: pc
+    x-pos: [1800, 250]
+  cli-a3b:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-a3b
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.16.3.1 dev eth1; ip route replace 10.255.0.0/16 via 172.16.3.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: swa3-cli2, ip: 172.16.3.11/24}]
+    x-icon: pc
+    x-pos: [1800, 380]
+  cli-b1:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-b1
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.17.1.1 dev eth1; ip route replace 10.255.0.0/16 via 172.17.1.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: ceb1-lan, ip: 172.17.1.10/24}]
+    x-icon: pc
+    x-pos: [260, 360]
+  cli-b2:
+    image: docker.io/library/busybox:1.36
+    hostname: cli-b2
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 172.16.0.0/15 via 172.17.2.1 dev eth1; ip route replace 10.255.0.0/16 via 172.17.2.1 dev eth1; while true; do sleep 3600; done"]
+    x-interfaces: [{link: ceb2-lan, ip: 172.17.2.10/24}]
+    x-icon: pc
+    x-pos: [1580, 500]
+
+volumes:
+  prometheus: {}

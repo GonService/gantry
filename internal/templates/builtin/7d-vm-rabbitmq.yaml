@@ -1,0 +1,20 @@
+# nome: VM com RabbitMQ
+# categoria: VMs
+# descrição: Debian 12 com RabbitMQ instalado no sistema (fora de container), com o painel de administração ligado.
+x-vms:
+  rabbit:
+    image: debian-12
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-1g}
+    disk: ${DISCO:-10G}
+    ports:
+      - "${PORTA_AMQP:-5672}:5672"
+      - "${PORTA_PAINEL:-15672}:15672"
+    packages: [rabbitmq-server]
+    run:
+      - rabbitmq-plugins enable rabbitmq_management
+      - systemctl restart rabbitmq-server
+      - rabbitmqctl await_startup
+      - rabbitmqctl add_user ${RABBIT_USUARIO:-gantry} '${RABBIT_SENHA:?defina a senha}'
+      - rabbitmqctl set_user_tags ${RABBIT_USUARIO:-gantry} administrator
+      - rabbitmqctl set_permissions -p / ${RABBIT_USUARIO:-gantry} ".*" ".*" ".*"

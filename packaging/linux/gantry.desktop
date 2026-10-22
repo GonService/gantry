@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Gantry
+GenericName=Containers, labs and VMs
+Comment=Containers, labs, VMs and Kubernetes clusters, local and remote
+Exec=gantry
+Icon=gantry
+Terminal=false
+Categories=Development;System;
+StartupWMClass=gantry

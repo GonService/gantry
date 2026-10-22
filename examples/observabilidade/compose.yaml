@@ -1,0 +1,33 @@
+# Prometheus e Loki no Podman, Grafana no Docker, num lab só.
+# Sem o Gantry, é um compose comum: docker compose up sobe tudo num engine.
+name: observabilidade
+
+x-gantry:
+  runtime: podman            # engine padrão dos serviços deste lab
+
+services:
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  loki:
+    image: docker.io/grafana/loki:3.1.0
+    ports: ["3100:3100"]
+
+  grafana:
+    image: docker.io/grafana/grafana:11.1.0
+    ports: ["3000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/gantry.yml:ro
+    # Engines diferentes não compartilham redes: o Grafana fala com o
+    # Prometheus e o Loki pelas portas publicadas no host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: [prometheus, loki]
+    x-gantry:
+      runtime: docker        # só este serviço roda no Docker

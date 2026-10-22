@@ -1,0 +1,13 @@
+# nome: Uptime Kuma
+# categoria: Observabilidade
+# descrição: Monitor de disponibilidade de sites e serviços.
+services:
+  kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    ports:
+      - "${PORTA:-3001}:3001"
+    volumes:
+      - dados:/app/data
+volumes:
+  dados: {}

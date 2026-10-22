@@ -1,0 +1,39 @@
+# Regras de alerta do lab. O Gantry mostra os alertas disparados na página
+# da máquina e do projeto; edite aqui (aba Arquivo) e use Salvar e reiniciar.
+groups:
+  - name: lab
+    rules:
+      - alert: AlvoFora
+        expr: up == 0
+        for: 1m
+        labels: { severity: critico }
+        annotations:
+          summary: "{{ $labels.job }} ({{ $labels.host }}) não responde ao Prometheus"
+
+      - alert: VMWebFora
+        expr: max(traefik_service_server_up{service="nginx-vm@file"}) == 0
+        for: 1m
+        labels: { severity: critico }
+        annotations:
+          summary: "O Traefik não alcança o Nginx da VM web"
+
+      - alert: ErrosNoTraefik
+        expr: sum(rate(traefik_entrypoint_requests_total{entrypoint="web",code=~"5.."}[5m])) > 0.1
+        for: 2m
+        labels: { severity: aviso }
+        annotations:
+          summary: "Respostas 5xx no Traefik: {{ $value | printf \"%.2f\" }} por segundo"
+
+      - alert: DiscoQuaseCheio
+        expr: 100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|virtiofs|9p"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|virtiofs|9p"}) > 85
+        for: 5m
+        labels: { severity: aviso }
+        annotations:
+          summary: "Disco {{ $labels.mountpoint }} em {{ $labels.host }} com {{ $value | printf \"%.0f\" }}% de uso"
+
+      - alert: MemoriaAlta
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 5m
+        labels: { severity: aviso }
+        annotations:
+          summary: "Memória de {{ $labels.host }} em {{ $value | printf \"%.0f\" }}%"

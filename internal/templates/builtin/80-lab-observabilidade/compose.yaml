@@ -1,0 +1,126 @@
+# nome: Lab de observabilidade
+# categoria: Labs
+# descrição: Traefik na porta 80 levando ao Nginx de uma VM Debian e ao Grafana em /grafana (acessíveis pelo IP da máquina), com Prometheus, Grafana, node_exporter e o exporter do Nginx em containers. Dashboards prontos das máquinas, do Prometheus, do Nginx e do Traefik.
+
+# Containers no Podman (troque ENGINE para docker se preferir).
+x-gantry:
+  runtime: ${ENGINE:-podman}
+
+services:
+  # Porta de entrada do lab: publica a porta 80 na máquina (quem estiver na
+  # rede acessa pelo IP dela). / vai para o Nginx da VM e /grafana para o
+  # Grafana; as rotas estão em traefik/dinamico.yml. Painel em :8090.
+  traefik:
+    image: docker.io/library/traefik:v3.1
+    command:
+      - --entryPoints.web.address=:80
+      - --entryPoints.metrics.address=:8082
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.file.filename=/etc/traefik/dinamico.yml
+      - --providers.file.watch=true
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=metrics
+      - --metrics.prometheus.addRoutersLabels=true
+      - --metrics.prometheus.addServicesLabels=true
+      - --accesslog=true
+    ports:
+      - "${PORTA_HTTP:-80}:80"
+      - "${PORTA_TRAEFIK:-8090}:8080"
+    environment:
+      PORTA_NGINX: ${PORTA_NGINX:-8081}
+    volumes:
+      - ./traefik/dinamico.yml:/etc/traefik/dinamico.yml:ro
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    restart: unless-stopped
+
+  # O prometheus.yml usa ${PORTA_NODE_VM}: as portas da VM vêm do .env.
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.0
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        sed "s/\$${PORTA_NODE_VM}/$$PORTA_NODE_VM/g" /etc/prometheus/prometheus.yml > /prometheus/prometheus.yml &&
+        exec /bin/prometheus --config.file=/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+        --storage.tsdb.retention.time=7d --web.enable-lifecycle
+    environment:
+      PORTA_NODE_VM: ${PORTA_NODE_VM:-9101}
+    ports:
+      - "${PORTA_PROMETHEUS:-9090}:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alertas.yml:/etc/prometheus/alertas.yml:ro
+      - prometheus:/prometheus
+    extra_hosts:
+      - "host.containers.internal:host-gateway"   # no Docker também
+    restart: unless-stopped
+
+  grafana:
+    image: docker.io/grafana/grafana:11.1.0
+    labels:
+      gantry.path: /grafana
+    ports:
+      - "${PORTA_GRAFANA:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SENHA:?senha do admin do Grafana}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/maquinas.json
+      # Servido em /grafana: pelo Traefik (http://IP/grafana) e direto (:3000/grafana).
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  # Métricas da máquina onde o Podman roda. No Mac é a VM do Podman
+  # (podman machine), não o macOS: container não enxerga o Mac por dentro.
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    command:
+      - --path.rootfs=/host
+    pid: host
+    volumes:
+      - /:/host:ro
+    restart: unless-stopped
+
+  # Lê o stub_status do Nginx da VM pela porta publicada no host.
+  nginx-exporter:
+    image: docker.io/nginx/nginx-prometheus-exporter:1.3.0
+    command:
+      - --nginx.scrape-uri=http://host.containers.internal:${PORTA_STATUS:-8082}/stub_status
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  prometheus: {}
+  grafana: {}
+
+# A VM: Nginx e node_exporter instalados no primeiro boot.
+x-vms:
+  web:
+    image: debian-12
+    cpus: 1
+    memory: 1g
+    disk: 8G
+    ports:
+      - "${PORTA_NGINX:-8081}:80"
+      - "${PORTA_STATUS:-8082}:8080"
+      - "${PORTA_NODE_VM:-9101}:9100"
+    packages: [nginx, prometheus-node-exporter]
+    run:
+      - |
+        cat > /etc/nginx/conf.d/status.conf <<'FIM'
+        server {
+          listen 8080;
+          location = /stub_status { stub_status; }
+        }
+        FIM
+        echo '<meta charset="utf-8"><h1>Olá do Gantry</h1><p>VM do lab de observabilidade</p>' > /var/www/html/index.html
+        systemctl enable --now prometheus-node-exporter
+        systemctl restart nginx

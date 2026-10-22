@@ -1,0 +1,322 @@
+# Configuração do snmp_exporter. O módulo "lab" diz quais OIDs coletar:
+# interfaces (IF-MIB), CPU (CISCO-PROCESS-MIB; nos switches L2, OLD-CISCO-CPU-MIB),
+# memória (CISCO-MEMORY-POOL-MIB), BGP (BGP4-MIB), OSPF (OSPF-MIB), tabela de
+# rotas (IP-FORWARD-MIB), LDP (MPLS-LDP-STD-MIB) e rotas por VRF (MPLS-VPN-MIB).
+# Mudou este arquivo? Reinicie o serviço snmp-exporter.
+auths:
+  public_v2:
+    community: public
+    version: 2
+modules:
+  lab:
+    walk:
+    - 1.3.6.1.2.1.1.3
+    - 1.3.6.1.2.1.2.2.1.7
+    - 1.3.6.1.2.1.2.2.1.8
+    - 1.3.6.1.2.1.2.2.1.13
+    - 1.3.6.1.2.1.2.2.1.14
+    - 1.3.6.1.2.1.2.2.1.19
+    - 1.3.6.1.2.1.2.2.1.20
+    - 1.3.6.1.2.1.31.1.1.1.1
+    - 1.3.6.1.2.1.31.1.1.1.6
+    - 1.3.6.1.2.1.31.1.1.1.7
+    - 1.3.6.1.2.1.31.1.1.1.10
+    - 1.3.6.1.2.1.31.1.1.1.11
+    - 1.3.6.1.2.1.31.1.1.1.15
+    - 1.3.6.1.2.1.31.1.1.1.18
+    - 1.3.6.1.4.1.9.9.109.1.1.1.1
+    - 1.3.6.1.4.1.9.9.48.1.1.1
+    - 1.3.6.1.4.1.9.2.1.56
+    - 1.3.6.1.4.1.9.2.1.57
+    - 1.3.6.1.4.1.9.2.1.58
+    - 1.3.6.1.4.1.9.2.1.8
+    - 1.3.6.1.2.1.15.3.1
+    - 1.3.6.1.2.1.14.10.1
+    - 1.3.6.1.2.1.4.24.3
+    - 1.3.6.1.2.1.4.24.4.1
+    - 1.3.6.1.2.1.10.166.4.1.3.3.1.2
+    - 1.3.6.1.3.118.1.2.2.1.7
+    - 1.3.6.1.3.118.1.3.1.1
+    metrics:
+    - name: sysUpTime
+      oid: 1.3.6.1.2.1.1.3
+      type: gauge
+      help: Tempo ligado (centésimos de segundo)
+    - name: ifAdminStatus
+      oid: 1.3.6.1.2.1.2.2.1.7
+      type: gauge
+      indexes: &id001
+      - labelname: ifIndex
+        type: gauge
+      lookups: &id002
+      - labels:
+        - ifIndex
+        labelname: ifName
+        oid: 1.3.6.1.2.1.31.1.1.1.1
+        type: DisplayString
+      - labels:
+        - ifIndex
+        labelname: ifAlias
+        oid: 1.3.6.1.2.1.31.1.1.1.18
+        type: DisplayString
+    - name: ifOperStatus
+      oid: 1.3.6.1.2.1.2.2.1.8
+      type: gauge
+      indexes: *id001
+      lookups: *id002
+    - name: ifInDiscards
+      oid: 1.3.6.1.2.1.2.2.1.13
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifInErrors
+      oid: 1.3.6.1.2.1.2.2.1.14
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifOutDiscards
+      oid: 1.3.6.1.2.1.2.2.1.19
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifOutErrors
+      oid: 1.3.6.1.2.1.2.2.1.20
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifHCInOctets
+      oid: 1.3.6.1.2.1.31.1.1.1.6
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifHCInUcastPkts
+      oid: 1.3.6.1.2.1.31.1.1.1.7
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifHCOutOctets
+      oid: 1.3.6.1.2.1.31.1.1.1.10
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifHCOutUcastPkts
+      oid: 1.3.6.1.2.1.31.1.1.1.11
+      type: counter
+      indexes: *id001
+      lookups: *id002
+    - name: ifHighSpeed
+      oid: 1.3.6.1.2.1.31.1.1.1.15
+      type: gauge
+      indexes: *id001
+      lookups: *id002
+    - name: cpmCPUTotal5secRev
+      oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.6
+      type: gauge
+      indexes:
+      - labelname: cpmCPUTotalIndex
+        type: gauge
+    - name: cpmCPUTotal1minRev
+      oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.7
+      type: gauge
+      indexes:
+      - labelname: cpmCPUTotalIndex
+        type: gauge
+    - name: cpmCPUTotal5minRev
+      oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.8
+      type: gauge
+      indexes:
+      - labelname: cpmCPUTotalIndex
+        type: gauge
+    - name: ciscoMemoryPoolUsed
+      oid: 1.3.6.1.4.1.9.9.48.1.1.1.5
+      type: gauge
+      indexes:
+      - labelname: ciscoMemoryPoolType
+        type: gauge
+      lookups:
+      - labels:
+        - ciscoMemoryPoolType
+        labelname: ciscoMemoryPoolName
+        oid: 1.3.6.1.4.1.9.9.48.1.1.1.2
+        type: DisplayString
+    - name: ciscoMemoryPoolFree
+      oid: 1.3.6.1.4.1.9.9.48.1.1.1.6
+      type: gauge
+      indexes:
+      - labelname: ciscoMemoryPoolType
+        type: gauge
+      lookups:
+      - labels:
+        - ciscoMemoryPoolType
+        labelname: ciscoMemoryPoolName
+        oid: 1.3.6.1.4.1.9.9.48.1.1.1.2
+        type: DisplayString
+    - name: busyPer
+      oid: 1.3.6.1.4.1.9.2.1.56
+      type: gauge
+      help: CPU nos últimos 5 s (%)
+    - name: avgBusy1
+      oid: 1.3.6.1.4.1.9.2.1.57
+      type: gauge
+      help: CPU no último minuto (%)
+    - name: avgBusy5
+      oid: 1.3.6.1.4.1.9.2.1.58
+      type: gauge
+      help: CPU nos últimos 5 minutos (%)
+    - name: freeMem
+      oid: 1.3.6.1.4.1.9.2.1.8
+      type: gauge
+      help: Memória livre (bytes)
+    - name: bgpPeerState
+      oid: 1.3.6.1.2.1.15.3.1.2
+      type: gauge
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerAdminStatus
+      oid: 1.3.6.1.2.1.15.3.1.3
+      type: gauge
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerRemoteAs
+      oid: 1.3.6.1.2.1.15.3.1.9
+      type: gauge
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerInUpdates
+      oid: 1.3.6.1.2.1.15.3.1.10
+      type: counter
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerOutUpdates
+      oid: 1.3.6.1.2.1.15.3.1.11
+      type: counter
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerFsmEstablishedTransitions
+      oid: 1.3.6.1.2.1.15.3.1.15
+      type: counter
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: bgpPeerFsmEstablishedTime
+      oid: 1.3.6.1.2.1.15.3.1.16
+      type: gauge
+      indexes:
+      - labelname: bgpPeerRemoteAddr
+        type: InetAddressIPv4
+    - name: ospfNbrRtrId
+      oid: 1.3.6.1.2.1.14.10.1.3
+      type: InetAddressIPv4
+      indexes:
+      - labelname: ospfNbrIpAddr
+        type: InetAddressIPv4
+      - labelname: ospfNbrAddressLessIndex
+        type: gauge
+    - name: ospfNbrState
+      oid: 1.3.6.1.2.1.14.10.1.6
+      type: gauge
+      indexes:
+      - labelname: ospfNbrIpAddr
+        type: InetAddressIPv4
+      - labelname: ospfNbrAddressLessIndex
+        type: gauge
+    - name: ospfNbrEvents
+      oid: 1.3.6.1.2.1.14.10.1.7
+      type: counter
+      indexes:
+      - labelname: ospfNbrIpAddr
+        type: InetAddressIPv4
+      - labelname: ospfNbrAddressLessIndex
+        type: gauge
+    - name: ipCidrRouteNumber
+      oid: 1.3.6.1.2.1.4.24.3
+      type: gauge
+    - name: ipCidrRouteIfIndex
+      oid: 1.3.6.1.2.1.4.24.4.1.5
+      type: gauge
+      indexes:
+      - labelname: ipCidrRouteDest
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteMask
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteTos
+        type: gauge
+      - labelname: ipCidrRouteNextHop
+        type: InetAddressIPv4
+    - name: ipCidrRouteType
+      oid: 1.3.6.1.2.1.4.24.4.1.6
+      type: gauge
+      indexes:
+      - labelname: ipCidrRouteDest
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteMask
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteTos
+        type: gauge
+      - labelname: ipCidrRouteNextHop
+        type: InetAddressIPv4
+    - name: ipCidrRouteProto
+      oid: 1.3.6.1.2.1.4.24.4.1.7
+      type: gauge
+      indexes:
+      - labelname: ipCidrRouteDest
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteMask
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteTos
+        type: gauge
+      - labelname: ipCidrRouteNextHop
+        type: InetAddressIPv4
+    - name: ipCidrRouteMetric1
+      oid: 1.3.6.1.2.1.4.24.4.1.11
+      type: gauge
+      indexes:
+      - labelname: ipCidrRouteDest
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteMask
+        type: InetAddressIPv4
+      - labelname: ipCidrRouteTos
+        type: gauge
+      - labelname: ipCidrRouteNextHop
+        type: InetAddressIPv4
+    - name: mplsLdpSessionState
+      oid: 1.3.6.1.2.1.10.166.4.1.3.3.1.2
+      type: gauge
+      indexes:
+      - labelname: mplsLdpEntityLdpId
+        type: OctetString
+        fixed_size: 6
+      - labelname: mplsLdpEntityIndex
+        type: gauge
+      - labelname: mplsLdpPeerLdpId
+        type: OctetString
+        fixed_size: 6
+    - name: mplsVpnVrfActiveInterfaces
+      oid: 1.3.6.1.3.118.1.2.2.1.7
+      type: gauge
+      indexes:
+      - labelname: vrf
+        type: DisplayString
+    - name: mplsVpnVrfPerfRoutesAdded
+      oid: 1.3.6.1.3.118.1.3.1.1.1
+      type: counter
+      indexes:
+      - labelname: vrf
+        type: DisplayString
+    - name: mplsVpnVrfPerfRoutesDeleted
+      oid: 1.3.6.1.3.118.1.3.1.1.2
+      type: counter
+      indexes:
+      - labelname: vrf
+        type: DisplayString
+    - name: mplsVpnVrfPerfCurrNumRoutes
+      oid: 1.3.6.1.3.118.1.3.1.1.3
+      type: gauge
+      indexes:
+      - labelname: vrf
+        type: DisplayString

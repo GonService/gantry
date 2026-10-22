@@ -1,0 +1,15 @@
+# Uma VM Debian com Nginx, sem nenhum container.
+# O Gantry cria a VM no QEMU da máquina do host (HVF no Mac, KVM no Linux)
+# e publica a porta 80 dela em http://localhost:8081.
+name: vm-nginx
+
+x-vms:
+  web:
+    image: debian-12          # baixada uma vez e guardada em ~/.cache/gantry/images
+    cpus: 1
+    memory: 1g
+    disk: 8G
+    ports: ["8081:80"]        # porta do host → porta da VM
+    packages: [nginx]         # instalados pelo cloud-init no primeiro boot
+    run:
+      - echo '<meta charset="utf-8"><h1>Olá do Gantry</h1>' > /var/www/html/index.html

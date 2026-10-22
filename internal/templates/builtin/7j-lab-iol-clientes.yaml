@@ -1,0 +1,20 @@
+# nome: Lab IOL com clientes (containers nos cabos)
+# categoria: Redes
+# descrição: Um roteador IOL entre duas redes, cada uma com um container Alpine como cliente ligado por cabo (eth1). Configure no r1 as interfaces e0/0 (10.0.1.1/24) e e0/1 (10.0.2.1/24) e teste o ping de cli1 para cli2. Troque os cabos em Cabos, sem reiniciar. Precisa da imagem cisco-iol num host Linux x86_64.
+services:
+  cli1:
+    image: alpine:3.20
+    cap_add: [NET_ADMIN] # para a rota até a outra rede
+    command: ["sh", "-c", "until ip route add 10.0.2.0/24 via 10.0.1.1 2>/dev/null; do sleep 2; done; exec sleep infinity"]
+    x-interfaces: [r1-cli1]
+    x-addresses: [10.0.1.10/24]
+  cli2:
+    image: alpine:3.20
+    cap_add: [NET_ADMIN]
+    command: ["sh", "-c", "until ip route add 10.0.1.0/24 via 10.0.2.1 2>/dev/null; do sleep 2; done; exec sleep infinity"]
+    x-interfaces: [r1-cli2]
+    x-addresses: [10.0.2.10/24]
+x-vms:
+  r1:
+    image: cisco-iol
+    interfaces: [r1-cli1, r1-cli2, none, none]

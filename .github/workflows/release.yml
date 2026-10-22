@@ -1,0 +1,228 @@
+name: Release
+
+# Uma tag vX.Y.Z gera a release com o app do Mac, o do Windows e a versão de
+# servidor para Linux.
+#   git tag -a v0.34.0 -m "Gantry 0.34.0" && git push origin main v0.34.0
+#
+# A Release sai aqui, com a tag vX.Y.Z. O GonService/homebrew-tap busca a
+# release nova sozinho (workflow Gantry de lá, a cada hora, só com o token
+# dele): copia com a tag gantry-vX.Y.Z (os apps até a 0.47 procuram versões
+# novas só lá) e atualiza a receita (Casks/gantry.rb, de scripts/cask.sh) e
+# as páginas de download (scripts/downloads.py). Nenhum segredo daqui.
+#
+# Nada passa por artifacts do Actions (a cota de armazenamento da
+# organização acaba e trava tudo): a Release nasce como rascunho, cada build
+# envia os seus arquivos direto para ela, e no fim ela é publicada.
+# Rodar de novo um job que falhou reaproveita o mesmo rascunho.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # a Release deste repositório
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  REPO: ${{ github.repository }}
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Inglês da interface
+        run: python3 tools/i18n_check.py | grep -v 'FORA DO t()'
+
+  rascunho:
+    needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Notas
+        env:
+          ASSINADO: ${{ secrets.APPLE_CERT_P12 != '' }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          if [ "$ASSINADO" = true ]; then MAC_ABRIR="; o app é assinado e notarizado pela Apple."
+          else MAC_ABRIR="; o app não é assinado, então na primeira vez clique com o botão direito → Abrir."; fi
+          ANT=$(git describe --tags --abbrev=0 --match 'v*' "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          cat > notas.md <<NOTAS
+          ## Instalar
+
+          - **Mac:** \`brew install --cask gonservice/tap/gantry\` (para atualizar: \`brew upgrade --cask gantry\`). Ou baixe \`Gantry-$V-macos.zip\`, descompacte e arraste para Aplicativos$MAC_ABRIR
+          - **Windows (experimental):** baixe \`Gantry-$V-windows.zip\`, descompacte e abra o \`Gantry.exe\`. Cada distribuição do WSL2 aparece como uma máquina. O Windows avisa que o app não é assinado: Mais informações → Executar assim mesmo.
+          - **Linux (app desktop, x86_64):** baixe \`Gantry-$V-linux-amd64.tar.gz\`, descompacte e rode \`./instalar.sh\` (instala para o seu usuário, sem sudo, com atalho no menu). Precisa do WebKitGTK 4.1: no Fedora \`sudo dnf install webkit2gtk4.1\`, no Debian/Ubuntu \`sudo apt install libwebkit2gtk-4.1-0\`.
+          - **Servidor Linux (sem tela):** baixe \`gantry-servidor-$V-linux-<amd64|arm64>.tar.gz\`, descompacte e rode \`./gantry -no-browser\`; ele escuta em 127.0.0.1:7777 e mostra um link com a chave. Do seu computador: \`ssh -L 7777:127.0.0.1:7777 servidor\` e abra o link.
+
+          NOTAS
+          if [ -n "$ANT" ]; then
+            { echo "## Mudanças"; echo; git log --no-merges --format='- %s' "$ANT..$GITHUB_REF_NAME"; } >> notas.md
+          fi
+          cat notas.md
+      - name: Release em rascunho
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          ALVO=(--verify-tag)
+          if gh release view "$TAG" --repo "$REPO" --json isDraft -q .isDraft > estado 2>/dev/null; then
+            if [ "$(cat estado)" != "true" ]; then
+              echo "::error::A release $TAG já foi publicada em $REPO."; exit 1
+            fi
+            gh release edit "$TAG" --repo "$REPO" --notes-file notas.md
+          else
+            gh release create "$TAG" --repo "$REPO" --draft "${ALVO[@]}" --title "Gantry $V" --notes-file notas.md
+          fi
+
+  servidor:
+    needs: rascunho
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Interface (React)
+        run: cd frontend && npm ci --no-audit --no-fund && npm run build
+      - name: Versão de servidor (Linux, amd64 e arm64; no Mac e no Windows, use o app)
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          make agents VERSION="$V"
+          mkdir -p dist out
+          for a in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w -X main.version=$V" -o dist/gantry .
+            tar -czf "out/gantry-servidor-$V-linux-$a.tar.gz" -C dist gantry
+          done
+      - name: Enviar à release
+        run: gh release upload "$TAG" out/* --repo "$REPO" --clobber
+
+  mac:
+    needs: rascunho
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Interface (React)
+        run: cd frontend && npm ci --no-audit --no-fund && npm run build
+      - name: Wails
+        run: |
+          W=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          go install "github.com/wailsapp/wails/v2/cmd/wails@$W"
+      - name: App (Apple Silicon e Intel)
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          make agents VERSION="$V"
+          jq --arg v "$V" '.info.productVersion = $v' wails.json > wails.tmp && mv wails.tmp wails.json
+          "$(go env GOPATH)/bin/wails" build -clean -skipbindings -tags desktop \
+            -ldflags "-X main.version=$V" -platform darwin/universal
+      - name: Assinatura e notarização (Developer ID)
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: scripts/sign-mac.sh build/bin/Gantry.app
+      - name: Zip
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          mkdir -p out
+          ditto -c -k --keepParent build/bin/Gantry.app "out/Gantry-$V-macos.zip"
+      - name: Enviar à release
+        run: gh release upload "$TAG" out/* --repo "$REPO" --clobber
+
+  windows:
+    needs: rascunho
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Interface (React)
+        run: cd frontend && npm ci --no-audit --no-fund && npm run build
+      - name: Wails
+        run: |
+          W=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          go install "github.com/wailsapp/wails/v2/cmd/wails@$W"
+      - name: App (Windows, com as distribuições do WSL2 como máquinas)
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          for a in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w -X main.version=$V" -o internal/agentbin/bin/gantry-agent-linux-$a ./cmd/gantry-agent
+            gzip -9f internal/agentbin/bin/gantry-agent-linux-$a
+          done
+          jq --arg v "$V" '.info.productVersion = $v' wails.json > wails.tmp && mv wails.tmp wails.json
+          "$(go env GOPATH)/bin/wails" build -clean -skipbindings -tags desktop \
+            -ldflags "-X main.version=$V" -platform windows/amd64
+          mkdir -p out
+          7z a "out/Gantry-$V-windows.zip" ./build/bin/Gantry.exe
+      - name: Enviar à release
+        run: gh release upload "$TAG" out/* --repo "$REPO" --clobber
+
+  linux:
+    needs: rascunho
+    # 22.04: a glibc mais antiga, para o app abrir também nas distribuições
+    # mais velhas; o WebKitGTK 4.1 já existe nela.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: WebKitGTK e GTK
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev imagemagick
+      - name: App desktop (Linux x86_64)
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          make linux VERSION="$V"
+          mkdir -p out
+          cp "dist/Gantry-$V-linux-amd64.tar.gz" out/
+      - name: Enviar à release
+        run: gh release upload "$TAG" out/* --repo "$REPO" --clobber
+
+  publicar:
+    needs: [servidor, mac, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Somas de verificação e publicação
+        run: |
+          mkdir out
+          gh release download "$TAG" --repo "$REPO" --dir out --pattern '*.zip' --pattern '*.tar.gz'
+          ls -l out
+          [ "$(ls out | wc -l)" -eq 5 ] || { echo "::error::A release devia ter 5 arquivos."; exit 1; }
+          (cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+          gh release upload "$TAG" out/SHA256SUMS --repo "$REPO" --clobber
+          gh release edit "$TAG" --repo "$REPO" --draft=false

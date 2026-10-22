@@ -1,0 +1,25 @@
+# nome: Web + banco
+# categoria: Web
+# descrição: Nginx e PostgreSQL numa rede interna dedicada.
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "${PORTA:-8080}:80"
+    depends_on: [db]
+    networks: [interna]
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina a senha do banco}
+    volumes:
+      - dados:/var/lib/postgresql/data
+    networks: [interna]
+volumes:
+  dados: {}
+networks:
+  interna:
+    ipam:
+      config:
+        - subnet: ${SUBREDE:-172.30.0.0/24}

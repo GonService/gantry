@@ -1,0 +1,11 @@
+# nome: Nginx
+# categoria: Web
+# descrição: Servidor web servindo a pasta html ao lado do compose.
+services:
+  web:
+    image: nginx:${VERSAO_NGINX:-alpine}
+    restart: unless-stopped
+    ports:
+      - "${PORTA:-8080}:80"
+    volumes:
+      - ./html:/usr/share/nginx/html:ro

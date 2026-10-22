@@ -1,0 +1,26 @@
+# nome: Ollama + Open WebUI
+# categoria: IA
+# descrição: Modelos de linguagem locais com o Ollama e uma interface de chat (Open WebUI). No Mac o container não usa a GPU; para usar o Ollama do próprio Mac, troque OLLAMA_URL por http://host.containers.internal:11434.
+services:
+  ollama:
+    image: docker.io/ollama/ollama:0.3.12
+    restart: unless-stopped
+    ports:
+      - "${PORTA_OLLAMA:-11434}:11434"
+    volumes:
+      - modelos:/root/.ollama
+  webui:
+    image: ghcr.io/open-webui/open-webui:${VERSAO_WEBUI:-main}
+    restart: unless-stopped
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_URL:-http://ollama:11434}
+    ports:
+      - "${PORTA:-3080}:8080"
+    volumes:
+      - webui:/app/backend/data
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    depends_on: [ollama]
+volumes:
+  modelos: {}
+  webui: {}

@@ -1,0 +1,89 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# PRs of forks run this too: the token only reads.
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Inglês da interface
+        run: python3 tools/i18n_check.py | grep -v 'FORA DO t()'
+
+  interface:
+    # Opens every screen of the browser version (with the runner's Docker)
+    # and fails on JavaScript errors or empty screens.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Interface (React)
+        run: cd frontend && npm ci --no-audit --no-fund && npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Playwright
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Gantry
+        run: |
+          go build -o gantry .
+          ./gantry -web -no-browser -addr 127.0.0.1:7777 -config "$RUNNER_TEMP/gantry/config.json" > gantry.log 2>&1 &
+          for i in $(seq 1 30); do grep -q '?c=' gantry.log && break; sleep 1; done
+          cat gantry.log
+      - name: Telas
+        run: |
+          LINK=$(grep -o 'http://127.0.0.1:7777/?c=[^ ]*' gantry.log | head -1)
+          python tests/ui_smoke.py "$LINK"
+
+  ponta-a-ponta:
+    # The life cycle of a project (create, up, edit, recreate, stop, remove)
+    # against the runner's real Docker.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Projetos no Docker
+        env:
+          GANTRY_E2E_ONLY: docker
+        run: go test -tags e2e -count=1 -v -timeout 20m -run 'TestLabLifecycle|TestCreate|TestEditContainer' ./e2e/
+
+  kubernetes:
+    # The cluster screens against a kind cluster with pods running: logs
+    # that follow, shell, port forward, scale, restart, roll back, drain.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: gantry
+          wait: 120s
+      - name: Telas do cluster
+        run: |
+          kind get kubeconfig --name gantry > "$RUNNER_TEMP/kubeconfig.yaml"
+          GANTRY_E2E_KUBECONFIG="$RUNNER_TEMP/kubeconfig.yaml" go test -tags e2e -count=1 -v -timeout 20m -run TestKube ./e2e/

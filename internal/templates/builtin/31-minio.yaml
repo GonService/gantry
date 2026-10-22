@@ -1,0 +1,18 @@
+# nome: MinIO
+# categoria: Armazenamento
+# descrição: Armazenamento compatível com S3, com console web.
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USUARIO:-gantry}
+      MINIO_ROOT_PASSWORD: ${MINIO_SENHA:?mínimo de 8 caracteres}
+    ports:
+      - "${PORTA_S3:-9000}:9000"
+      - "${PORTA_CONSOLE:-9001}:9001"
+    volumes:
+      - dados:/data
+volumes:
+  dados: {}

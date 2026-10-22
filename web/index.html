@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gantry</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<script>/* tema salvo antes de pintar (evita flash) e marcação da janela nativa */
+  (function(){try{
+    var t=localStorage.getItem('gantry.theme'); if(t) document.documentElement.setAttribute('data-theme', JSON.parse(t));
+  }catch(e){}
+  try{
+    if(/wails/i.test(navigator.userAgent) || location.protocol==='wails:' || location.hostname==='wails.localhost'){
+      var c=' is-wails';
+      if(/Mac/i.test(navigator.platform||navigator.userAgent)) c+=' is-wails-mac';
+      document.documentElement.className += c;
+    }
+  }catch(e){}})();</script>
+<script src="config.js"></script>
+<link rel="stylesheet" href="vendor/xterm.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="splash" role="status" aria-live="polite" aria-label="Abrindo o Gantry">
+  <div class="splash-mark">
+    <img class="splash-logo" src="logo.svg" alt="">
+    <div class="splash-name">Gantry</div>
+    <div class="splash-loader" aria-hidden="true"><span></span></div>
+  </div>
+  <div class="splash-by">by <strong>GonService</strong></div>
+</div>
+<div id="root"></div>
+<script>/* splash em inglês quando a interface for em inglês */
+  (function(){try{
+    var l=null; try{l=localStorage.getItem('gantry.lang');}catch(e){}
+    var g=(window.GANTRY||{}).lang;
+    if(l!=='pt'&&l!=='en') l=(g==='pt'||g==='en')?g:(((navigator.languages&&navigator.languages[0])||navigator.language||'pt').toLowerCase().indexOf('pt')===0?'pt':'en');
+    if(l==='en'){document.documentElement.lang='en';var s=document.getElementById('splash');if(s)s.setAttribute('aria-label','Opening Gantry');}
+  }catch(e){}})();</script>
+
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+<script type="module" src="ui/ui.js"></script>
+</body>
+</html>

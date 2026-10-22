@@ -1,0 +1,14 @@
+# nome: Lab campus Cisco (CSR 1000v + IOSvL2)
+# categoria: Redes
+# descrição: Um roteador CSR 1000v de borda ligado a dois switches IOSvL2 de distribuição, que também se ligam entre si. Console serial em todos e cabos trocáveis sem reiniciar. Precisa das imagens cisco-csr1000v e cisco-iosvl2 (Configurações › Geral › Imagens de VM) num host Linux x86 com KVM; o CSR usa 4 GB de memória.
+x-vms:
+  borda:
+    image: cisco-csr1000v
+    cpus: 2
+    interfaces: [borda-dist1, borda-dist2, none]
+  dist1:
+    image: cisco-iosvl2
+    interfaces: [borda-dist1, dist1-dist2, none, none]
+  dist2:
+    image: cisco-iosvl2
+    interfaces: [borda-dist2, dist1-dist2, none, none]

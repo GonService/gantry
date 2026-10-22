@@ -1,0 +1,15 @@
+[
+ {"Id":"aaa111","Name":"nlab-web-1","Created":"2026-10-11T23:01:30.627649951Z","Image":"docker.io/bancada/demo:latest",
+  "State":{"Status":"running","Running":true,"ExitCode":0,"StartedAt":"2026-10-11T23:01:31Z"},
+  "Config":{"Image":"docker.io/bancada/demo:latest","Labels":{"com.docker.compose.project":"nlab","com.docker.compose.service":"web","nerdctl/name":"nlab-web-1"}},
+  "Mounts":[{"Type":"volume","Name":"dados"}],
+  "NetworkSettings":{"Ports":{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8080"}]},"Networks":{"nlab_default":{"IPAddress":"10.4.0.2"}}}},
+ {"Id":"bbb222","Name":"","Image":"docker.io/rancher/mirrored-pause:3.6",
+  "State":{"Status":"running","Running":true},
+  "Config":{"Labels":{"io.kubernetes.pod.namespace":"kube-system","io.cri-containerd.kind":"sandbox"}},
+  "NetworkSettings":{}},
+ {"Id":"ccc333","Name":"","Image":"docker.io/rancher/mirrored-coredns-coredns:1.10.1",
+  "State":{"Status":"exited","Running":false,"ExitCode":2},
+  "Config":{"Labels":{"io.kubernetes.pod.namespace":"kube-system","io.kubernetes.pod.name":"coredns-abc","io.kubernetes.container.name":"coredns","io.cri-containerd.kind":"container"}},
+  "NetworkSettings":{}}
+]

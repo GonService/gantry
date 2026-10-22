@@ -1,0 +1,14 @@
+# nome: Redis
+# categoria: Bancos de dados
+# descrição: Redis com persistência em disco.
+services:
+  cache:
+    image: redis:${VERSAO_REDIS:-7}-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${PORTA:-6379}:6379"
+    volumes:
+      - dados:/data
+volumes:
+  dados: {}

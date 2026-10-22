@@ -1,0 +1,38 @@
+# Alvos do lab. host.containers.internal é a máquina onde o Podman roda
+# (no Mac, o próprio Mac); as portas da VM são publicadas nela.
+# ${PORTA_NODE_VM} é trocado pelo valor do .env quando o container sobe.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alertas.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels: { host: prometheus }
+
+  - job_name: node
+    static_configs:
+      # node_exporter em container (no Mac, mede a VM do Podman)
+      - targets: ["node-exporter:9100"]
+        labels: { host: podman }
+      # Para medir o próprio macOS, rode o node_exporter fora de container
+      # (brew install node_exporter) e descomente:
+      # - targets: ["host.containers.internal:9100"]
+      #   labels: { host: mac }
+      # node_exporter da VM
+      - targets: ["host.containers.internal:${PORTA_NODE_VM}"]
+        labels: { host: vm-web }
+
+  - job_name: nginx
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels: { host: vm-web }
+
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8082"]
+        labels: { host: traefik }

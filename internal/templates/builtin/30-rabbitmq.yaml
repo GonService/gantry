@@ -1,0 +1,17 @@
+# nome: RabbitMQ
+# categoria: Mensageria
+# descrição: RabbitMQ com o painel de administração.
+services:
+  rabbit:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USUARIO:-gantry}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_SENHA:?defina a senha}
+    ports:
+      - "${PORTA_AMQP:-5672}:5672"
+      - "${PORTA_PAINEL:-15672}:15672"
+    volumes:
+      - dados:/var/lib/rabbitmq
+volumes:
+  dados: {}

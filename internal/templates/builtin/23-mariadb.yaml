@@ -1,0 +1,16 @@
+# nome: MariaDB
+# categoria: Bancos de dados
+# descrição: MariaDB com os dados num volume.
+services:
+  db:
+    image: mariadb:${VERSAO_MARIADB:-11}
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?defina a senha do root}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-app}
+    ports:
+      - "${PORTA:-3306}:3306"
+    volumes:
+      - dados:/var/lib/mysql
+volumes:
+  dados: {}

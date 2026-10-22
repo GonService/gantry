@@ -1,0 +1,12 @@
+# Os painéis da pasta paineis/ entram no Grafana, na pasta "Lab MPLS".
+# Dá para mexer neles na tela do Grafana; para guardar a mudança, exporte o
+# JSON (Share > Export > Save to file) por cima do arquivo da pasta paineis/.
+apiVersion: 1
+providers:
+  - name: lab
+    folder: Lab MPLS
+    type: file
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

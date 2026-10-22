@@ -1,0 +1,85 @@
+# Lab de backbone: núcleo MPLS (OSPF + LDP), L3VPN com BGP (VPNv4 entre os
+# PEs, eBGP com os clientes) e um site com switches L3 (IOL-L2) ligados por
+# trunk. Roda num host Linux x86_64 (o IOL não roda no Mac): crie o projeto
+# com a máquina de destino = esse host. O roteiro está no README.md ao lado.
+#
+#              AS 65000 (provedor)
+#   CE1 ── PE1 ── P1 ── PE2 ── CE2 ── [lan-b] ── pc-b1
+#    │       └─── P2 ───┘
+#   SW1 ══trunk══ SW2
+#    │             │
+#  [lan-a]      [lan-a20]
+#  pc-a1 (VM, DHCP)  pc-a2
+
+name: backbone
+
+x-redes:
+  # VLAN 10 do site A: o DHCP da rede entrega endereços, gateway na SVI do SW1
+  lan-a: {subnet: 10.1.10.0/24, gateway: 10.1.10.1, dhcp: true, dns: [1.1.1.1], pos: [40, 620]}
+  # VLAN 20 do site A, atrás do SW2 (chega no SW1 pelo trunk)
+  lan-a20: {subnet: 10.1.20.0/24, gateway: 10.1.20.1, pos: [380, 620]}
+  # LAN do site B, gateway no CE2
+  lan-b: {subnet: 10.2.10.0/24, gateway: 10.2.10.1, pos: [1060, 420]}
+
+x-vms:
+  # Provedor: núcleo (P) e borda (PE). As portas na ordem: e0/0, e0/1, e0/2…
+  PE1:
+    image: cisco-iol
+    interfaces: [ce1-pe1, pe1-p1, pe1-p2]
+    pos: [300, 40]
+  P1:
+    image: cisco-iol
+    interfaces: [pe1-p1, p1-p2, p1-pe2]
+    pos: [560, 40]
+  P2:
+    image: cisco-iol
+    interfaces: [p1-p2, p2-pe2, pe1-p2]
+    pos: [560, 240]
+  PE2:
+    image: cisco-iol
+    interfaces: [p1-pe2, p2-pe2, pe2-ce2]
+    pos: [820, 40]
+  # Clientes
+  CE1:
+    image: cisco-iol
+    interfaces: [ce1-pe1, ce1-sw1]
+    pos: [40, 40]
+  CE2:
+    image: cisco-iol
+    interfaces: [pe2-ce2, lan-b]
+    pos: [1060, 240]
+  # Site A: switches L3 (IOL-L2)
+  SW1:
+    image: cisco-iol-l2
+    interfaces: [ce1-sw1, sw1-sw2, lan-a, none]
+    pos: [40, 400]
+  SW2:
+    image: cisco-iol-l2
+    interfaces: [sw1-sw2, lan-a20, none, none]
+    pos: [380, 400]
+  # Um computador do site A: VM Debian pegando IP pelo DHCP da lan-a. A
+  # placa de gerência continua com a rota padrão (internet e SSH); as redes
+  # do lab vão pela SVI do SW1.
+  pc-a1:
+    image: debian-12
+    memory: 512M
+    interfaces: [{rede: lan-a, ip: dhcp}]
+    run:
+      - ip route replace 10.0.0.0/8 via 10.1.10.1 || true
+      - ip route replace 172.16.0.0/12 via 10.1.10.1 || true
+    pos: [40, 760]
+
+services:
+  # Containers como computadores (IP fixo; as redes do lab pelo gateway).
+  pc-a2:
+    image: alpine:3.20
+    cap_add: [NET_ADMIN]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 10.0.0.0/8 via 10.1.20.1 dev eth1; exec sleep infinity"]
+    x-interfaces: [{rede: lan-a20, ip: 10.1.20.10}]
+    x-pos: [380, 760]
+  pc-b1:
+    image: alpine:3.20
+    cap_add: [NET_ADMIN]
+    command: ["sh", "-c", "until ip link show eth1 >/dev/null 2>&1; do sleep 1; done; sleep 2; ip route replace 10.0.0.0/8 via 10.2.10.1 dev eth1; exec sleep infinity"]
+    x-interfaces: [{rede: lan-b, ip: 10.2.10.10}]
+    x-pos: [1060, 560]

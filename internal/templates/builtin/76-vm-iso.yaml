@@ -1,0 +1,9 @@
+# nome: VM instalada por ISO
+# categoria: VMs
+# descrição: Disco vazio que inicia por um instalador .iso; a tela abre por VNC para você instalar o sistema.
+x-vms:
+  vm:
+    iso: ${ISO:?caminho ou URL do .iso}
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: ${DISCO:-30G}

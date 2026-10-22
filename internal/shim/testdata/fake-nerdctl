@@ -1,0 +1,21 @@
+#!/bin/sh
+# Fake nerdctl for tests: answers from fixtures and logs every call.
+d=$(dirname "$0")
+echo "$*" >> "${FAKE_LOG:-/dev/null}"
+while [ $# -gt 0 ]; do
+  case "$1" in --namespace|--address) shift 2 ;; *) break ;; esac
+done
+case "$1" in
+  version) cat "$d/nerdctl-version.json" ;;
+  ps) printf 'aaa111\nbbb222\nccc333\n' ;;
+  inspect) cat "$d/nerdctl-inspect.json" ;;
+  stats) echo '{"CPUPerc":"12.50%","MemUsage":"10MiB / 1GiB","NetIO":"1kB / 2kB"}' ;;
+  images) echo '{"ID":"441355b227c0","Repository":"bancada/demo","Tag":"latest","Name":"docker.io/bancada/demo:latest","Size":"17.43MB","CreatedAt":"2026-10-11 20:01:31 -0300 -03"}' ;;
+  volume) echo '{"Name":"dados","Driver":"local","Mountpoint":"/var/lib/x","Labels":"com.docker.compose.project=nlab"}' ;;
+  network) echo '{"ID":"n1","Name":"nlab_default","Labels":"com.docker.compose.project=nlab"}' ;;
+  start|stop|restart|kill|rm) [ "$2" = missing ] && { echo 'time="x" level=fatal msg="no such container: missing"' >&2; exit 1; }; echo "$2" ;;
+  logs) echo "linha 1"; echo "linha 2" ;;
+  create) echo "novo123" ;;
+  pull) echo "resolving"; printf 'layer 1/2\rlayer 2/2\n'; echo "done" ;;
+  *) echo "fake-nerdctl: $*" >&2; exit 1 ;;
+esac

@@ -1,0 +1,9 @@
+# nome: VM Rocky Linux
+# categoria: VMs
+# descrição: Rocky Linux 9 (compatível com RHEL) com acesso por SSH.
+x-vms:
+  rocky:
+    image: rocky-9
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-2g}
+    disk: ${DISCO:-20G}

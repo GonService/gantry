@@ -1,0 +1,17 @@
+# nome: VS Code no navegador
+# categoria: Ferramentas
+# descrição: code-server: o VS Code rodando num container, aberto no navegador com senha.
+services:
+  code:
+    image: docker.io/codercom/code-server:4.92.2
+    restart: unless-stopped
+    environment:
+      PASSWORD: ${SENHA:?senha para entrar}
+    ports:
+      - "${PORTA:-8443}:8080"
+    volumes:
+      - projetos:/home/coder/project
+      - config:/home/coder/.config
+volumes:
+  projetos: {}
+  config: {}

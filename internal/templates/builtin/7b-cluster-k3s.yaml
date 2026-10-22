@@ -1,0 +1,44 @@
+# nome: Cluster k3s (3 VMs)
+# categoria: VMs
+# descrição: Kubernetes k3s com um servidor e dois agentes na rede do projeto; os agentes sobem depois do servidor e o acham pelo nome. O cluster aparece sozinho na barra lateral quando a API responde. Precisa da rede entre VMs ativada na máquina.
+x-gantry:
+  lan: true
+  kubernetes: {vm: k3s-server, porta: "${PORTA_API:-6443}"}
+
+x-vms:
+  k3s-server:
+    image: debian-12
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: 20G
+    ports: ["${PORTA_API:-6443}:6443"]
+    packages: [curl]
+    run:
+      - mkdir -p /etc/rancher/k3s
+      - |
+        ip -4 -o addr show lan0 | awk '{split($4, a, "/"); print "node-ip: " a[1]; print "flannel-iface: lan0"; print "tls-san: [k3s-server, 127.0.0.1]"}' > /etc/rancher/k3s/config.yaml
+      - curl -sfL https://get.k3s.io | K3S_TOKEN=${K3S_TOKEN:?token secreto do cluster} sh -s - server
+  k3s-agente-1:
+    depois: k3s-server
+    image: debian-12
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: 20G
+    packages: [curl]
+    run:
+      - mkdir -p /etc/rancher/k3s
+      - |
+        ip -4 -o addr show lan0 | awk '{split($4, a, "/"); print "node-ip: " a[1]; print "flannel-iface: lan0"}' > /etc/rancher/k3s/config.yaml
+      - curl -sfL https://get.k3s.io | K3S_URL=https://k3s-server:6443 K3S_TOKEN=${K3S_TOKEN} sh -
+  k3s-agente-2:
+    depois: k3s-server
+    image: debian-12
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: 20G
+    packages: [curl]
+    run:
+      - mkdir -p /etc/rancher/k3s
+      - |
+        ip -4 -o addr show lan0 | awk '{split($4, a, "/"); print "node-ip: " a[1]; print "flannel-iface: lan0"}' > /etc/rancher/k3s/config.yaml
+      - curl -sfL https://get.k3s.io | K3S_URL=https://k3s-server:6443 K3S_TOKEN=${K3S_TOKEN} sh -

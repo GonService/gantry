@@ -1,0 +1,13 @@
+# nome: VM Ubuntu com Docker
+# categoria: VMs
+# descrição: Ubuntu 24.04 com o Docker instalado no primeiro boot, pronto para virar um host do Gantry.
+x-vms:
+  docker:
+    image: ubuntu-24.04
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: ${DISCO:-20G}
+    packages: [curl, ca-certificates]
+    run:
+      - curl -fsSL https://get.docker.com | sh
+      - usermod -aG docker gantry

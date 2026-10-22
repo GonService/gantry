@@ -1,0 +1,22 @@
+# nome: Postgres + Adminer
+# categoria: Bancos de dados
+# descrição: PostgreSQL numa rede interna e o Adminer para administrar pelo navegador.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina a senha do banco}
+    volumes:
+      - dados:/var/lib/postgresql/data
+    networks: [interna]
+  adminer:
+    image: adminer:4.8.1
+    ports:
+      - "${PORTA_ADMINER:-8081}:8080"
+    depends_on: [db]
+    networks: [interna]
+volumes:
+  dados: {}
+networks:
+  interna: {}

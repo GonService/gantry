@@ -1,0 +1,9 @@
+# nome: Mailpit
+# categoria: Ferramentas
+# descrição: Servidor SMTP de teste com caixa de entrada web.
+services:
+  mail:
+    image: docker.io/axllent/mailpit:v1.20.0
+    ports:
+      - "${PORTA_WEB:-8025}:8025"
+      - "${PORTA_SMTP:-1025}:1025"

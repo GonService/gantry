@@ -1,0 +1,15 @@
+# nome: Jupyter
+# categoria: Ferramentas
+# descrição: JupyterLab com Python, protegido por um token; os notebooks ficam num volume.
+services:
+  jupyter:
+    image: quay.io/jupyter/minimal-notebook:python-3.11
+    restart: unless-stopped
+    environment:
+      JUPYTER_TOKEN: ${TOKEN:?token para entrar no JupyterLab}
+    ports:
+      - "${PORTA:-8888}:8888"
+    volumes:
+      - notebooks:/home/jovyan/work
+volumes:
+  notebooks: {}

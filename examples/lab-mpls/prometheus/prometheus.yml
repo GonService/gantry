@@ -1,0 +1,86 @@
+# Prometheus do lab: roda na LAN do NOC (10.250.0.10) e coleta pela própria rede.
+#   rede          os equipamentos por SNMP (via snmp_exporter, módulo "lab" do snmp.yml)
+#   snmp-exporter a saúde do exporter
+#   ping          as sondas (blackbox) nos sites pingam os outros sites
+# Mudou este arquivo? Reinicie o serviço prometheus (o Gantry oferece ao salvar).
+global:
+  scrape_interval: 30s
+  scrape_timeout: 25s
+scrape_configs:
+  - job_name: rede
+    metrics_path: /snmp
+    params:
+      module: [lab]
+      auth: [public_v2]
+    static_configs:
+      - targets: [10.255.0.1]
+        labels: {device: P1, papel: P}
+      - targets: [10.255.0.2]
+        labels: {device: P2, papel: P}
+      - targets: [10.255.0.11]
+        labels: {device: PE1, papel: PE}
+      - targets: [10.255.0.12]
+        labels: {device: PE2, papel: PE}
+      - targets: [10.255.0.13]
+        labels: {device: PE3, papel: PE}
+      - targets: [10.255.0.100]
+        labels: {device: NOC, papel: NOC}
+      - targets: [10.255.1.1]
+        labels: {device: CE-A1, papel: CE}
+      - targets: [10.255.1.2]
+        labels: {device: CE-A2, papel: CE}
+      - targets: [10.255.1.3]
+        labels: {device: CE-A3, papel: CE}
+      - targets: [10.255.2.1]
+        labels: {device: CE-B1, papel: CE}
+      - targets: [10.255.2.2]
+        labels: {device: CE-B2, papel: CE}
+      - targets: [172.16.1.2]
+        labels: {device: SW-A1, papel: L2}
+      - targets: [172.16.2.2]
+        labels: {device: SW-A2, papel: L2}
+      - targets: [172.16.3.2]
+        labels: {device: SW-A3, papel: L2}
+    relabel_configs:
+      - {source_labels: [__address__], target_label: __param_target}
+      - {source_labels: [__param_target], target_label: instance}
+      - {target_label: __address__, replacement: '127.0.0.1:9116'}
+  - job_name: snmp-exporter
+    static_configs: [{targets: ['127.0.0.1:9116']}]
+  - job_name: ping
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets: [172.16.1.1]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'CE-A1', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.16.1.11]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-a1b', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.16.2.10]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-a2', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.16.2.11]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-a2b', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.16.3.10]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-a3', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.16.3.11]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-a3b', vrf: CLIENTE-A, esperado: ok}
+      - targets: [10.255.1.2]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'CE-A2 lo0', vrf: CLIENTE-A, esperado: ok}
+      - targets: [10.255.1.3]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'CE-A3 lo0', vrf: CLIENTE-A, esperado: ok}
+      - targets: [172.17.1.10]
+        labels: {sonda: cli-a1, origem: 'Site A1', destino: 'cli-b1 (outro cliente)', vrf: CLIENTE-A, esperado: bloqueado}
+      - targets: [172.17.1.1]
+        labels: {sonda: cli-b1, origem: 'Site B1', destino: 'CE-B1', vrf: CLIENTE-B, esperado: ok}
+      - targets: [172.17.2.10]
+        labels: {sonda: cli-b1, origem: 'Site B1', destino: 'cli-b2', vrf: CLIENTE-B, esperado: ok}
+      - targets: [10.255.2.2]
+        labels: {sonda: cli-b1, origem: 'Site B1', destino: 'CE-B2 lo0', vrf: CLIENTE-B, esperado: ok}
+      - targets: [172.16.1.10]
+        labels: {sonda: cli-b1, origem: 'Site B1', destino: 'cli-a1 (outro cliente)', vrf: CLIENTE-B, esperado: bloqueado}
+    relabel_configs:
+      - {source_labels: [__address__], target_label: __param_target}
+      - {source_labels: [__param_target], target_label: instance}
+      - {source_labels: [sonda], target_label: __address__, replacement: '${1}:9115'}

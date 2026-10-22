@@ -1,0 +1,15 @@
+# nome: VM LAMP
+# categoria: VMs
+# descrição: Debian 12 com Apache, PHP e MariaDB no sistema. Página de teste em /info.php e um banco "app" pronto.
+x-vms:
+  lamp:
+    image: debian-12
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-1g}
+    disk: ${DISCO:-10G}
+    ports: ["${PORTA_WEB:-8088}:80"]
+    packages: [apache2, mariadb-server, php, libapache2-mod-php, php-mysql]
+    run:
+      - echo '<?php phpinfo();' > /var/www/html/info.php
+      - mysql -e "CREATE DATABASE IF NOT EXISTS app; CREATE USER IF NOT EXISTS 'app'@'localhost' IDENTIFIED BY '${DB_SENHA:?senha do usuário app no MariaDB}'; GRANT ALL ON app.* TO 'app'@'localhost';"
+      - systemctl restart apache2

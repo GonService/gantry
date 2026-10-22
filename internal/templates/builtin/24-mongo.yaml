@@ -1,0 +1,16 @@
+# nome: MongoDB
+# categoria: Bancos de dados
+# descrição: MongoDB com usuário root e os dados num volume.
+services:
+  mongo:
+    image: mongo:${VERSAO_MONGO:-7}
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USUARIO:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_SENHA:?defina a senha}
+    ports:
+      - "${PORTA:-27017}:27017"
+    volumes:
+      - dados:/data/db
+volumes:
+  dados: {}

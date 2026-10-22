@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Gantry",
+  "outputfilename": "Gantry",
+  "frontend:dir": "web",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "GonService"
+  },
+  "info": {
+    "productName": "Gantry",
+    "productVersion": "0.1.0",
+    "comments": "Containers e labs locais e remotos"
+  },
+  "wailsjsdir": "./build"
+}

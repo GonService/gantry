@@ -1,0 +1,16 @@
+# nome: VM com k3s
+# categoria: VMs
+# descrição: Debian 12 com um Kubernetes leve (k3s) e a porta da API publicada no host. O cluster aparece sozinho na barra lateral quando a API responde.
+x-gantry:
+  kubernetes: {vm: k3s, porta: "${PORTA_API:-6443}"}
+
+x-vms:
+  k3s:
+    image: debian-12
+    cpus: ${CPUS:-2}
+    memory: ${MEMORIA:-2g}
+    disk: ${DISCO:-20G}
+    ports: ["${PORTA_API:-6443}:6443"]
+    packages: [curl]
+    run:
+      - curl -sfL https://get.k3s.io | sh -

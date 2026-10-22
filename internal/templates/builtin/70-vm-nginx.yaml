@@ -1,0 +1,13 @@
+# nome: VM com Nginx
+# categoria: VMs
+# descrição: Uma VM Debian no QEMU do host, com Nginx instalado pelo cloud-init.
+x-vms:
+  web:
+    image: ${IMAGEM_VM:-debian-12}
+    cpus: 1
+    memory: 1g
+    disk: 8G
+    ports: ["${PORTA:-8081}:80"]
+    packages: [nginx]
+    run:
+      - echo '<meta charset="utf-8"><h1>Olá do Gantry</h1>' > /var/www/html/index.html

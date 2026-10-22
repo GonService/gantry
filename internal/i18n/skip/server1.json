@@ -1,0 +1,5 @@
+[
+  "[Unit]\nDescription=Gantry agent (métricas e arquivos dos labs)\n\n[Service]\nExecStart=%h/.local/bin/gantry-agent\nRestart=on-failure\nRestartSec=5\n# The labs' programs (IOL, QEMU, the cables) started through the agent go\n# on running when it restarts or updates.\nKillMode=process\n\n[Install]\nWantedBy=default.target\n",
+  "cd -- \"$1\" 2>/dev/null || { echo \"gantry:nao-e-pasta\"; exit 3; }\nshift\nfor f in * .[!.]* ..?*; do if [ -e \"$f\" ] || [ -L \"$f\" ]; then set -- \"$@\" \"$f\"; fi; done\n[ $# -eq 0 ] && exit 0\nif command -v stat >/dev/null 2>&1; then stat -c '%F|%s|%Y|%n' -- \"$@\" 2>/dev/null; exit 0; fi\nfor f; do if [ -L \"$f\" ]; then t=\"symbolic link\"; elif [ -d \"$f\" ]; then t=directory; elif [ -f \"$f\" ]; then t=\"regular file\"; else t=other; fi; echo \"$t|-1|0|$f\"; done",
+  "tell application (path to frontmost application as text)\nset p to "
+]

@@ -1,0 +1,16 @@
+# nome: Lab IOL Cisco (roteadores e switches leves)
+# categoria: Redes
+# descrição: Dois roteadores IOL e dois switches IOL-L2 em anel (r1 — sw1 = sw2 — r2 — r1), com 4 portas cada e console serial. O IOL roda o .bin direto no host, sem KVM e com pouca memória: bom para OSPF, STP, EtherChannel e VLANs. Troque os cabos em Cabos, sem reiniciar. Precisa das imagens cisco-iol e cisco-iol-l2 (Configurações › Geral › Imagens de VM) num host Linux x86_64.
+x-vms:
+  r1:
+    image: cisco-iol
+    interfaces: [r1-sw1, r1-r2, none, none]
+  r2:
+    image: cisco-iol
+    interfaces: [r2-sw2, r1-r2, none, none]
+  sw1:
+    image: cisco-iol-l2
+    interfaces: [r1-sw1, sw1-sw2-a, sw1-sw2-b, none]
+  sw2:
+    image: cisco-iol-l2
+    interfaces: [r2-sw2, sw1-sw2-a, sw1-sw2-b, none]

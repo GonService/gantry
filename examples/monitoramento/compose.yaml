@@ -1,0 +1,54 @@
+# Stack de observabilidade para os containers do Docker desta máquina.
+# O Gantry encontra o Prometheus, o Loki e o Grafana sozinho (pelas imagens
+# e portas) e passa a mostrar:
+#   - CPU e memória do cAdvisor na aba Métricas de cada lab (fonte Prometheus)
+#   - histórico dos logs no Loki, na janela de logs de cada container
+#   - os dashboards do Grafana na página do host
+name: monitoramento
+
+services:
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    devices: ["/dev/kmsg"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  loki:
+    image: docker.io/grafana/loki:3.1.0
+    ports: ["3100:3100"]
+
+  alloy:
+    # Lê os logs de todos os containers do Docker e envia para o Loki,
+    # com os labels container, compose_project e compose_service.
+    image: docker.io/grafana/alloy:v1.5.1
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    depends_on: [loki]
+
+  grafana:
+    image: docker.io/grafana/grafana:11.1.0
+    ports: ["3000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/gantry.yml:ro
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/gantry.yml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus, loki]

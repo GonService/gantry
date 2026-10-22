@@ -1,0 +1,27 @@
+# Rotas do Traefik (relidas sozinhas quando o arquivo muda; edite na aba
+# Arquivo do projeto). Na porta 80 da máquina:
+#   /grafana  -> o Grafana do lab (ele está configurado para esse caminho)
+#   /         -> o Nginx da VM, pela porta que a VM publica no host
+http:
+  routers:
+    grafana:
+      rule: PathPrefix(`/grafana`)
+      entryPoints: [web]
+      service: grafana
+    nginx:
+      rule: PathPrefix(`/`)
+      entryPoints: [web]
+      service: nginx-vm
+  services:
+    grafana:
+      loadBalancer:
+        servers:
+          - url: http://grafana:3000
+    nginx-vm:
+      loadBalancer:
+        servers:
+          - url: 'http://host.containers.internal:{{ env "PORTA_NGINX" }}'
+        healthCheck:
+          path: /
+          interval: 10s
+          timeout: 3s

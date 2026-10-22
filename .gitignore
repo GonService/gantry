@@ -1,0 +1,18 @@
+dist/
+build/bin/
+build/wailsjs/
+build/darwin/
+build/windows/
+.DS_Store
+internal/agentbin/bin/*.gz
+web/ui/*
+!web/ui/.gitkeep
+frontend/node_modules/
+frontend/*.tsbuildinfo
+images/nixos/result
+
+# logs que o Dynamips grava onde roda
+*_i[0-9]*_log.txt
+
+# caches do Python
+__pycache__/

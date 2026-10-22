@@ -1,0 +1,17 @@
+# nome: VM com PostgreSQL
+# categoria: VMs
+# descrição: Debian 12 com PostgreSQL instalado no sistema (fora de container), aceitando conexões pela porta publicada no host.
+x-vms:
+  postgres:
+    image: debian-12
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-1g}
+    disk: ${DISCO:-10G}
+    ports: ["${PORTA_POSTGRES:-15432}:5432"]
+    packages: [postgresql]
+    run:
+      - sed -i "s/^#listen_addresses.*/listen_addresses = '*'/" /etc/postgresql/*/main/postgresql.conf
+      - echo "host all all 0.0.0.0/0 scram-sha-256" | tee -a /etc/postgresql/*/main/pg_hba.conf
+      - systemctl restart postgresql
+      - sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${POSTGRES_SENHA:?senha do usuário postgres}'"
+      - sudo -u postgres createdb ${BANCO:-app}

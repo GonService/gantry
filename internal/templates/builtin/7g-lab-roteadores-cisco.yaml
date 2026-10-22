@@ -1,0 +1,13 @@
+# nome: Lab de roteadores Cisco (IOSv)
+# categoria: Redes
+# descrição: Três roteadores IOSv em linha (r1 — r2 — r3), com 4 portas cada e console serial. Bom para OSPF, EIGRP e BGP. Troque os cabos em Cabos, sem reiniciar. Precisa da imagem cisco-iosv (Configurações › Geral › Imagens de VM) num host Linux x86 com KVM.
+x-vms:
+  r1:
+    image: cisco-iosv
+    interfaces: [r1-r2, none, none, none]
+  r2:
+    image: cisco-iosv
+    interfaces: [r1-r2, r2-r3, none, none]
+  r3:
+    image: cisco-iosv
+    interfaces: [r2-r3, none, none, none]

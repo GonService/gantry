@@ -1,0 +1,10 @@
+# nome: VM Debian
+# categoria: VMs
+# descrição: Debian 12 limpo, com acesso por SSH e os pacotes que você quiser.
+x-vms:
+  debian:
+    image: debian-12
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-1g}
+    disk: ${DISCO:-10G}
+    packages: [curl, vim, htop]

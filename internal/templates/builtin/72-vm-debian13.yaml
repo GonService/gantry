@@ -1,0 +1,10 @@
+# nome: VM Debian 13
+# categoria: VMs
+# descrição: Debian 13 (trixie) limpo, com SSH e ferramentas básicas.
+x-vms:
+  debian13:
+    image: debian-13
+    cpus: ${CPUS:-1}
+    memory: ${MEMORIA:-1g}
+    disk: ${DISCO:-10G}
+    packages: [curl, vim, htop]
