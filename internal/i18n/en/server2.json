@@ -505,5 +505,20 @@
   "name: %q não é um nome de projeto válido (letras minúsculas, números, - e _, começando com letra ou número)": "name: %q is not a valid project name (lowercase letters, digits, - and _, starting with a letter or digit)",
   "o arquivo tem conteúdo que viraria outra coisa além dos equipamentos do lab (containers ou VMs); nada foi importado": "the file has content that would become something other than the lab's devices (containers or VMs); nothing was imported",
   "o compose gerado não é válido: %v": "the generated compose is not valid: %v",
-  "x-vms.%s.iso: o caminho ou a URL tem caracteres que não são aceitos (aspas, $, \\ ou quebra de linha)": "x-vms.%s.iso: the path or URL has characters that are not accepted (quotes, $, \\ or line breaks)"
+  "x-vms.%s.iso: o caminho ou a URL tem caracteres que não são aceitos (aspas, $, \\ ou quebra de linha)": "x-vms.%s.iso: the path or URL has characters that are not accepted (quotes, $, \\ or line breaks)",
+  "- roda o comando ": "- runs the command ",
+  "- lê os arquivos ": "- reads the files ",
+  "- manda as conexões com o cluster pelo proxy ": "- sends the connections to the cluster through the proxy ",
+  "Este kubeconfig, neste computador:\n": "This kubeconfig, on this computer:\n",
+  "-cert e -key andam juntos: informe os dois arquivos": "-cert and -key go together: give both files",
+  "-tls, -cert e -key valem para a versão de navegador: acrescente -web": "-tls, -cert and -key are for the browser version: add -web",
+  "atenção: escutando fora do localhost (%s), sem criptografia: quem estiver na rede pode ler o link e a chave e controlar as suas máquinas. Acrescente -tls (ou -cert e -key) ou use um túnel SSH": "warning: listening outside localhost (%s) without encryption: anyone on the network can read the link and the key and control your machines. Add -tls (or -cert and -key) or use an SSH tunnel",
+  "  HTTPS: impressão digital SHA-256 do certificado (confira no navegador):\n    %s\n": "  HTTPS: SHA-256 fingerprint of the certificate (compare it in the browser):\n    %s\n",
+  "permitir escutar fora do localhost (prefira um túnel SSH; se usar, ligue o -tls)": "allow listening outside localhost (prefer an SSH tunnel; if you use it, turn on -tls)",
+  "HTTPS com um certificado que o Gantry gera e guarda na pasta da configuração": "HTTPS with a certificate Gantry makes and keeps in the config folder",
+  "HTTPS com o seu certificado (arquivo PEM; com -key)": "HTTPS with your certificate (PEM file; with -key)",
+  "chave do certificado de -cert (arquivo PEM)": "key of the -cert certificate (PEM file)",
+  "Gantry (certificado próprio)": "Gantry (self-signed certificate)",
+  "o arquivo do certificado está vazio": "the certificate file is empty",
+  "certificado %s / chave %s: %v": "certificate %s / key %s: %v"
 }
