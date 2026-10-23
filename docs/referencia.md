@@ -468,6 +468,8 @@ Também testa um lab misto, quando há Docker e Podman. Variáveis opcionais:
 - `GANTRY_E2E_IMAGE` troca a imagem dos testes;
 - `GANTRY_E2E_ONLY` limita os hosts testados.
 
+`make e2e-real` roda os testes com as coisas reais, no lugar dos programas falsos dos testes de unidade: uma VM no QEMU (`GANTRY_E2E_VM_IMAGE=debian-12`: o servidor web que ela instala responde na porta publicada, as amostras do processo do QEMU, o node_exporter de dentro dela, uma porta acrescentada e tirada com ela rodando) e os equipamentos de rede com as imagens de verdade (`GANTRY_E2E_C7200` e `GANTRY_E2E_IOL`, caminho das imagens: a configuração inicial entra, a linha errada de propósito aparece como recusada, um VPCS pinga o roteador e, no Dynamips, o idle-PC é calculado). No GitHub, o workflow **Testes reais** roda a VM com KVM toda segunda, antes de cada versão e quando você pede; os equipamentos de rede rodam só na sua máquina, porque as imagens da Cisco não podem ir para o GitHub.
+
 A interface tem um teste rápido que abre todas as telas nos dois temas e falha se houver erro de JavaScript: `tests/ui_smoke.py`, que usa o Playwright. O roteiro de testes manuais no Mac está em [testes.md](testes.md).
 
 ## Releases e Homebrew

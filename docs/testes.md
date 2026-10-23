@@ -6,6 +6,7 @@
 |---|---|---|
 | `make test` | Unidade e API inteira contra um engine falso; driver do nerdctl com CLI falso; compose, x-gantry, x-vms, métricas, Loki/Prometheus; operações em segundo plano, conexão direta do agente (TLS mútuo, recusa de certificado não pareado), métricas de VMs no agente, serviços compartilhados, backup, segredos, versões das imagens (registro falso) e detecção do WSL | só Go |
 | `make e2e` | Ciclo de vida de um lab em cada engine real encontrado, lab misto, VM, criação e edição de containers; com `GANTRY_E2E_KUBECONFIG`, as telas do cluster com pods de verdade (logs que seguem, shell, encaminhar porta, escalar, reiniciar, voltar versão, esvaziar nó) | os engines instalados; um cluster (kind, k3d) |
+| `make e2e-real` | As coisas reais, sem os programas falsos dos testes de unidade: uma VM no QEMU (o nginx que ela instala responde na porta publicada, as amostras do processo do QEMU, o node_exporter de dentro dela, uma porta acrescentada e tirada com ela rodando) e os equipamentos de rede com as imagens de verdade (a configuração inicial entra, a linha errada de propósito aparece como recusada, o VPCS pinga o roteador e, no Dynamips, o idle-PC é calculado) | `GANTRY_E2E_VM_IMAGE`, `GANTRY_E2E_C7200`, `GANTRY_E2E_IOL`; QEMU, dynamips |
 | `python3 tests/ui_smoke.py '<link>'` | Todas as telas, nos dois temas, sem erro de JavaScript | Playwright e o app rodando com `-web` |
 
 Exemplos:
@@ -16,7 +17,14 @@ GANTRY_E2E_SSH=ssh://usuario@127.0.0.1:2222 make e2e   # inclui a VM de teste
 GANTRY_E2E_VM_IMAGE=debian-12 make e2e            # inclui uma VM QEMU (baixa ~350 MB)
 GANTRY_E2E_ONLY=podman make e2e                   # só um host
 kind create cluster && GANTRY_E2E_KUBECONFIG=~/.kube/config make e2e   # inclui o Kubernetes
+
+# Os testes reais (num Linux com KVM; o IOL só no x86_64)
+GANTRY_E2E_VM_IMAGE=debian-12 make e2e-real
+GANTRY_E2E_C7200=~/imagens/c7200-adventerprisek9-mz.152-4.S6.image make e2e-real
+GANTRY_E2E_IOL=~/imagens/i86bi_linux-adventerprisek9-ms.155-2.T.bin make e2e-real
 ```
+
+No GitHub, o workflow **Testes reais** (`.github/workflows/e2e-real.yml`) roda a VM de verdade com KVM toda segunda, antes de cada versão e quando você pede (Actions › Testes reais › Run workflow). Os equipamentos de rede ficam de fora de lá: as imagens da Cisco não podem ir para o GitHub, então esse teste roda na sua máquina, antes de cada versão.
 
 No GitHub, cada push na `main` roda os testes com `-race`, todas as telas (Playwright), o ciclo de projetos no Docker do runner e as telas do cluster num kind (`.github/workflows/ci.yml`).
 

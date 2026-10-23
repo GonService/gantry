@@ -1,0 +1,42 @@
+name: Testes reais
+
+# Uma VM de verdade no QEMU com KVM: o nginx que ela instala responde na
+# porta publicada, as amostras do processo do QEMU, o node_exporter de
+# dentro dela (metrics: true) e uma porta acrescentada e tirada com ela
+# rodando. Leva uns 15 minutos (o primeiro boot instala pacotes).
+#
+# Os equipamentos de rede com as imagens reais (Dynamips, IOL) não rodam
+# aqui: as imagens da Cisco não podem ir para o GitHub. Rode na sua máquina
+# com make e2e-real (veja docs/testes.md).
+#
+# Roda à mão (Actions › Testes reais › Run workflow), toda segunda e antes
+# de cada versão (tag v*).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  vm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: KVM e QEMU
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          sudo apt-get update && sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage
+          ls -l /dev/kvm
+      - name: VM de verdade
+        env:
+          GANTRY_E2E_VM_IMAGE: debian-12
+        run: go test -tags e2e -count=1 -v -timeout 40m -run 'TestVMReal' ./e2e/

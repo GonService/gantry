@@ -11,6 +11,8 @@
 //	GANTRY_E2E_ONLY     comma-separated host names to test (default: all)
 //	GANTRY_E2E_SSH      ssh://… host to test too (key or agent auth)
 //	GANTRY_E2E_VM_IMAGE image for the VM test (debian-12, a path or a URL)
+//	GANTRY_E2E_C7200    a c7200 IOS image (path): the Dynamips test
+//	GANTRY_E2E_IOL      an IOL L3 image (path): the IOL test
 package e2e
 
 import (

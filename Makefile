@@ -12,6 +12,7 @@
 #   make ui-watch   recompila a interface a cada mudança (use junto com make run-web)
 #   make test       go vet + testes de unidade e da API
 #   make e2e        testes de ponta a ponta contra os engines desta máquina (veja docs/testes.md)
+#   make e2e-real   VM de verdade e Dynamips/IOL com as imagens reais (veja docs/testes.md)
 #   make deps       instala o Wails e baixa as dependências
 #   make clean      apaga build/ e dist/
 
@@ -24,7 +25,7 @@ ARCH     := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 
 .DEFAULT_GOAL := desktop
-.PHONY: desktop run dev web run-web release test e2e deps clean check agents ui ui-watch linux
+.PHONY: desktop run dev web run-web release test e2e e2e-real deps clean check agents ui ui-watch linux
 UNAME    := $(shell uname)
 
 check:
@@ -117,6 +118,12 @@ test: check ui
 
 e2e: check
 	go test -tags e2e -count=1 -v -timeout 30m ./e2e/
+
+# Só os testes com as coisas reais: uma VM (GANTRY_E2E_VM_IMAGE=debian-12) e
+# os equipamentos de rede com as imagens de verdade (GANTRY_E2E_C7200,
+# GANTRY_E2E_IOL: caminho da imagem). Sem a variável, o teste é pulado.
+e2e-real: check
+	go test -tags e2e -count=1 -v -timeout 60m -run 'TestVMReal|TestNetworkReal' ./e2e/
 
 clean:
 	rm -rf build/bin dist
