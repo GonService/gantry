@@ -245,7 +245,14 @@ func newEnv(t *testing.T) *env {
 		},
 		vols: []engine.Volume{{Name: "dados"}, {Name: "orfao"}},
 	}
-	sock := filepath.Join(dir, "fake.sock")
+	// The socket in a short folder: a Unix socket path has at most 104
+	// bytes on macOS, and t.TempDir() there carries the test's name.
+	sockDir, err := os.MkdirTemp("", "gt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(sockDir) })
+	sock := filepath.Join(sockDir, "fake.sock")
 	sh := shim.New(f)
 	if err := sh.Listen(sock); err != nil {
 		t.Fatal(err)
