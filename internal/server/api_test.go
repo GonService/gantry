@@ -33,6 +33,7 @@ import (
 	"gantry/internal/composex"
 	"gantry/internal/config"
 	"gantry/internal/engine"
+	"gantry/internal/i18n"
 	"gantry/internal/labs"
 	"gantry/internal/obs"
 	"gantry/internal/shim"
@@ -2381,5 +2382,29 @@ func TestToolsAndSSHConfig(t *testing.T) {
 	e.call("GET", "/ssh-config", nil, &hs)
 	if len(hs) != 2 || !hs[0].Added || hs[1].Added {
 		t.Fatalf("o host fake já está no Gantry; novo não: %+v", hs)
+	}
+}
+
+// A pasted kubeconfig with a proxy or without the server certificate check
+// asks for trust first, saying both, also in English.
+func TestClusterPastedRisks(t *testing.T) {
+	e := newEnv(t)
+	kc := "apiVersion: v1\nkind: Config\nclusters: [{name: c, cluster: {server: https://192.0.2.5:6443, proxy-url: http://192.0.2.9:3128, insecure-skip-tls-verify: true}}]\nusers: [{name: u, user: {token: x}}]\ncontexts: [{name: lab, context: {cluster: c, user: u}}]\ncurrent-context: lab\n"
+	var r map[string]string
+	if code := e.call("POST", "/clusters", map[string]string{"yaml": kc, "context": "lab"}, &r); code != http.StatusPreconditionFailed {
+		t.Fatalf("devia pedir confiança: %d %v", code, r)
+	}
+	for _, want := range []string{"Este kubeconfig, neste computador:\n", "- manda as conexões com o cluster pelo proxy http://192.0.2.9:3128", "insecure-skip-tls-verify"} {
+		if !strings.Contains(r["error"], want) {
+			t.Errorf("faltou %q em %q", want, r["error"])
+		}
+	}
+	if en := i18n.ToEnglish(r["error"]); !strings.Contains(en, "This kubeconfig, on this computer:\n") || !strings.Contains(en, "- sends the connections to the cluster through the proxy http://192.0.2.9:3128") || !strings.Contains(en, "does not check the cluster's certificate") {
+		t.Errorf("em inglês: %q", en)
+	}
+	// A plain kubeconfig (token, CA inline) goes straight in.
+	plain := "apiVersion: v1\nkind: Config\nclusters: [{name: c, cluster: {server: https://192.0.2.5:6443}}]\nusers: [{name: u, user: {token: x}}]\ncontexts: [{name: lab, context: {cluster: c, user: u}}]\ncurrent-context: lab\n"
+	if code := e.call("POST", "/clusters", map[string]string{"yaml": plain, "context": "lab"}, nil); code == http.StatusPreconditionFailed {
+		t.Fatalf("kubeconfig simples não devia pedir confiança")
 	}
 }

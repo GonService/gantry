@@ -129,6 +129,10 @@ type ContextInfo struct {
 	// a pasted kubeconfig); Files are the files it reads.
 	Exec  string   `json:"exec,omitempty"`
 	Files []string `json:"files,omitempty"`
+	// Proxy is the proxy-url the connections go through; Insecure, that
+	// the server's certificate is not checked (insecure-skip-tls-verify).
+	Proxy    string `json:"proxy,omitempty"`
+	Insecure bool   `json:"insecure,omitempty"`
 }
 
 func (c *Config) ContextList() []ContextInfo {
@@ -149,8 +153,11 @@ func (c *Config) ContextList() []ContextInfo {
 				}
 			}
 		}
-		if cl := c.cluster(x.Context.Cluster); cl != nil && cl.CertificateAuthority != "" {
-			ci.Files = append(ci.Files, cl.CertificateAuthority)
+		if cl := c.cluster(x.Context.Cluster); cl != nil {
+			if cl.CertificateAuthority != "" {
+				ci.Files = append(ci.Files, cl.CertificateAuthority)
+			}
+			ci.Proxy, ci.Insecure = cl.ProxyURL, cl.InsecureSkipTLSVerify
 		}
 		out = append(out, ci)
 	}

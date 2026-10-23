@@ -255,16 +255,11 @@ func (s *Server) addCluster(w http.ResponseWriter, r *http.Request) {
 			c.Context = cfg.CurrentContext
 		}
 		for _, ci := range cfg.ContextList() {
-			if ci.Name == c.Context && (ci.Exec != "" || len(ci.Files) > 0) && !req.Trust {
-				what := []string{}
-				if ci.Exec != "" {
-					what = append(what, "roda o comando "+ci.Exec)
+			if ci.Name == c.Context && !req.Trust {
+				if risks := kubeconfigRisks(ci); len(risks) > 0 {
+					writeErr(w, http.StatusPreconditionFailed, errors.New("Este kubeconfig, neste computador:\n"+strings.Join(risks, "\n")))
+					return
 				}
-				if len(ci.Files) > 0 {
-					what = append(what, "lê "+strings.Join(ci.Files, ", "))
-				}
-				writeErr(w, http.StatusPreconditionFailed, fmt.Errorf("este kubeconfig %s neste computador; confirme que confia nele", strings.Join(what, " e ")))
-				return
 			}
 		}
 		one, err := cfg.Extract(c.Context)
@@ -1210,4 +1205,25 @@ func (s *Server) clusterDisconnect(w http.ResponseWriter, r *http.Request) {
 	dropSampler(id)
 	forgetKubeClient(id)
 	writeJSON(w, map[string]bool{"ok": true})
+}
+
+// kubeconfigRisks is what a pasted kubeconfig does besides talking to the
+// cluster, one line each, shown before trusting it: a command it runs,
+// files of this computer it reads, a proxy the connections go through, a
+// server certificate it does not check.
+func kubeconfigRisks(ci kube.ContextInfo) []string {
+	var out []string
+	if ci.Exec != "" {
+		out = append(out, "- roda o comando "+ci.Exec)
+	}
+	if len(ci.Files) > 0 {
+		out = append(out, "- lê os arquivos "+strings.Join(ci.Files, ", "))
+	}
+	if ci.Proxy != "" {
+		out = append(out, "- manda as conexões com o cluster pelo proxy "+ci.Proxy)
+	}
+	if ci.Insecure {
+		out = append(out, "- não confere o certificado do cluster (insecure-skip-tls-verify): alguém no caminho pode se passar por ele")
+	}
+	return out
 }

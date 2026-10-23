@@ -1144,3 +1144,4 @@ table.grid tr.row-click { cursor: pointer; }
 .folder-picker .fp-host { margin: 8px 0 0; overflow-wrap: anywhere; }
 /* The browser version on the network without HTTPS. */
 .net-warn { background: var(--crit-soft); color: var(--crit); padding: 8px 16px; font-size: 13px; border-bottom: 1px solid var(--crit); }
+.risk-list { margin: 6px 0 10px; padding-left: 20px; } .risk-list li { margin: 4px 0; overflow-wrap: anywhere; }

@@ -253,7 +253,7 @@ Gantry talks straight to the Kubernetes API (no `kubectl`), with the kubeconfig 
 
 Every connection, including pod shells, goes through the kubeconfig proxy (`proxy-url`) or the system's `HTTPS_PROXY`. The login plugin runs once even with several screens asking at the same time, and the list of cluster kinds is read again every 10 minutes (or right away, when a new kind, like a freshly installed CRD, does not appear yet).
 
-To add a cluster: gear → **Clusters** → **Add cluster**. You can choose a context from `~/.kube/config` (the app rereads the file when it changes) or paste a kubeconfig, kept in a copy of the app's own. A pasted kubeconfig that runs a program or reads files only goes in after you confirm.
+To add a cluster: gear → **Clusters** → **Add cluster**. You can choose a context from `~/.kube/config` (the app rereads the file when it changes) or paste a kubeconfig, kept in a copy of the app's own. A pasted kubeconfig that runs a program, reads files of this computer, sends the connections through a proxy (`proxy-url`) or does not check the cluster's certificate (`insecure-skip-tls-verify`) only goes in after you confirm, with each of these listed.
 
 Each cluster has a mode, chosen in Settings:
 

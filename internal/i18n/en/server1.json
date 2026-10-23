@@ -97,7 +97,6 @@
   "este cluster está em modo só leitura: os valores dos Secrets não são mostrados": "this cluster is read-only: Secret values are not shown",
   "este cluster está em modo só leitura; mude em Configuração › Clusters": "this cluster is read-only; change it in Settings › Clusters",
   "este host não dá acesso a arquivos; conecte via ssh://": "this host gives no file access; connect via ssh://",
-  "este kubeconfig %s neste computador; confirme que confia nele": "this kubeconfig %s on this computer; confirm that you trust it",
   "este tipo de host não lê pastas; use ssh://": "this kind of host cannot read folders; use ssh://",
   "fim do log": "end of log",
   "host de destino não encontrado": "destination host not found",
@@ -194,5 +193,10 @@
   "use um caminho absoluto, como /etc": "use an absolute path, like /etc",
   "verificando o servidor": "checking the server",
   "volume %s está corrompido no backup: %v (nada foi alterado)": "volume %s is corrupted in the backup: %v (nothing was changed)",
-  "volume %s: %v (nada foi alterado)": "volume %s: %v (nothing was changed)"
+  "volume %s: %v (nada foi alterado)": "volume %s: %v (nothing was changed)",
+  "Este kubeconfig, neste computador:": "This kubeconfig, on this computer:",
+  "- roda o comando %s": "- runs the command %s",
+  "- lê os arquivos %s": "- reads the files %s",
+  "- manda as conexões com o cluster pelo proxy %s": "- sends the connections to the cluster through the proxy %s",
+  "- não confere o certificado do cluster (insecure-skip-tls-verify): alguém no caminho pode se passar por ele": "- does not check the cluster's certificate (insecure-skip-tls-verify): someone in the path can pose as it"
 }

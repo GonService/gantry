@@ -56,7 +56,19 @@ function AddCluster({ groups, close }: { groups: Groups; close: () => void }) {
         c = await api("/clusters", { method: "POST", body });
       } catch (e) {
         if (!(e instanceof APIError) || e.status !== 412) throw e;
-        if (!(await confirm(t("Confiar neste kubeconfig?"), t("{msg}. Só continue se o kubeconfig veio de uma fonte sua (o gcloud, o seu provedor).", { msg: e.message }), t("Confio")))) throw new Error(t("Cancelado."));
+        const [head, ...risks] = e.message.split("\n");
+        const msg = (
+          <>
+            <p>{head}</p>
+            <ul className="risk-list">
+              {risks.map((l) => (
+                <li key={l}>{l.replace(/^- /, "")}</li>
+              ))}
+            </ul>
+            <p>{t("Só continue se o kubeconfig veio de uma fonte sua (o gcloud, o seu provedor).")}</p>
+          </>
+        );
+        if (!(await confirm(t("Confiar neste kubeconfig?"), msg, t("Confio")))) throw new Error(t("Cancelado."));
         c = await api("/clusters", { method: "POST", body: { ...body, trust: true } });
       }
       close();

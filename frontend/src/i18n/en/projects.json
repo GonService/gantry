@@ -337,7 +337,7 @@
   "vazia": "empty",
   "viram campos na hora de gerar.": "become fields when generating.",
   "x-gantry: engine por serviço · x-vms: máquinas virtuais · ${VAR:-padrão}: campos": "x-gantry: engine per service · x-vms: virtual machines · ${VAR:-default}: fields",
-  "{msg}. Só continue se o kubeconfig veio de uma fonte sua (o gcloud, o seu provedor).": "{msg}. Only continue if the kubeconfig came from a source you trust (gcloud, your provider).",
+  "Só continue se o kubeconfig veio de uma fonte sua (o gcloud, o seu provedor).": "Only continue if the kubeconfig came from a source you trust (gcloud, your provider).",
   "{name} (cópia)": "{name} (copy)",
   "{name} (esta máquina)": "{name} (this machine)",
   "{name} não usa cloud-init (instala por uma ISO, ou tem cloud-init: false).": "{name} does not use cloud-init (it installs from an ISO, or has cloud-init: false).",
