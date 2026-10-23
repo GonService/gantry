@@ -16,7 +16,7 @@
 #   make deps       instala o Wails e baixa as dependências
 #   make clean      apaga build/ e dist/
 
-VERSION  ?= 0.48.0
+VERSION  ?= 0.49.0
 APP      := Gantry
 LDFLAGS  := -s -w -X main.version=$(VERSION)
 GOBIN    := $(shell go env GOPATH)/bin
