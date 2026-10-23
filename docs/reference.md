@@ -209,7 +209,9 @@ The same binary runs without a window with `-web` (or built without the `desktop
 | `-addr` | `127.0.0.1:7777` | Listen address. If the port is taken, uses another free one. |
 | `-config` | see below | Configuration file. |
 | `-no-browser` | `false` | Does not open the browser. |
-| `-expor-na-rede` | `false` | Allows an `-addr` outside localhost (no encryption; prefer an SSH tunnel). |
+| `-expor-na-rede` | `false` | Allows an `-addr` outside localhost (prefer an SSH tunnel; if you use it, turn on `-tls`). Without HTTPS, every page shows a warning. |
+| `-tls` | `false` | HTTPS with a certificate Gantry makes and keeps in the config folder (`tls/`), for this computer's names and addresses. The browser asks to trust it the first time: compare the SHA-256 fingerprint printed at the start. |
+| `-cert`, `-key` | | HTTPS with your own certificate and key (PEM files). |
 | `-version` | | Shows the version. |
 
 ## Remote hosts
@@ -546,7 +548,7 @@ To test the button that activates the Podman socket, start with `GANTRY_VM_SOCKE
 
 ## Security
 
-- By default, the internal server only listens on `127.0.0.1`. Listening on the network needs `-expor-na-rede`, because the connection has no encryption; an SSH tunnel is recommended.
+- By default, the internal server only listens on `127.0.0.1`. Listening on the network needs `-expor-na-rede`; an SSH tunnel is recommended. With `-tls` (a certificate Gantry makes) or `-cert` and `-key` (yours), the connection uses HTTPS; without them, every page warns that anyone on the network can read the key. The programs of the computer itself (SSH password prompts, `gantry mcp`) always talk to the server over `127.0.0.1`.
 - Every API call carries a token generated at each run, in the `Authorization` header (or in the URL, for live streams). There is no cookie: a `127.0.0.1` cookie would also go to every other app on `127.0.0.1`, including container pages and forwarded ports.
 - In browser mode, the terminal link (`?c=`) works once and for 10 minutes; it hands the token to the page, which keeps it in that origin's local storage. Once used, the terminal shows another, for another browser. The token never goes on another program's command line.
 - Requests from other origins and from hosts other than localhost are refused, which protects against CSRF and DNS rebinding.

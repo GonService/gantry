@@ -287,6 +287,25 @@ function boot() {
   });
 }
 
+// NetworkWarning: the browser version listening on the network without
+// HTTPS says so on every page (anyone on the network can read the key).
+function NetworkWarning() {
+  const [a, setA] = useState<{ exposed: boolean; tls: boolean; link: string } | null>(null);
+  useEffect(() => {
+    if (CFG.mode === "desktop") return;
+    api<{ exposed: boolean; tls: boolean; link: string }>("/acesso")
+      .then(setA)
+      .catch(() => {});
+  }, []);
+  if (!a || !a.exposed || a.tls) return null;
+  return (
+    <div className="net-warn" role="alert">
+      <b>{t("Aberto na rede sem criptografia")}</b>{" "}
+      {t("O Gantry está em {link} sem HTTPS: quem estiver na mesma rede pode ler a chave de acesso e controlar as suas máquinas. Reinicie com -tls (ou -cert e -key), ou use um túnel SSH.", { link: a.link })}
+    </div>
+  );
+}
+
 export function App() {
   const route = useStore((s) => s.route);
   const routeKey = useStore((s) => s.routeKey);
@@ -311,6 +330,7 @@ export function App() {
       <div className="layout">
         <Sidebar />
         <div className="content">
+          <NetworkWarning />
           <header className="topbar">
             <span className="crumb" id="crumb">
               {title}

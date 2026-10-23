@@ -208,7 +208,9 @@ O mesmo binário roda sem janela com `-web` (ou compilado sem a tag `desktop`). 
 | `-addr` | `127.0.0.1:7777` | Endereço de escuta. Se a porta estiver ocupada, usa outra livre. |
 | `-config` | ver abaixo | Arquivo de configuração. |
 | `-no-browser` | `false` | Não abre o navegador. |
-| `-expor-na-rede` | `false` | Permite um `-addr` fora do localhost (sem criptografia; prefira um túnel SSH). |
+| `-expor-na-rede` | `false` | Permite um `-addr` fora do localhost (prefira um túnel SSH; se usar, ligue o `-tls`). Sem HTTPS, todas as páginas mostram um aviso. |
+| `-tls` | `false` | HTTPS com um certificado que o Gantry gera e guarda na pasta da configuração (`tls/`), para os nomes e endereços deste computador. O navegador pede para confiar nele na primeira vez: confira a impressão digital SHA-256 mostrada ao iniciar. |
+| `-cert`, `-key` | | HTTPS com o seu certificado e a sua chave (arquivos PEM). |
 | `-version` | | Mostra a versão. |
 
 ## Hosts remotos
@@ -545,7 +547,7 @@ Para testar o botão que ativa o socket do Podman, suba com `GANTRY_VM_SOCKET=of
 
 ## Segurança
 
-- Por padrão, o servidor interno só escuta em `127.0.0.1`. Para escutar na rede é preciso `-expor-na-rede`, porque a conexão não tem criptografia; o recomendado é um túnel SSH.
+- Por padrão, o servidor interno só escuta em `127.0.0.1`. Para escutar na rede é preciso `-expor-na-rede`; o recomendado é um túnel SSH. Com `-tls` (certificado gerado pelo Gantry) ou `-cert` e `-key` (o seu), a conexão usa HTTPS; sem eles, todas as páginas avisam que quem estiver na rede pode ler a chave. Os programas do próprio computador (as perguntas de senha do SSH, o `gantry mcp`) falam com o servidor sempre por `127.0.0.1`.
 - Toda chamada à API leva um token gerado a cada execução, no cabeçalho `Authorization` (ou na URL, nos fluxos ao vivo). Não há cookie: um cookie de `127.0.0.1` iria também para todos os outros apps em `127.0.0.1`, inclusive as páginas dos containers e as portas encaminhadas.
 - No modo navegador, o link do terminal (`?c=`) vale uma vez e por 10 minutos; ele entrega o token à página, que o guarda no armazenamento local daquela origem. Usado o link, o terminal mostra outro, para outro navegador. O token nunca vai na linha de comando de outro programa.
 - Requisições de outras origens e de hosts que não sejam localhost são recusadas, o que protege contra CSRF e DNS rebinding.

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"embed"
 	"errors"
 	"flag"
@@ -31,6 +32,10 @@ var webFS embed.FS
 
 var version = "dev"
 
+// helpers is the listener on 127.0.0.1 for the programs of this computer
+// when the main one is on the network or uses HTTPS.
+var helpers net.Listener
+
 func main() {
 	if os.Getenv("GANTRY_ASKPASS_URL") != "" {
 		runAskpass()
@@ -50,7 +55,10 @@ func main() {
 	noBrowser := flag.Bool("no-browser", false, "não abrir o navegador")
 	webMode := flag.Bool("web", false, "abrir no navegador em vez de uma janela (versão desktop)")
 	showVersion := flag.Bool("version", false, "mostrar a versão")
-	expose := flag.Bool("expor-na-rede", false, "permitir escutar fora do localhost (sem TLS: prefira um túnel SSH)")
+	expose := flag.Bool("expor-na-rede", false, "permitir escutar fora do localhost (prefira um túnel SSH; se usar, ligue o -tls)")
+	useTLS := flag.Bool("tls", false, "HTTPS com um certificado que o Gantry gera e guarda na pasta da configuração")
+	certFile := flag.String("cert", "", "HTTPS com o seu certificado (arquivo PEM; com -key)")
+	keyFile := flag.String("key", "", "chave do certificado de -cert (arquivo PEM)")
 	flag.Parse()
 
 	if *showVersion {
@@ -93,6 +101,14 @@ func main() {
 		listen = "127.0.0.1:0"
 	}
 
+	if (*certFile == "") != (*keyFile == "") {
+		log.Fatal("-cert e -key andam juntos: informe os dois arquivos")
+	}
+	httpsOn := *useTLS || *certFile != ""
+	if httpsOn && window {
+		log.Fatal("-tls, -cert e -key valem para a versão de navegador: acrescente -web")
+	}
+
 	ln, err := net.Listen("tcp", listen)
 	if err != nil && *addr == "" && cfg.Listen == "" {
 		ln, err = net.Listen("tcp", "127.0.0.1:0")
@@ -108,7 +124,30 @@ func main() {
 			log.Fatalf("o endereço %s fica visível na rede, sem criptografia: quem pegar o link controla as suas máquinas. "+
 				"Use um túnel SSH (ssh -L 7777:127.0.0.1:7777 servidor) ou, se for mesmo isso, acrescente -expor-na-rede", ln.Addr())
 		}
-		log.Printf("atenção: escutando fora do localhost (%s), sem criptografia; qualquer um com o link controla seus containers", ln.Addr())
+		if !httpsOn {
+			log.Printf("atenção: escutando fora do localhost (%s), sem criptografia: quem estiver na rede pode ler o link e a chave e controlar as suas máquinas. Acrescente -tls (ou -cert e -key) ou use um túnel SSH", ln.Addr())
+		}
+	}
+	scheme, fingerprint := "http", ""
+	if httpsOn {
+		tc, fp, err := serverTLS(cfgDir, *certFile, *keyFile)
+		if err != nil {
+			log.Fatalf("HTTPS: %v", err)
+		}
+		ln = tls.NewListener(ln, tc)
+		scheme, fingerprint = "https", fp
+	}
+	// The helpers of this computer (the SSH password prompts, gantry mcp)
+	// talk to the server over 127.0.0.1, never over the network.
+	local := ln.Addr().String()
+	if !loopback || httpsOn {
+		hl, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		local = hl.Addr().String()
+		defer hl.Close()
+		helpers = hl
 	}
 
 	static, err := fs.Sub(webFS, "web")
@@ -119,7 +158,8 @@ func main() {
 	server.Version = version
 	srv := server.New(cfg, store, static, loopback)
 	defer srv.Close()
-	srv.SetAddr(ln.Addr().String())
+	srv.SetAddr(local)
+	srv.SetAccess(server.Access{Exposed: !loopback, TLS: httpsOn, Fingerprint: fingerprint, Link: scheme + "://" + linkHost(ln.Addr().String())})
 	if window {
 		for _, o := range desktopOrigins {
 			srv.AllowOrigin(o)
@@ -130,6 +170,9 @@ func main() {
 
 	serveErr := make(chan error, 1)
 	go func() { defer applog.Recover("main.go:106"); serveErr <- hs.Serve(ln) }()
+	if helpers != nil {
+		go func() { defer applog.Recover("main.go:helpers"); _ = hs.Serve(helpers) }()
+	}
 	shutdown := func() {
 		sctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -160,6 +203,9 @@ func main() {
 	// The links open the app once each (10 minutes): the token itself never
 	// goes in a URL another process could read (the browser's command line).
 	fmt.Printf("Gantry %s\n  abra: %s\n  config: %s\n", version, srv.LoginLink(), *cfgPath)
+	if fingerprint != "" {
+		fmt.Printf("  HTTPS: impressão digital SHA-256 do certificado (confira no navegador):\n    %s\n", fingerprint)
+	}
 	server.OnLoginUsed = func() { fmt.Printf("  link para outro navegador: %s\n", srv.LoginLink()) }
 	if !*noBrowser {
 		go func() { defer applog.Recover("main.go:123"); openBrowser(srv.LoginLink()) }()

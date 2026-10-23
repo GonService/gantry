@@ -20,7 +20,7 @@ Only the newest version.
 
 ## What Gantry assumes
 
-- The interface talks to Gantry through a local API on `127.0.0.1`, protected by a key. The `-expor-na-rede` mode exists, but without encryption: prefer an SSH tunnel.
+- The interface talks to Gantry through a local API on `127.0.0.1`, protected by a key. The `-expor-na-rede` mode exists: prefer an SSH tunnel, or use it with `-tls` (or `-cert` and `-key`) for HTTPS.
 - A lab is code: bringing a lab up runs its containers, VMs and commands, like `docker compose up`. Only bring up labs from people you trust.
 - Importing or opening a lab, a `.tar.gz` package or a kubeconfig must not run anything or write outside the chosen folder. If that happens, it is a vulnerability.
 
@@ -46,6 +46,6 @@ Só a versão mais nova.
 
 ### O que o Gantry assume
 
-- A interface fala com o Gantry por uma API local, em `127.0.0.1`, protegida por uma chave. O modo `-expor-na-rede` existe, mas sem criptografia: prefira um túnel SSH.
+- A interface fala com o Gantry por uma API local, em `127.0.0.1`, protegida por uma chave. O modo `-expor-na-rede` existe: prefira um túnel SSH, ou use com `-tls` (ou `-cert` e `-key`) para ter HTTPS.
 - Um lab é código: subir um lab roda os containers, as VMs e os comandos dele, como um `docker compose up`. Só suba labs de quem você confia.
 - Importar ou abrir um lab, um pacote `.tar.gz` ou um kubeconfig não deve executar nada nem escrever fora da pasta escolhida. Se isso acontecer, é uma falha.

@@ -51,6 +51,7 @@ type Server struct {
 	loginMu    sync.Mutex
 	loginCodes map[string]time.Time
 	loopback   bool
+	access     Access
 	origins    []string
 
 	mu    sync.RWMutex
@@ -375,6 +376,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/senhas-ssh", s.sshPasswords)
 	mux.HandleFunc("DELETE /api/senhas-ssh/{host}", s.forgetSSHPassword)
 	mux.HandleFunc("GET /api/versao", s.latestVersion)
+	mux.HandleFunc("GET /api/acesso", s.accessInfo)
 	mux.HandleFunc("POST /api/versao/abrir", s.openRelease)
 	mux.HandleFunc("POST /api/versao/atualizar", s.updateApp)
 	mux.HandleFunc("GET /api/registros", s.listRegistries)
@@ -467,7 +469,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 			}
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			if origin != "" && origin != "http://"+r.Host && !cross {
+			if origin != "" && origin != selfOrigin(r) && !cross {
 				http.Error(w, "origem não permitida", http.StatusForbidden)
 				return
 			}
@@ -483,7 +485,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 				t = r.URL.Query().Get("t")
 			}
 			// A page of another site never uses the API, even with the token.
-			foreign := origin != "" && origin != "http://"+r.Host && !cross
+			foreign := origin != "" && origin != selfOrigin(r) && !cross
 			// The assistants' requests keep the app's language (it is one
 			// for the whole app: the window sets it).
 			if !foreign && !s.validToken(t) && s.validMCP(t) {
@@ -555,7 +557,37 @@ func (s *Server) LoginLink() string {
 	}
 	s.loginCodes[c] = time.Now()
 	s.loginMu.Unlock()
-	return "http://" + s.addr + "/?c=" + c
+	base := s.access.Link
+	if base == "" {
+		base = "http://" + s.addr
+	}
+	return base + "/?c=" + c
+}
+
+// Access is how the browser reaches the app: on the network or only on
+// this computer, with HTTPS or not.
+type Access struct {
+	Exposed     bool   `json:"exposed"`     // listening outside localhost
+	TLS         bool   `json:"tls"`         // HTTPS
+	Fingerprint string `json:"fingerprint"` // SHA-256 of the certificate
+	Link        string `json:"link"`        // scheme://host:port of the links
+}
+
+// SetAccess tells the server how it is reached (before it serves).
+func (s *Server) SetAccess(a Access) { s.access = a }
+
+// accessInfo is the access for the interface: a page served on the network
+// without HTTPS shows a warning.
+func (s *Server) accessInfo(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, s.access)
+}
+
+// selfOrigin is the origin of the app's own pages for this request.
+func selfOrigin(r *http.Request) string {
+	if r.TLS != nil {
+		return "https://" + r.Host
+	}
+	return "http://" + r.Host
 }
 
 const loginCodeTTL = 10 * time.Minute
