@@ -1,8 +1,8 @@
 // The engines of this computer (Docker, Podman, containerd…): start,
 // install, and the hosts hidden from the list.
 import { api, enc } from "@/lib/api";
-import { hostHref } from "@/lib/app";
-import { loadHidden, loadHosts, loadLocal, useStore } from "@/lib/store";
+import { hostHref, machHref } from "@/lib/app";
+import { loadHidden, loadHosts, loadLocal, machines, useStore } from "@/lib/store";
 import { confirm } from "@/components/dialog";
 import { Loading, ErrorBox } from "@/components/ui";
 import { openJob } from "./dock";
@@ -98,7 +98,7 @@ export function LocalEngines() {
                 {e.socket ? <span className="sub">{e.socket}</span> : null}
                 <div className="actions" style={{ marginTop: 8 }}>
                   {host ? (
-                    <a className="btn primary" href={hostHref(host.name)}>
+                    <a className="btn primary" href={containersHref(host.name)}>
                       {t("Ver containers")}
                     </a>
                   ) : null}
@@ -173,4 +173,11 @@ export function LocalEngines() {
       </div>
     </div>
   );
+}
+
+// containersHref: the Containers tab of the machine, on this engine's
+// sub-tab (the host page itself opens on Projects).
+function containersHref(host: string) {
+  const m = machines().find((x) => x.hosts.some((h) => h.name === host));
+  return m ? machHref(m, "containers", host) : hostHref(host);
 }
