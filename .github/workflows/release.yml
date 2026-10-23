@@ -58,6 +58,7 @@ jobs:
           cat > notas.md <<NOTAS
           ## Instalar
 
+          - **Um comando só:** \`curl -fsSL https://gonservice.github.io/gantry/install.sh | sh\` (Linux e Mac) ou \`irm https://gonservice.github.io/gantry/install.ps1 | iex\` (Windows, PowerShell). Confere os arquivos com o SHA256SUMS e instala para o seu usuário.
           - **Mac:** \`brew install --cask gonservice/tap/gantry\` (para atualizar: \`brew upgrade --cask gantry\`). Ou baixe \`Gantry-$V-macos.zip\`, descompacte e arraste para Aplicativos$MAC_ABRIR
           - **Windows (experimental):** baixe \`Gantry-$V-windows.zip\`, descompacte e abra o \`Gantry.exe\`. Cada distribuição do WSL2 aparece como uma máquina. O Windows avisa que o app não é assinado: Mais informações → Executar assim mesmo.
           - **Linux (app desktop, x86_64):** baixe \`Gantry-$V-linux-amd64.tar.gz\`, descompacte e rode \`./instalar.sh\` (instala para o seu usuário, sem sudo, com atalho no menu). Precisa do WebKitGTK 4.1: no Fedora \`sudo dnf install webkit2gtk4.1\`, no Debian/Ubuntu \`sudo apt install libwebkit2gtk-4.1-0\`.

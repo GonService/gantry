@@ -183,7 +183,9 @@ O app não é assinado nem notarizado (isso exige uma conta Apple Developer). Na
 
 O app desktop do Linux usa o WebKitGTK 4.1 para a janela.
 
-**Instalar uma versão publicada:** baixe `Gantry-VERSAO-linux-amd64.tar.gz` da release, descompacte e rode `./instalar.sh`. Ele instala para o seu usuário, sem sudo: o programa em `~/.local/bin/gantry`, o atalho no menu de aplicativos e o ícone. `./instalar.sh remover` desfaz; os hosts, labs e clusters em `~/.config/gantry` ficam. Se faltar o WebKitGTK, o script diz o comando:
+**Instalar com um comando:** `curl -fsSL https://gonservice.github.io/gantry/install.sh | sh` baixa a versão mais nova, confere com o `SHA256SUMS` e instala como abaixo (num Linux sem área de trabalho, ou com `sh -s -- --server`, a versão de servidor em `~/.local/bin`). O mesmo script funciona no macOS (pelo Homebrew, quando existe); no Windows, `irm https://gonservice.github.io/gantry/install.ps1 | iex`. `GANTRY_VERSION=X.Y.Z` escolhe uma versão.
+
+**Instalar uma versão publicada à mão:** baixe `Gantry-VERSAO-linux-amd64.tar.gz` da release, descompacte e rode `./instalar.sh`. Ele instala para o seu usuário, sem sudo: o programa em `~/.local/bin/gantry`, o atalho no menu de aplicativos e o ícone. `./instalar.sh remover` desfaz; os hosts, labs e clusters em `~/.config/gantry` ficam. Se faltar o WebKitGTK, o script diz o comando:
 
 - Fedora: `sudo dnf install webkit2gtk4.1`
 - Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`

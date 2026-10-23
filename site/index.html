@@ -182,6 +182,12 @@ table.files td small { display: block; color: var(--muted); font-weight: 400; fo
 .brew code { font-size: 14px; overflow-x: auto; white-space: nowrap; }
 .brew button { font: inherit; font-size: 13px; border: 1px solid #3a4b46; background: transparent; color: var(--code-ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .side h3 { margin: 28px 0 8px; font-size: 18px; }
+.cmds { margin: 0 0 40px; max-width: 760px; }
+.cmds h3.cmd-title { margin: 0 0 4px; font-size: 18px; }
+.cmds .brew code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmd-label { margin: 16px 0 6px; font-size: 14px; font-weight: 600; }
+.cmd-note { font-size: 14.5px; margin: 12px 0 0; color: var(--muted); }
+.brew + .cmd-label { margin-top: 16px; }
 .side p, .side li { color: var(--muted); font-size: 15.5px; }
 .side ul { padding-left: 20px; margin: 0; }
 .version { color: var(--muted); font-size: 14px; margin-top: 12px; }
@@ -319,6 +325,16 @@ footer a { color: var(--ink); }
     <section class="block" id="download">
       <h2 data-i="dl.title">Download</h2>
       <p class="sub" data-i="dl.sub">Pick your system. The apps are not signed yet: Homebrew handles it on macOS; with the zip, open it the first time with right-click › Open.</p>
+      <div class="cmds">
+          <h3 class="cmd-title" data-i="dl.cmd">One command</h3>
+          <p class="cmd-label" data-i="dl.cmd.unix">Linux and macOS</p>
+          <div class="brew"><code>curl -fsSL https://gonservice.github.io/gantry/install.sh | sh</code><button type="button" class="copy" data-i="dl.copy">Copy</button></div>
+          <p class="cmd-label" data-i="dl.cmd.win">Windows (PowerShell)</p>
+          <div class="brew"><code>irm https://gonservice.github.io/gantry/install.ps1 | iex</code><button type="button" class="copy" data-i="dl.copy">Copy</button></div>
+          <p class="cmd-label" data-i="dl.cmd.brew">macOS with Homebrew</p>
+          <div class="brew"><code>brew install --cask gonservice/tap/gantry</code><button type="button" class="copy" data-i="dl.copy">Copy</button></div>
+          <p class="cmd-note" data-i="dl.cmd.note">Installs for your user, without sudo or admin, and checks the files against the release checksums. On a Linux server without a desktop, it installs the server version. Run it again to update.</p>
+      </div>
       <div class="dl">
         <div>
           <table class="files">
@@ -333,7 +349,7 @@ footer a { color: var(--ink); }
           <p class="version"><span data-i="dl.ver">Version</span> <b id="ver">0.47.1</b> · <a id="all" href="https://github.com/GonService/gantry/releases" data-i="dl.all">all versions and checksums</a></p>
         </div>
         <div class="side">
-          <div class="brew"><code id="brew">brew install --cask gonservice/tap/gantry</code><button type="button" id="copy" data-i="dl.copy">Copy</button></div>
+
           <h3 data-i="dl.next">Then</h3>
           <ul>
             <li data-i="dl.n1">The first screen shows what Gantry found on this computer and offers the servers in ~/.ssh/config and the clusters in ~/.kube/config.</li>
@@ -399,6 +415,7 @@ footer a { color: var(--ink); }
     "dl.linux": "Linux, app desktop", "dl.linux.s": "x86_64, precisa do WebKitGTK 4.1; rode ./instalar.sh",
     "dl.win": "Windows", "dl.win.s": "Experimental, roda os engines e as VMs dentro do WSL2",
     "dl.srv": "Servidor Linux sem tela", "dl.srv.s": "Sem janela: a interface abre no navegador",
+    "dl.cmd": "Um comando só", "dl.cmd.unix": "Linux e macOS", "dl.cmd.win": "Windows (PowerShell)", "dl.cmd.brew": "macOS com Homebrew", "dl.cmd.note": "Instala para o seu usuário, sem sudo nem admin, e confere os arquivos com as somas de verificação da versão. Num servidor Linux sem área de trabalho, instala a versão de servidor. Rode de novo para atualizar.",
     "dl.ver": "Versão", "dl.all": "todas as versões e checksums", "dl.copy": "Copiar", "dl.copied": "Copiado",
     "dl.next": "Depois",
     "dl.n1": "A primeira tela mostra o que o Gantry achou neste computador e oferece os servidores do ~/.ssh/config e os clusters do ~/.kube/config.",
@@ -462,11 +479,11 @@ footer a { color: var(--ink); }
     b.addEventListener("click", function () { var l = b.getAttribute("data-lang"); store.set(l); apply(l); });
   });
 
-  document.getElementById("copy").addEventListener("click", function () {
+  document.querySelectorAll("button.copy").forEach(function (btn) { btn.addEventListener("click", function () {
     var b = this;
     var done = function () { b.textContent = tr("dl.copied"); setTimeout(function () { b.textContent = tr("dl.copy"); }, 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById("brew").textContent).then(done, function () {});
-  });
+    if (navigator.clipboard) navigator.clipboard.writeText(b.previousElementSibling.textContent).then(done, function () {});
+  }); });
 
   // Downloads: the newest release, from this repository (tags vX.Y.Z) or
   // its copy in the homebrew-tap (tags gantry-vX.Y.Z), whichever is newer.

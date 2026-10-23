@@ -52,6 +52,17 @@ More in the [step-by-step guide](docs/guide/README.md).
 
 ## Download
 
+One command, for your user, without sudo or admin (it checks the files against the release checksums; run it again to update):
+
+```bash
+curl -fsSL https://gonservice.github.io/gantry/install.sh | sh      # Linux and macOS
+```
+```powershell
+irm https://gonservice.github.io/gantry/install.ps1 | iex           # Windows (PowerShell)
+```
+
+On a Linux without a desktop (or with `| sh -s -- --server`), it installs the server version. Or pick the file:
+
 | System | Download |
 |---|---|
 | macOS, with Homebrew | `brew install --cask gonservice/tap/gantry` |
