@@ -395,6 +395,11 @@ The network is created once per machine, as administrator. The machine's VMs tab
 - **Linux and WSL2:** a `gantry0` bridge (`10.213.0.0/24`) with `qemu-bridge-helper` allowed on it. The suggested command also creates a systemd service so the bridge comes back after a reboot.
 - **Windows:** through WSL2 (see below).
 
+**Bridge mode.** The VMs tab of the machine › **Network mode…** chooses between the shared network above and **bridge**: the VMs go on the network the machine itself is on (your home's or the office's) and any device on it reaches them by IP. Use it when the shared network does not work, for example with a VPN such as Cloudflare WARP. Gantry gives each VM a fixed address from a range you choose (by default `.200` to `.230`), outside the router's DHCP, and skips addresses that answer on the network. The VMs already created change network only after being removed and created again.
+
+- **Mac:** a second socket_vmnet, bridged to the interface (`en0`), as a launchd service; the VMs tab shows the command (it needs administrator once). It works over Wi-Fi too.
+- **Linux:** a bridge of the system with the network card (for example `br0`, made in NetworkManager or netplan) and `allow br0` in `/etc/qemu/bridge.conf`; the VMs tab shows what is missing.
+
 Templates that use the network: **k3s cluster (3 VMs)** and **Network: VMs and containers**. An existing VM only joins the network after being removed and recreated.
 
 ## Observability

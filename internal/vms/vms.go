@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -946,6 +947,54 @@ type NetInfo struct {
 	Prefix  string   `json:"prefix,omitempty"` // first three octets of the /24
 	Hint    string   `json:"hint,omitempty"`   // how to enable it, when missing
 	Problem []string `json:"problems,omitempty"`
+	// Net is the choice of the machine: compartilhada (a network only of
+	// the machine's VMs) or bridge (the network the machine is on, with
+	// Interface, and the addresses First..Last of the prefix).
+	Net       string `json:"net,omitempty"`
+	Interface string `json:"interface,omitempty"`
+	First     int    `json:"first,omitempty"`
+	Last      int    `json:"last,omitempty"`
+	// The machine's way out, suggested for the bridge mode.
+	LANIface   string `json:"lanIface,omitempty"`
+	LANGateway string `json:"lanGateway,omitempty"`
+}
+
+// NetChoice is the VM network a machine uses (vmctl net-set).
+type NetChoice struct {
+	Mode      string `json:"mode"` // compartilhada or bridge
+	Interface string `json:"interface"`
+	Gateway   string `json:"gateway"`
+	First     int    `json:"first"`
+	Last      int    `json:"last"`
+}
+
+var (
+	reIface = regexp.MustCompile(`^[A-Za-z0-9._-]{1,15}$`)
+	reIPv4  = regexp.MustCompile(`^(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}$`)
+)
+
+// SetNetwork writes the machine's choice of VM network. The VMs already
+// created keep their address until they are recreated.
+func SetNetwork(ctx context.Context, h *hosts.Host, c NetChoice) (string, error) {
+	env := map[string]string{"GV_NET_MODE": "compartilhada"}
+	if c.Mode == "bridge" {
+		if !reIface.MatchString(c.Interface) {
+			return "", fmt.Errorf("interface inválida: %q", c.Interface)
+		}
+		if !reIPv4.MatchString(c.Gateway) {
+			return "", fmt.Errorf("gateway inválido: %q", c.Gateway)
+		}
+		if c.First < 2 || c.Last > 254 || c.First > c.Last {
+			return "", fmt.Errorf("faixa inválida: de .%d a .%d (vale de .2 a .254)", c.First, c.Last)
+		}
+		gw, _ := strconv.Atoi(c.Gateway[strings.LastIndex(c.Gateway, ".")+1:])
+		if gw >= c.First && gw <= c.Last {
+			return "", fmt.Errorf("o gateway .%d está dentro da faixa: escolha uma faixa sem ele", gw)
+		}
+		env = map[string]string{"GV_NET_MODE": "bridge", "GV_NET_IFACE": c.Interface, "GV_NET_GW": c.Gateway,
+			"GV_NET_FIRST": strconv.Itoa(c.First), "GV_NET_LAST": strconv.Itoa(c.Last)}
+	}
+	return Run(ctx, h, "net-set", env)
 }
 
 // Network reads the machine's VM network.
@@ -975,6 +1024,18 @@ func parseNetInfo(out string) NetInfo {
 			n.Hint = v
 		case "problem":
 			n.Problem = append(n.Problem, v)
+		case "net":
+			n.Net = v
+		case "interface":
+			n.Interface = v
+		case "first":
+			n.First, _ = strconv.Atoi(v)
+		case "last":
+			n.Last, _ = strconv.Atoi(v)
+		case "lan_iface":
+			n.LANIface = v
+		case "lan_gw":
+			n.LANGateway = v
 		}
 	}
 	if n.Mode == "" {

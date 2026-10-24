@@ -216,6 +216,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/hosts/{host}/ports", s.withHost(s.ports))
 	mux.HandleFunc("GET /api/hosts/{host}/web", s.withHost(s.web))
 	mux.HandleFunc("GET /api/hosts/{host}/vmnet", s.withHost(s.vmNet))
+	mux.HandleFunc("PUT /api/hosts/{host}/vmnet", s.withHost(s.vmNetSet))
 	mux.HandleFunc("GET /api/hosts/{host}/imagens-vm", s.withHost(s.listVMImages))
 	mux.HandleFunc("PUT /api/hosts/{host}/imagens-vm", s.withHost(s.setVMImage))
 	mux.HandleFunc("GET /api/hosts/{host}/imagens", s.withHost(s.listImages))

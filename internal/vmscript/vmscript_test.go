@@ -1257,3 +1257,78 @@ func TestUntrustedNVRAMAndNames(t *testing.T) {
 		}
 	}
 }
+
+// The bridge mode of the VM network: net-set keeps the choice, and the
+// addresses come from its range, skipping the machine's own address; when
+// the mode changes, an address of the other network is given again.
+func TestNetBridgeRange(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("usa ip(8)")
+	}
+	state := t.TempDir()
+	run := func(cmd string, env ...string) (string, error) {
+		c := exec.Command("sh", "-c", Script, "vmctl", cmd)
+		c.Env = append(append(os.Environ(), "XDG_STATE_HOME="+state), env...)
+		out, err := c.CombinedOutput()
+		return strings.TrimSpace(string(out)), err
+	}
+	for _, bad := range [][]string{
+		{"GV_NET_IFACE=en0;rm", "GV_NET_GW=192.0.2.1", "GV_NET_FIRST=200", "GV_NET_LAST=210"},
+		{"GV_NET_IFACE=br0", "GV_NET_GW=192.0.2.1$(id)", "GV_NET_FIRST=200", "GV_NET_LAST=210"},
+		{"GV_NET_IFACE=br0", "GV_NET_GW=192.0.2.1", "GV_NET_FIRST=210", "GV_NET_LAST=200"},
+	} {
+		if out, err := run("net-set", append([]string{"GV_NET_MODE=bridge"}, bad...)...); err == nil {
+			t.Errorf("devia recusar %v: %s", bad, out)
+		}
+	}
+	// The machine's own address is in the range: it is skipped.
+	self := ""
+	if out, err := exec.Command("sh", "-c", "ip -4 -o addr | awk '$2 != \"lo\" {split($4, a, \"/\"); print a[1]; exit}'").Output(); err == nil {
+		self = strings.TrimSpace(string(out))
+	}
+	if self == "" {
+		t.Skip("sem endereço IPv4 fora do loopback")
+	}
+	pre := self[:strings.LastIndex(self, ".")+1]
+	n, _ := strconv.Atoi(self[strings.LastIndex(self, ".")+1:])
+	gw := pre + "254"
+	if n >= 250 {
+		t.Skip("endereço da máquina no fim da faixa")
+	}
+	if out, err := run("net-set", "GV_NET_MODE=bridge", "GV_NET_IFACE=lo", "GV_NET_GW="+gw, "GV_NET_FIRST="+strconv.Itoa(n), "GV_NET_LAST="+strconv.Itoa(n+2)); err != nil {
+		t.Fatalf("net-set: %v %s", err, out)
+	}
+	info, _ := run("netinfo")
+	if !strings.Contains(info, "net=bridge") || !strings.Contains(info, "interface=lo") || !strings.Contains(info, "first="+strconv.Itoa(n)) {
+		t.Fatalf("netinfo: %s", info)
+	}
+	// lo is not a bridge, so there is no network yet: lan-ip refuses.
+	if out, err := run("lan-ip", "GV_PROJECT=p", "GV_NAME=a"); err == nil {
+		t.Fatalf("sem bridge, lan-ip devia recusar: %s", out)
+	}
+	if exec.Command("sh", "-c", "ip link add gvtbr0 type bridge && ip link set gvtbr0 up").Run() != nil {
+		t.Skip("sem permissão para criar uma bridge")
+	}
+	defer exec.Command("ip", "link", "del", "gvtbr0").Run()
+	run("net-set", "GV_NET_MODE=bridge", "GV_NET_IFACE=gvtbr0", "GV_NET_GW="+gw, "GV_NET_FIRST="+strconv.Itoa(n), "GV_NET_LAST="+strconv.Itoa(n+2))
+	ip, err := run("lan-ip", "GV_PROJECT=p", "GV_NAME=a")
+	if err != nil || ip != pre+strconv.Itoa(n+1) {
+		t.Fatalf("lan-ip devia pular o endereço da máquina (%s): %q %v", self, ip, err)
+	}
+	if again, _ := run("lan-ip", "GV_PROJECT=p", "GV_NAME=a"); again != ip {
+		t.Errorf("o endereço devia ser o mesmo: %s × %s", again, ip)
+	}
+	// Back to the shared network (gantry0): the address of the bridge goes.
+	if out, err := run("net-set", "GV_NET_MODE=compartilhada"); err != nil {
+		t.Fatalf("voltar: %v %s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(state, "gantry/vms/rede.conf")); err == nil {
+		t.Error("rede.conf devia sumir")
+	}
+	if exec.Command("sh", "-c", "ip link add gantry0 type bridge && ip addr add 10.213.0.1/24 dev gantry0 && ip link set gantry0 up").Run() == nil {
+		defer exec.Command("ip", "link", "del", "gantry0").Run()
+		if ip2, err := run("lan-ip", "GV_PROJECT=p", "GV_NAME=a"); err != nil || ip2 != "10.213.0.100" {
+			t.Errorf("de volta à compartilhada: %q %v", ip2, err)
+		}
+	}
+}

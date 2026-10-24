@@ -520,5 +520,18 @@
   "chave do certificado de -cert (arquivo PEM)": "key of the -cert certificate (PEM file)",
   "Gantry (certificado próprio)": "Gantry (self-signed certificate)",
   "o arquivo do certificado está vazio": "the certificate file is empty",
-  "certificado %s / chave %s: %v": "certificate %s / key %s: %v"
+  "certificado %s / chave %s: %v": "certificate %s / key %s: %v",
+  "interface inválida: %q": "invalid interface: %q",
+  "gateway inválido: %q": "invalid gateway: %q",
+  "faixa inválida: de .%d a .%d (vale de .2 a .254)": "invalid range: from .%d to .%d (from .2 to .254)",
+  "o gateway .%d está dentro da faixa: escolha uma faixa sem ele": "the gateway .%d is inside the range: choose a range without it",
+  "interface inválida: %s": "invalid interface: %s",
+  "gateway inválido: %s": "invalid gateway: %s",
+  "faixa inválida: %s a %s (de 2 a 254)": "invalid range: %s to %s (from 2 to 254)",
+  "rede de VMs: compartilhada": "VM network: shared",
+  "rede de VMs: bridge em %s, endereços %s a %s": "VM network: bridge on %s, addresses %s to %s",
+  "a rede de VMs está cheia (de .%s a .%s)": "the VM network is full (from .%s to .%s)",
+  "%s não é uma bridge: no Linux, o modo bridge usa uma bridge com a placa de rede (por exemplo br0, criada no NetworkManager ou no netplan)": "%s is not a bridge: on Linux, the bridge mode uses a bridge with the network card (for example br0, made in NetworkManager or netplan)",
+  "falta 'allow %s' em /etc/qemu/bridge.conf": "'allow %s' is missing in /etc/qemu/bridge.conf",
+  "sem permissão no socket %s": "no permission on the socket %s"
 }

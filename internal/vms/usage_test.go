@@ -1,6 +1,7 @@
 package vms
 
 import (
+	"context"
 	"encoding/base64"
 	"strings"
 	"testing"
@@ -126,5 +127,23 @@ x-vms:
 	}
 	if downArg(p.VM("plain")) != "" {
 		t.Error("uma porta numa rede não fica sem cabo")
+	}
+}
+
+func TestNetBridgeChoice(t *testing.T) {
+	ni := parseNetInfo("lan_iface=en0\nlan_gw=192.168.0.1\nnet=bridge\ninterface=en0\nfirst=200\nlast=230\nmode=vmnet\ngateway=192.168.0.1\nprefix=192.168.0\n")
+	if ni.Net != "bridge" || ni.Interface != "en0" || ni.First != 200 || ni.Last != 230 || ni.LANIface != "en0" || ni.LANGateway != "192.168.0.1" || ni.Prefix != "192.168.0" {
+		t.Fatalf("%+v", ni)
+	}
+	for _, c := range []NetChoice{
+		{Mode: "bridge", Interface: "en0; rm -rf", Gateway: "192.168.0.1", First: 200, Last: 230},
+		{Mode: "bridge", Interface: "en0", Gateway: "192.168.0.300", First: 200, Last: 230},
+		{Mode: "bridge", Interface: "en0", Gateway: "192.168.0.1", First: 230, Last: 200},
+		{Mode: "bridge", Interface: "en0", Gateway: "192.168.0.1", First: 1, Last: 20},
+		{Mode: "bridge", Interface: "en0", Gateway: "192.168.0.210", First: 200, Last: 230},
+	} {
+		if _, err := SetNetwork(context.Background(), nil, c); err == nil {
+			t.Errorf("devia recusar %+v", c)
+		}
 	}
 }

@@ -349,9 +349,32 @@ PY
   alive "$D" && say "$msg (sem reiniciar)" || say "$msg (vale quando a VM subir)"
 }
 
+# conf_get reads the machine's choice of VM network, $ROOT/rede.conf
+# (written by net-set): modo=bridge puts the VMs on the network the machine
+# itself is on (socket_vmnet bridged on macOS, a bridge of the system on
+# Linux), with fixed addresses from a range outside the router's DHCP.
+conf_get() { [ -f "$ROOT/rede.conf" ] && sed -n "s/^$1=//p" "$ROOT/rede.conf" | head -1; return 0; }
+
+# default_route prints the interface and the gateway of the way out of this
+# machine (what the bridge mode suggests).
+default_route() {
+  if [ "$(uname -s)" = Darwin ]; then
+    route -n get default 2>/dev/null | awk '/interface:/ {print "lan_iface=" $2} /gateway:/ {print "lan_gw=" $2}'
+  elif command -v ip >/dev/null 2>&1; then
+    ip -4 route show default 2>/dev/null | awk '{for (i = 1; i < NF; i++) {if ($i == "dev") print "lan_iface=" $(i+1); if ($i == "via") print "lan_gw=" $(i+1)}; exit}'
+  fi
+}
+
 # netinfo tells which VM network this machine has: socket_vmnet (macOS) or
-# the gantry0 bridge (Linux, WSL2), with its gateway and /24 prefix.
+# the gantry0 bridge (Linux, WSL2), with its gateway and /24 prefix; with
+# modo=bridge, the machine's own network.
 netinfo() {
+  default_route
+  if [ "$(conf_get modo)" = bridge ]; then
+    netinfo_bridge
+    return 0
+  fi
+  echo "net=compartilhada"; echo "first=100"; echo "last=250"
   if [ "$(uname -s)" = Darwin ]; then
     bp=$(brew --prefix 2>/dev/null)
     for sk in "${GV_VMNET_SOCK:-}" "$bp/var/run/socket_vmnet" /var/run/socket_vmnet; do
@@ -393,13 +416,109 @@ netinfo() {
   fi
 }
 
+# netinfo_bridge is netinfo for modo=bridge.
+netinfo_bridge() {
+  ifc=$(conf_get interface); gw=$(conf_get gateway)
+  echo "net=bridge"; echo "interface=$ifc"
+  echo "first=$(conf_get inicio)"; echo "last=$(conf_get fim)"
+  if [ "$(uname -s)" = Darwin ]; then
+    bp=$(brew --prefix 2>/dev/null)
+    sk=$bp/var/run/socket_vmnet.bridged.$ifc
+    cl=""
+    for c in "$bp/opt/socket_vmnet/bin/socket_vmnet_client" /opt/socket_vmnet/bin/socket_vmnet_client; do [ -x "$c" ] && cl=$c && break; done
+    if [ -S "$sk" ] && [ -n "$cl" ]; then
+      echo "mode=vmnet"; echo "sock=$sk"; echo "client=$cl"; echo "gateway=$gw"; echo "prefix=${gw%.*}"
+      [ -w "$sk" ] || echo "problem=sem permissão no socket $sk"
+      return 0
+    fi
+    echo "mode=none"
+    if [ -z "$cl" ]; then
+      echo "hint=brew install socket_vmnet"
+      return 0
+    fi
+    # A second socket_vmnet, bridged to the interface, as a launchd service
+    # (the one of brew services is the shared network). The plist goes in
+    # base64 so the command is one line to paste.
+    lbl=io.github.lima-vm.socket_vmnet.bridged.$ifc
+    plist="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\"><dict>
+<key>Label</key><string>$lbl</string>
+<key>ProgramArguments</key><array><string>$bp/opt/socket_vmnet/bin/socket_vmnet</string><string>--vmnet-mode=bridged</string><string>--vmnet-interface=$ifc</string><string>$sk</string></array>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>UserName</key><string>root</string>
+</dict></plist>"
+    b64=$(printf '%s\n' "$plist" | base64 | tr -d '\n')
+    echo "hint=echo $b64 | base64 --decode | sudo tee /Library/LaunchDaemons/$lbl.plist >/dev/null && sudo launchctl bootstrap system /Library/LaunchDaemons/$lbl.plist"
+    return 0
+  fi
+  helper=""
+  for h in /usr/lib/qemu/qemu-bridge-helper /usr/libexec/qemu-bridge-helper /usr/lib/qemu-bridge-helper; do [ -x "$h" ] && helper=$h && break; done
+  fix="sudo sh -c 'mkdir -p /etc/qemu && (grep -qs \"^allow $ifc\" /etc/qemu/bridge.conf || echo \"allow $ifc\" >> /etc/qemu/bridge.conf)"
+  [ -n "$helper" ] && fix="$fix && chmod u+s $helper"
+  fix="$fix'"
+  if command -v ip >/dev/null 2>&1 && ip -d link show "$ifc" 2>/dev/null | grep -q ' bridge '; then
+    echo "mode=bridge"; echo "bridge=$ifc"; echo "gateway=$gw"; echo "prefix=${gw%.*}"
+    bad=""
+    if [ -z "$helper" ]; then echo "problem=não achei o qemu-bridge-helper (pacote qemu-system-common)"; bad=1
+    elif [ ! -u "$helper" ]; then echo "problem=o qemu-bridge-helper precisa de permissão de administrador (setuid)"; bad=1; fi
+    grep -qsE "^allow ($ifc|all)" /etc/qemu/bridge.conf || { echo "problem=falta 'allow $ifc' em /etc/qemu/bridge.conf"; bad=1; }
+    [ -n "$bad" ] && printf "%s\n" "hint=$fix"
+    return 0
+  fi
+  echo "mode=none"
+  echo "problem=$ifc não é uma bridge: no Linux, o modo bridge usa uma bridge com a placa de rede (por exemplo br0, criada no NetworkManager ou no netplan)"
+  printf "%s\n" "hint=$fix"
+}
+
+# net_set writes $ROOT/rede.conf: GV_NET_MODE=bridge with GV_NET_IFACE,
+# GV_NET_GW and the range GV_NET_FIRST..GV_NET_LAST, or shared (the file
+# goes away).
+net_set() {
+  mkdir -p "$ROOT"
+  if [ "${GV_NET_MODE:-}" != bridge ]; then
+    rm -f "$ROOT/rede.conf"
+    say "rede de VMs: compartilhada"
+    return 0
+  fi
+  ifc=${GV_NET_IFACE:-}; gw=${GV_NET_GW:-}; a=${GV_NET_FIRST:-}; b=${GV_NET_LAST:-}
+  printf '%s' "$ifc" | grep -Eq '^[A-Za-z0-9._-]{1,15}$' || die "interface inválida: $ifc"
+  printf '%s' "$gw" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || die "gateway inválido: $gw"
+  printf '%s%s' "$a" "$b" | grep -Eq '^[0-9]+$' || die "faixa inválida: $a a $b"
+  [ "$a" -ge 2 ] && [ "$b" -le 254 ] && [ "$a" -le "$b" ] || die "faixa inválida: $a a $b (de 2 a 254)"
+  printf 'modo=bridge\ninterface=%s\ngateway=%s\ninicio=%s\nfim=%s\n' "$ifc" "$gw" "$a" "$b" >"$ROOT/rede.conf.tmp"
+  mv "$ROOT/rede.conf.tmp" "$ROOT/rede.conf"
+  say "rede de VMs: bridge em $ifc, endereços ${gw%.*}.$a a ${gw%.*}.$b"
+}
+
+# addr_taken says whether an address is in use on the network (a device the
+# router gave it to answers a ping).
+# The machine's own addresses and the gateway count as taken.
+addr_taken() {
+  [ "$1" = "$(conf_get gateway)" ] && return 0
+  if [ "$(uname -s)" = Darwin ]; then
+    ifconfig 2>/dev/null | awk '$1 == "inet" {print $2}' | grep -qx "$1" && return 0
+    ping -c 1 -t 1 "$1" >/dev/null 2>&1
+  else
+    { ip -4 -o addr 2>/dev/null | awk '{split($4, a, "/"); print a[1]}'; hostname -I 2>/dev/null | tr ' ' '\n'; } | grep -qx "$1" && return 0
+    ping -c 1 -W 1 "$1" >/dev/null 2>&1
+  fi
+}
+
 net_get() { netinfo | sed -n "s/^$1=//p" | head -1; }
 
-# lan_ip gives the VM its fixed address on the VM network (.100 to .250),
-# keeping it in $ROOT/lan.ips across recreations.
+# lan_ip gives the VM its fixed address on the VM network (.100 to .250, or
+# the range of the bridge mode), keeping it in $ROOT/lan.ips across
+# recreations. An address of another network (the mode changed) or out of
+# the range is given again; in the bridge mode, an address that answers on
+# the network (a device of the router) is skipped.
 lan_ip() {
-  pre=$(net_get prefix)
-  [ -n "$pre" ] || die "esta máquina não tem rede de VMs. $(net_get hint)"
+  info=$(netinfo)
+  pre=$(printf '%s\n' "$info" | sed -n 's/^prefix=//p' | head -1)
+  first=$(printf '%s\n' "$info" | sed -n 's/^first=//p' | head -1)
+  last=$(printf '%s\n' "$info" | sed -n 's/^last=//p' | head -1)
+  bridged=$(printf '%s\n' "$info" | sed -n 's/^net=//p' | head -1)
+  first=${first:-100}; last=${last:-250}
+  [ -n "$pre" ] || die "esta máquina não tem rede de VMs. $(printf '%s\n' "$info" | sed -n 's/^hint=//p' | head -1)"
   mkdir -p "$ROOT"
   i=0
   while ! mkdir "$ROOT/lan.lock" 2>/dev/null; do
@@ -407,10 +526,22 @@ lan_ip() {
   done
   touch "$ROOT/lan.ips"
   ip=$(awk -v k="$P/$N" '$1 == k {print $2; exit}' "$ROOT/lan.ips")
+  if [ -n "$ip" ]; then
+    n=${ip##*.}
+    if [ "${ip%.*}" != "$pre" ] || [ "$n" -lt "$first" ] || [ "$n" -gt "$last" ]; then
+      awk -v k="$P/$N" '$1 != k' "$ROOT/lan.ips" >"$ROOT/lan.ips.tmp" && mv "$ROOT/lan.ips.tmp" "$ROOT/lan.ips"
+      ip=""
+    fi
+  fi
   if [ -z "$ip" ]; then
-    n=100
-    while [ $n -le 250 ] && grep -q " $pre\.$n\$" "$ROOT/lan.ips"; do n=$((n + 1)); done
-    [ $n -le 250 ] || { rmdir "$ROOT/lan.lock"; die "a rede de VMs está cheia (151 VMs)"; }
+    n=$first
+    while [ $n -le "$last" ]; do
+      if ! grep -q " $pre\.$n\$" "$ROOT/lan.ips"; then
+        [ "$bridged" = bridge ] && addr_taken "$pre.$n" || break
+      fi
+      n=$((n + 1))
+    done
+    [ $n -le "$last" ] || { rmdir "$ROOT/lan.lock"; die "a rede de VMs está cheia (de .$first a .$last)"; }
     ip=$pre.$n
     echo "$P/$N $ip" >>"$ROOT/lan.ips"
   fi
@@ -581,7 +712,7 @@ up() {
       pre="'$(net_get client)' '$(net_get sock)' "
       lan="-netdev socket,id=lan,fd=3 $dev"
     else
-      lan="-netdev bridge,id=lan,br=gantry0 $dev"
+      lan="-netdev bridge,id=lan,br=$(net_get bridge) $dev"
     fi
   fi
   cat >"$D/start.sh" <<EOS
@@ -1958,6 +2089,7 @@ case "${1:-}" in
   stats) stats ;;
   keyfile) key ;;
   netinfo) netinfo ;;
+  net-set) net_set ;;
   lan-ip) [ -n "$P" ] && [ -n "$N" ] || die "faltam GV_PROJECT e GV_NAME"; lan_ip ;;
   ssh) echo "ssh -i $(key) -p $(sed -n 's/^ssh=//p' "$D/vm.env") -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null gantry@127.0.0.1" ;;
   vnc) v=$(sed -n 's/^vnc=//p' "$D/vm.env" 2>/dev/null); [ -n "$v" ] && [ -f "$D/vnc.pass" ] && echo "$v $(cat "$D/vnc.pass")" ;;

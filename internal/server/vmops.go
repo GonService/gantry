@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -509,6 +511,32 @@ func (s *Server) vmNet(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
+	ni, err := vms.Network(ctx, h)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, ni)
+}
+
+// vmNetSet chooses the machine's VM network: compartilhada or bridge (the
+// network the machine is on), and answers the network as it is now.
+func (s *Server) vmNetSet(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
+	if h.Kind == hosts.TCP {
+		writeErr(w, http.StatusBadRequest, errors.New("hosts tcp:// não rodam VMs"))
+		return
+	}
+	var c vms.NetChoice
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&c); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	if _, err := vms.SetNetwork(ctx, h, c); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
 	ni, err := vms.Network(ctx, h)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)

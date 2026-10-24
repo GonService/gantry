@@ -408,5 +408,21 @@
   "Nesta máquina ({n})": "On this machine ({n})",
   "O Gantry não baixa estas imagens. Copie o arquivo para uma das pastas acima, ou aponte onde ele está.": "Gantry does not download these images. Copy the file into one of the folders above, or point to where it is.",
   "Usar outro arquivo para esta imagem": "Use another file for this image",
-  "Pontos de atenção no lab original (importado como está):": "Points of attention in the original lab (imported as it is):"
+  "Pontos de atenção no lab original (importado como está):": "Points of attention in the original lab (imported as it is):",
+  "Modo da rede…": "Network mode…",
+  "Rede entre VMs: bridge em {iface}, na mesma rede desta máquina (endereços {prefix}.{first} a {prefix}.{last}).": "Network between VMs: bridge on {iface}, on the same network as this machine (addresses {prefix}.{first} to {prefix}.{last}).",
+  "Modo da rede entre VMs": "Mode of the network between VMs",
+  "Compartilhada: uma rede só das VMs desta máquina, que o resto da rede não vê. Bridge: as VMs ficam na mesma rede desta máquina (a da sua casa ou do escritório), e qualquer aparelho dela chega nelas pelo IP. Use a bridge quando a compartilhada não funcionar, por exemplo com uma VPN como o Cloudflare WARP.": "Shared: a network only for the VMs of this machine, which the rest of the network does not see. Bridge: the VMs are on the same network as this machine (your home's or the office's), and any device on it reaches them by IP. Use the bridge when the shared one does not work, for example with a VPN such as Cloudflare WARP.",
+  "No modo bridge, o Gantry dá a cada VM um IP fixo da faixa abaixo: escolha uma faixa que o DHCP do roteador não usa. As VMs que já existem só mudam de rede depois de removidas e criadas de novo.": "In bridge mode, Gantry gives each VM a fixed IP from the range below: choose a range the router's DHCP does not use. Existing VMs only change network after being removed and created again.",
+  "Modo": "Mode",
+  "Compartilhada": "Shared",
+  "Bridge (a rede desta máquina)": "Bridge (this machine's network)",
+  "Interface": "Interface",
+  "só no modo bridge; a placa por onde esta máquina sai para a rede (no Mac, en0 costuma ser o Wi-Fi ou o cabo)": "bridge mode only; the card this machine uses to reach the network (on a Mac, en0 is usually Wi-Fi or the cable)",
+  "Gateway (o roteador)": "Gateway (the router)",
+  "Faixa: do endereço": "Range: from address",
+  "até o endereço": "to address",
+  "Rede entre VMs em bridge na {iface}": "Network between VMs in bridge on {iface}",
+  "Rede entre VMs compartilhada": "Network between VMs is shared",
+  "a rede precisa ser /24 (máscara 255.255.255.0), o comum em casa": "the network must be a /24 (mask 255.255.255.0), the usual at home"
 }

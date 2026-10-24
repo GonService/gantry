@@ -17,7 +17,7 @@ import { AgentBlock, EnginesList, ObsBlock } from "@/views/host/obs";
 import { ImagesBlock } from "@/views/shared/vmimages";
 import { queueDriftCheck, useDrift } from "@/views/lab/drift";
 import { queueUpdateCheck, updCount, useUpdates } from "@/views/lab/updates";
-import { engKey, forgetNet, loadCtrs, loadNet, loadOverview, loadShared, useMachine, type Engine, type Overview } from "./store";
+import { engKey, forgetNet, loadCtrs, loadNet, loadOverview, loadShared, useMachine, type Engine, type Overview, type VMNet } from "./store";
 
 export const Empty = ({ children }: { children: React.ReactNode }) => (
   <div className="panel panel-pad">
@@ -691,10 +691,19 @@ function NetPanel({ m }: { m: Machine }) {
     if (host && !c) loadNet(m, host);
   }, [host, c]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!host || !c || c === "loading") return null;
+  const bridged = c.net === "bridge";
+  const configure = (
+    <button className="btn small btn-ghost" onClick={() => netDialog(m, host, c)}>
+      {t("Modo da rede…")}
+    </button>
+  );
   if (c.mode !== "none" && c.mode !== "error" && !(c.problems || []).length) {
     return (
       <p className="muted small" style={{ margin: "0 0 12px" }}>
-        {t("Rede entre VMs: ativa ({mode}, {prefix}.0/24, máquina em {gateway}).", { mode: c.mode === "vmnet" ? "socket_vmnet" : "bridge gantry0", prefix: c.prefix, gateway: c.gateway })} {t("Use")} <code>lan: true</code> {t("numa VM para colocá-la nessa rede.")}
+        {bridged
+          ? t("Rede entre VMs: bridge em {iface}, na mesma rede desta máquina (endereços {prefix}.{first} a {prefix}.{last}).", { iface: c.interface, prefix: c.prefix, first: c.first, last: c.last })
+          : t("Rede entre VMs: ativa ({mode}, {prefix}.0/24, máquina em {gateway}).", { mode: c.mode === "vmnet" ? "socket_vmnet" : "bridge gantry0", prefix: c.prefix, gateway: c.gateway })}{" "}
+        {t("Use")} <code>lan: true</code> {t("numa VM para colocá-la nessa rede.")} {configure}
       </p>
     );
   }
@@ -720,8 +729,39 @@ function NetPanel({ m }: { m: Machine }) {
       <button className="btn small btn-ghost" onClick={() => forgetNet(m.key)}>
         {t("Verificar de novo")}
       </button>
+      {configure}
     </div>
   );
+}
+
+// netDialog chooses the VM network of the machine: compartilhada (a network
+// only of its VMs) or bridge (the network the machine itself is on, with
+// fixed addresses from a range outside the router's DHCP).
+function netDialog(m: Machine, host: string, c: VMNet) {
+  const bridged = c.net === "bridge";
+  formDialog({
+    title: t("Modo da rede entre VMs"),
+    intro: (
+      <>
+        <p>{t("Compartilhada: uma rede só das VMs desta máquina, que o resto da rede não vê. Bridge: as VMs ficam na mesma rede desta máquina (a da sua casa ou do escritório), e qualquer aparelho dela chega nelas pelo IP. Use a bridge quando a compartilhada não funcionar, por exemplo com uma VPN como o Cloudflare WARP.")}</p>
+        <p>{t("No modo bridge, o Gantry dá a cada VM um IP fixo da faixa abaixo: escolha uma faixa que o DHCP do roteador não usa. As VMs que já existem só mudam de rede depois de removidas e criadas de novo.")}</p>
+      </>
+    ),
+    fields: [
+      { id: "mode", label: t("Modo"), type: "select", options: [["compartilhada", t("Compartilhada")], ["bridge", t("Bridge (a rede desta máquina)")]], value: bridged ? "bridge" : "compartilhada" },
+      { id: "interface", label: t("Interface"), value: c.interface || c.lanIface || "en0", hint: t("só no modo bridge; a placa por onde esta máquina sai para a rede (no Mac, en0 costuma ser o Wi-Fi ou o cabo)") },
+      { id: "gateway", label: t("Gateway (o roteador)"), value: (bridged ? c.gateway : "") || c.lanGateway || "", placeholder: "192.168.0.1", hint: t("a rede precisa ser /24 (máscara 255.255.255.0), o comum em casa") },
+      { id: "first", label: t("Faixa: do endereço"), type: "number", value: String(c.first && bridged ? c.first : 200) },
+      { id: "last", label: t("até o endereço"), type: "number", value: String(c.last && bridged ? c.last : 230) },
+    ],
+    submit: t("Salvar"),
+    onSubmit: async (v) => {
+      const body = { mode: String(v.mode), interface: String(v.interface || "").trim(), gateway: String(v.gateway || "").trim(), first: Number(v.first), last: Number(v.last) };
+      await api("/hosts/" + enc(host) + "/vmnet", { method: "PUT", body });
+      forgetNet(m.key);
+      gantry.toast(body.mode === "bridge" ? t("Rede entre VMs em bridge na {iface}", { iface: body.interface }) : t("Rede entre VMs compartilhada"), "ok");
+    },
+  });
 }
 
 export function VMsTab({ m, d }: { m: Machine; d: Overview }) {

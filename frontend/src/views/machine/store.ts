@@ -12,7 +12,7 @@ export type Project = { id: string; name: string; host: string; dir?: string; ru
 export type Overview = { engines: Engine[]; vms: VM[]; projects: Project[] };
 export type Ctr = { id: string; name: string; image: string; state: string; status: string; project?: string; service?: string; ports: { PublicPort?: number; PrivatePort: number; Type: string; IP?: string }[] };
 export type SharedSvc = { id: string; kind: string; name: string; title: string; image: string; port?: number; running: boolean; lab?: string; host: string; runtime?: string; consumers?: Record<string, { db?: string; user?: string }> };
-export type VMNet = { mode: string; prefix?: string; gateway?: string; problems?: string[]; hint?: string };
+export type VMNet = { mode: string; prefix?: string; gateway?: string; problems?: string[]; hint?: string; net?: string; interface?: string; first?: number; last?: number; lanIface?: string; lanGateway?: string };
 
 type Loadable<T> = { data?: T; err?: string; at: number; loading?: boolean };
 
