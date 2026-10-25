@@ -250,5 +250,8 @@
   "Limpar a tela": "Clear the screen",
   "Copiado": "Copied",
   "Não consegui copiar para a área de transferência": "Could not copy to the clipboard",
-  "Não consegui ler a área de transferência": "Could not read the clipboard"
+  "Não consegui ler a área de transferência": "Could not read the clipboard",
+  "Arraste para mudar a ordem; para cima, para fora do painel, vira uma janela": "Drag to reorder; drag it up, out of the panel, to make it a window",
+  "Arraste para mover; solte na barra do painel (ou dê dois cliques) para voltar ao painel": "Drag to move; drop it on the panel's bar (or double-click) to put it back in the panel",
+  "Voltar ao painel": "Back to the panel"
 }

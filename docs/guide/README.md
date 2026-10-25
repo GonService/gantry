@@ -127,6 +127,8 @@ Each container row has **Shell**, **Logs**, **Stop**, **Restart** and **Remove**
 - **Events**: created, started, exited with code, out of memory, in the last 1 h, 24 h or 7 days.
 - **Create image…**: `docker commit` of the current state.
 
+Logs, shells and consoles open as tabs in the bottom panel. Drag a tab sideways to reorder it, or up, out of the panel, to turn it into a window you move and resize from its corner; the terminal keeps its session. To put it back, drop the window on the panel's bar, double-click its title or use ⤓. Right-click in a terminal to copy and paste (also Ctrl+Shift+C and Ctrl+Shift+V).
+
 ## 8. Metrics
 
 The **Metrics** tab of a project charts CPU and memory per container and per VM, from 15 minutes to 24 hours, with a summary table. Click a name in the legend or in the table to highlight it.

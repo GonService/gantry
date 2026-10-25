@@ -1,6 +1,7 @@
 // The dock at the bottom: logs, terminals, background jobs and command
 // outputs, as tabs. Terminals use xterm.js (vendor/xterm.js, a global).
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { create } from "zustand";
 import { api, apiURL, enc, CFG } from "@/lib/api";
 import { b64ToBytes, copyText, fmtBytes, readText } from "@/lib/format";
@@ -16,7 +17,10 @@ import { t, LOCALE } from "@/lib/i18n";
 declare const Terminal: any;
 declare const FitAddon: any;
 
-type Tab = { id: string; key: string; kind: string; title: string; node: (active: boolean) => React.ReactNode };
+// A tab lives in the dock or, dragged out of it, in a window of its own
+// over the app (float: where it is and its size).
+type Float = { x: number; y: number; w: number; h: number; z: number };
+type Tab = { id: string; key: string; kind: string; title: string; node: (active: boolean) => React.ReactNode; float?: Float };
 type DockState = { tabs: Tab[]; active: string | null; collapsed: boolean };
 
 export const useDock = create<DockState>(() => ({ tabs: [], active: null, collapsed: false }));
@@ -26,13 +30,97 @@ function dockAdd(t: Omit<Tab, "id">): string {
   const s = useDock.getState();
   const existing = s.tabs.find((x) => x.key === t.key);
   if (existing) {
-    useDock.setState({ active: existing.id, collapsed: false });
+    if (existing.float) toFront(existing.id);
+    else useDock.setState({ active: existing.id, collapsed: false });
     return existing.id;
   }
   const id = "t" + ++seq;
   useDock.setState({ tabs: [...s.tabs, { ...t, id }], active: id, collapsed: false });
   return id;
 }
+let zseq = 10;
+const setFloat = (id: string, f: Float | undefined) => useDock.setState((s) => ({ tabs: s.tabs.map((x) => (x.id === id ? { ...x, float: f } : x)) }));
+function toFront(id: string) {
+  const tb = useDock.getState().tabs.find((x) => x.id === id);
+  if (tb?.float && tb.float.z !== zseq) setFloat(id, { ...tb.float, z: ++zseq });
+}
+// Keeps a window's title bar reachable inside the app.
+const clampFloat = (f: Float): Float => ({ ...f, x: Math.min(Math.max(f.x, 40 - f.w), innerWidth - 80), y: Math.min(Math.max(f.y, 0), innerHeight - 40) });
+
+// detach: the tab leaves the dock for a window at the mouse; the dock
+// shows the next tab.
+function detach(id: string, x: number, y: number) {
+  const s = useDock.getState();
+  const w = Math.min(720, innerWidth - 40);
+  const h = Math.min(380, innerHeight - 80);
+  const docked = s.tabs.filter((tb) => !tb.float && tb.id !== id);
+  const i = s.tabs.filter((tb) => !tb.float).findIndex((tb) => tb.id === id);
+  const active = s.active === id ? (docked[i] || docked[i - 1])?.id ?? null : s.active;
+  useDock.setState({ active, tabs: s.tabs.map((tb) => (tb.id === id ? { ...tb, float: clampFloat({ x: x - 90, y: y - 16, w, h, z: ++zseq }) } : tb)) });
+}
+
+// redock: back to the dock, before the docked tab at index (the end when
+// not given), and shown there.
+function redock(id: string, index?: number) {
+  const s = useDock.getState();
+  const tb = s.tabs.find((x) => x.id === id);
+  if (!tb) return;
+  const rest = s.tabs.filter((x) => x.id !== id);
+  const docked = rest.filter((x) => !x.float);
+  const before = index !== undefined ? docked[index] : undefined;
+  const at = before ? rest.indexOf(before) : rest.length;
+  rest.splice(at, 0, { ...tb, float: undefined });
+  useDock.setState({ tabs: rest, active: id, collapsed: false });
+}
+
+// moveTab: a docked tab goes to position index among the docked ones.
+function moveTab(id: string, index: number) {
+  const s = useDock.getState();
+  const tb = s.tabs.find((x) => x.id === id);
+  if (!tb) return;
+  const docked = s.tabs.filter((x) => !x.float);
+  if (docked.indexOf(tb) === index) return;
+  const rest = s.tabs.filter((x) => x.id !== id);
+  const restDocked = rest.filter((x) => !x.float);
+  const before = restDocked[index];
+  rest.splice(before ? rest.indexOf(before) : rest.length, 0, tb);
+  useDock.setState({ tabs: rest });
+}
+
+// dropIndex: where a tab dropped at x lands among the docked tabs on the bar.
+function dropIndex(bar: Element | null, x: number, skip?: string): number {
+  const els = [...(bar?.querySelectorAll<HTMLElement>(".dock-tab") ?? [])].filter((el) => el.dataset.id !== skip);
+  const i = els.findIndex((el) => {
+    const r = el.getBoundingClientRect();
+    return x < r.left + r.width / 2;
+  });
+  return i < 0 ? els.length : i;
+}
+
+// Each tab's content is rendered once into its own element, which moves
+// between the dock and its window: a terminal keeps its session.
+const paneHosts = new Map<string, HTMLDivElement>();
+function paneHost(id: string): HTMLDivElement {
+  let el = paneHosts.get(id);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "dock-pane";
+    paneHosts.set(id, el);
+  }
+  return el;
+}
+function Slot({ id, shown }: { id: string; shown: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = paneHost(id);
+    if (el.parentElement !== ref.current) ref.current?.appendChild(el);
+  });
+  useLayoutEffect(() => {
+    paneHost(id).classList.toggle("active", shown);
+  }, [id, shown]);
+  return <div ref={ref} style={{ display: "contents" }} />;
+}
+
 export const dockHas = (key: string) => useDock.getState().tabs.some((t) => t.key === key);
 
 // closeHostTabs closes the logs and terminals of hosts that were
@@ -75,8 +163,13 @@ async function dockClose(id: string, force = false) {
   if (i < 0) return;
   const tabs = s.tabs.filter((t) => t.id !== id);
   let active = s.active;
-  if (active === id) active = (tabs[i] || tabs[i - 1])?.id ?? null;
+  if (active === id) {
+    const before = s.tabs.slice(0, i).filter((t) => !t.float);
+    const after = s.tabs.slice(i + 1).filter((t) => !t.float);
+    active = (after[0] || before[before.length - 1])?.id ?? null;
+  }
   useDock.setState({ tabs, active });
+  paneHosts.delete(id);
 }
 
 const termTheme = {
@@ -697,78 +790,200 @@ export function showOutput(title: string, res: { command?: string; output?: stri
 
 export function Dock() {
   const { tabs, active, collapsed } = useDock();
+  const docked = tabs.filter((tb) => !tb.float);
+  const floats = tabs.filter((tb) => tb.float);
+  const bar = useRef<HTMLDivElement>(null);
+  const [dragTab, setDragTab] = useState<string | null>(null);
   useEffect(() => {
     document.documentElement.style.setProperty("--dock-h", localStore.get("dockH", 300) + "px");
   }, []);
   useEffect(() => {
-    document.body.classList.toggle("has-dock", tabs.length > 0);
+    document.body.classList.toggle("has-dock", docked.length > 0);
     document.body.classList.toggle("dock-collapsed", collapsed);
-  }, [tabs.length, collapsed]);
+  }, [docked.length, collapsed]);
+
+  // A tab dragged along the bar changes place; dragged up out of the dock,
+  // it becomes a window that follows the mouse until it is let go.
+  const tabDown = (e: React.PointerEvent, id: string) => {
+    if (e.button !== 0 || (e.target as Element).closest(".x")) return;
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    let started = false;
+    let floating = false;
+    let off = { x: 90, y: 16 };
+    const move = (ev: PointerEvent) => {
+      if (!started && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+      if (!started) {
+        started = true;
+        setDragTab(id);
+        document.body.classList.add("dock-dragging");
+      }
+      if (floating) {
+        const tb = useDock.getState().tabs.find((x) => x.id === id);
+        if (tb?.float) setFloat(id, clampFloat({ ...tb.float, x: ev.clientX - off.x, y: ev.clientY - off.y }));
+        return;
+      }
+      const r = bar.current?.getBoundingClientRect();
+      if (r && ev.clientY < r.top - 24) {
+        floating = true;
+        setDragTab(null);
+        detach(id, ev.clientX, ev.clientY);
+        const f = useDock.getState().tabs.find((x) => x.id === id)?.float;
+        if (f) off = { x: ev.clientX - f.x, y: ev.clientY - f.y };
+        return;
+      }
+      moveTab(id, dropIndex(bar.current, ev.clientX, id));
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.body.classList.remove("dock-dragging");
+      setDragTab(null);
+      if (!started) useDock.setState({ active: id });
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  };
+
   return (
-    <section id="dock" className={"dock" + (collapsed ? " collapsed" : "")} hidden={!tabs.length} aria-label={t("Terminais e logs")}>
-      <div
-        className="dock-resize"
-        title={t("Arraste para redimensionar")}
-        onPointerDown={(e) => {
-          e.preventDefault();
-          const grip = e.currentTarget;
-          grip.setPointerCapture(e.pointerId);
-          const move = (ev: PointerEvent) => {
-            const hgt = Math.max(140, Math.min(window.innerHeight - 160, window.innerHeight - ev.clientY));
-            document.documentElement.style.setProperty("--dock-h", hgt + "px");
-          };
-          const up = () => {
-            grip.removeEventListener("pointermove", move);
-            grip.removeEventListener("pointerup", up);
-            localStore.set("dockH", parseInt(getComputedStyle(document.documentElement).getPropertyValue("--dock-h"), 10) || 300);
-          };
-          grip.addEventListener("pointermove", move);
-          grip.addEventListener("pointerup", up);
-        }}
-      />
-      <div className="dock-bar">
-        <div className="dock-tabs" role="tablist">
-          {tabs.map((tb) => (
-            <div
-              key={tb.id}
-              className="dock-tab"
-              role="tab"
-              aria-selected={tb.id === active}
-              tabIndex={0}
-              onClick={() => useDock.setState({ active: tb.id })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  useDock.setState({ active: tb.id });
-                }
-              }}
-            >
-              <span className="kind">{tb.kind}</span>
-              {tb.title}
-              <button
-                className="x"
-                aria-label={t("Fechar {title}", { title: tb.title })}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dockClose(tb.id);
+    <>
+      <section id="dock" className={"dock" + (collapsed ? " collapsed" : "")} hidden={!docked.length} aria-label={t("Terminais e logs")}>
+        <div
+          className="dock-resize"
+          title={t("Arraste para redimensionar")}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            const grip = e.currentTarget;
+            grip.setPointerCapture(e.pointerId);
+            const move = (ev: PointerEvent) => {
+              const hgt = Math.max(140, Math.min(window.innerHeight - 160, window.innerHeight - ev.clientY));
+              document.documentElement.style.setProperty("--dock-h", hgt + "px");
+            };
+            const up = () => {
+              grip.removeEventListener("pointermove", move);
+              grip.removeEventListener("pointerup", up);
+              localStore.set("dockH", parseInt(getComputedStyle(document.documentElement).getPropertyValue("--dock-h"), 10) || 300);
+            };
+            grip.addEventListener("pointermove", move);
+            grip.addEventListener("pointerup", up);
+          }}
+        />
+        <div className="dock-bar" ref={bar}>
+          <div className="dock-tabs" role="tablist">
+            {docked.map((tb) => (
+              <div
+                key={tb.id}
+                data-id={tb.id}
+                className={"dock-tab" + (dragTab === tb.id ? " dragging" : "")}
+                role="tab"
+                aria-selected={tb.id === active}
+                tabIndex={0}
+                title={t("Arraste para mudar a ordem; para cima, para fora do painel, vira uma janela")}
+                onPointerDown={(e) => tabDown(e, tb.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    useDock.setState({ active: tb.id });
+                  }
                 }}
               >
-                <XIcon size={12} />
-              </button>
-            </div>
+                <span className="kind">{tb.kind}</span>
+                {tb.title}
+                <button
+                  className="x"
+                  aria-label={t("Fechar {title}", { title: tb.title })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dockClose(tb.id);
+                  }}
+                >
+                  <XIcon size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button className="icon-btn" id="dock-toggle" type="button" title={t("Recolher")} aria-label={t("Recolher painel")} onClick={() => useDock.setState({ collapsed: !collapsed })}>
+            ⌄
+          </button>
+        </div>
+        <div className="dock-body">
+          {docked.map((tb) => (
+            <Slot key={tb.id} id={tb.id} shown={tb.id === active} />
           ))}
         </div>
-        <button className="icon-btn" id="dock-toggle" type="button" title={t("Recolher")} aria-label={t("Recolher painel")} onClick={() => useDock.setState({ collapsed: !collapsed })}>
-          ⌄
+      </section>
+      {floats.map((tb) => (
+        <FloatWin key={tb.id} tb={tb} bar={bar} layer={30 + floats.filter((o) => o.float!.z < tb.float!.z).length} />
+      ))}
+      {tabs.map((tb) => createPortal(tb.node(tb.float ? true : tb.id === active && !collapsed), paneHost(tb.id), tb.id))}
+    </>
+  );
+}
+
+// FloatWin: a tab in a window over the app. Drag the title to move it
+// (let go on the dock's bar, or at the bottom edge, to put it back), the
+// corner to resize it.
+function FloatWin({ tb, bar, layer }: { tb: Tab; bar: React.RefObject<HTMLDivElement | null>; layer: number }) {
+  const f = tb.float!;
+  const box = useRef<HTMLDivElement>(null);
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    let timer = 0;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const cur = useDock.getState().tabs.find((x) => x.id === tb.id)?.float;
+        if (cur && (Math.abs(cur.w - el.offsetWidth) > 1 || Math.abs(cur.h - el.offsetHeight) > 1)) setFloat(tb.id, { ...cur, w: el.offsetWidth, h: el.offsetHeight });
+      }, 150);
+    });
+    ro.observe(el);
+    return () => (clearTimeout(timer), ro.disconnect());
+  }, [tb.id]);
+  const onBar = (x: number, y: number) => {
+    const r = bar.current?.getBoundingClientRect();
+    if (r && r.width && x >= r.left && x <= r.right && y >= r.top - 8 && y <= r.bottom + 8) return true;
+    return y > innerHeight - 28; // the bottom edge, where the dock is
+  };
+  const headDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || (e.target as Element).closest("button")) return;
+    e.preventDefault();
+    toFront(tb.id);
+    const ox = e.clientX - f.x;
+    const oy = e.clientY - f.y;
+    document.body.classList.add("dock-dragging");
+    const move = (ev: PointerEvent) => {
+      const cur = useDock.getState().tabs.find((x) => x.id === tb.id)?.float;
+      if (cur) setFloat(tb.id, clampFloat({ ...cur, x: ev.clientX - ox, y: ev.clientY - oy }));
+      setOver(onBar(ev.clientX, ev.clientY));
+    };
+    const up = (ev: PointerEvent) => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.body.classList.remove("dock-dragging");
+      setOver(false);
+      if (onBar(ev.clientX, ev.clientY)) redock(tb.id, bar.current?.getBoundingClientRect().width ? dropIndex(bar.current, ev.clientX) : undefined);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  };
+  return (
+    <div ref={box} className={"dock-float" + (over ? " redock" : "")} style={{ left: f.x, top: f.y, width: f.w, height: f.h, zIndex: Math.min(layer, 45) }} onPointerDownCapture={() => toFront(tb.id)} role="dialog" aria-label={tb.title}>
+      <div className="dock-float-head" onPointerDown={headDown} onDoubleClick={() => redock(tb.id)} title={t("Arraste para mover; solte na barra do painel (ou dê dois cliques) para voltar ao painel")}>
+        <span className="kind">{tb.kind}</span>
+        <span className="dock-float-title">{tb.title}</span>
+        <span className="grow" />
+        <button className="x" type="button" title={t("Voltar ao painel")} aria-label={t("Voltar ao painel")} onClick={() => redock(tb.id)}>
+          ⤓
+        </button>
+        <button className="x" type="button" aria-label={t("Fechar {title}", { title: tb.title })} onClick={() => dockClose(tb.id)}>
+          <XIcon size={12} />
         </button>
       </div>
-      <div className="dock-body">
-        {tabs.map((tb) => (
-          <div key={tb.id} className={"dock-pane" + (tb.id === active ? " active" : "")}>
-            {tb.node(tb.id === active && !collapsed)}
-          </div>
-        ))}
+      <div className="dock-float-body">
+        <Slot id={tb.id} shown />
       </div>
-    </section>
+    </div>
   );
 }

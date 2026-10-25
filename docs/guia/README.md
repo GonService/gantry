@@ -127,6 +127,8 @@ Cada linha de container tem **Shell**, **Logs**, **Parar**, **Reiniciar** e **Re
 - **Eventos**: criado, iniciado, encerrou com código, sem memória, na última 1 h, 24 h ou 7 dias.
 - **Criar imagem…**: `docker commit` do estado atual.
 
+Logs, shells e consoles abrem como abas no painel de baixo. Arraste uma aba para o lado para mudar a ordem, ou para cima, para fora do painel, para ela virar uma janela que você move e redimensiona pelo canto; o terminal continua na mesma sessão. Para voltar, solte a janela na barra do painel, dê dois cliques no título ou use ⤓. O botão direito no terminal copia e cola (também Ctrl+Shift+C e Ctrl+Shift+V).
+
 ## 8. Métricas
 
 A aba **Métricas** de um projeto mostra gráficos de CPU e memória por container e por VM, de 15 minutos a 24 horas, com uma tabela de resumo. Clique num nome na legenda ou na tabela para destacar.
