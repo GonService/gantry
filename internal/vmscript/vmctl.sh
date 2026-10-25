@@ -779,12 +779,18 @@ iol_libcrypto() {
 
 iol_runner_py() {
   cat <<'PY'
-import os, pty, select, signal, socket, subprocess, sys, tty
+import os, pty, select, signal, socket, subprocess, sys, termios, tty
 d, cport = sys.argv[1:3]
 cmd = sys.argv[3:]
 os.chdir(d)
 master, slave = pty.openpty()
 tty.setraw(slave)
+if os.environ.get("GV_ONLCR"):
+    # VPCS ends its lines with a bare \n: the terminal turns it into \r\n,
+    # or each line starts where the previous one ended.
+    a = termios.tcgetattr(slave)
+    a[1] |= termios.OPOST | termios.ONLCR
+    termios.tcsetattr(slave, termios.TCSANOW, a)
 env = dict(os.environ)
 if os.path.isfile(os.path.join(d, "iourc")):
     env["IOURC"] = os.path.join(d, "iourc")
@@ -1145,7 +1151,7 @@ vpcs_up() {
   fi
   iol_runner_py >"$D/iol_runner.py"
   cat >"$D/start.sh" <<EOS
-nohup python3 '$D/iol_runner.py' '$D' '${GV_SERIAL:-17000}' '$bin' -i 1 -R ${GV_VPCSARGS:-} startup.vpc >'$D/qemu.err' 2>&1 &
+GV_ONLCR=1 nohup python3 '$D/iol_runner.py' '$D' '${GV_SERIAL:-17000}' '$bin' -i 1 -R ${GV_VPCSARGS:-} startup.vpc >'$D/qemu.err' 2>&1 &
 EOS
   printf '%s\n' "${GV_HASH:-}" >"$D/spec.hash"
   printf '%s\n' "${GV_BASEHASH:-}" >"$D/base.hash"
