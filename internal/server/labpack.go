@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,6 +25,10 @@ import (
 )
 
 const labPackDir = ".gantrylab"
+
+// packNode: the name of a node in a package, as a compose allows it (R1,
+// SW01, pc-1): it becomes a folder name, so no slash and no leading dot.
+var packNode = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`)
 
 type labPackNode struct {
 	Name  string `json:"name"`
@@ -175,11 +180,11 @@ func (s *Server) applyLabExtras(ctx context.Context, h *hosts.Host, dir, project
 	}
 	var log strings.Builder
 	for _, n := range man.Nodes {
-		if !labName.MatchString(n.Name) {
+		if !packNode.MatchString(n.Name) {
 			return log.String(), fmt.Errorf("pacote: nó com nome inválido (%q)", n.Name)
 		}
 		// A project of the same name already here keeps its nodes.
-		if o, _ := h.Run(ctx, "", []string{"sh", "-c", `d="${XDG_STATE_HOME:-$HOME/.local/state}/gantry/vms/$1/$2"; [ -f "$d/iol" ] || [ -f "$d/disk.qcow2" ] && echo sim`, "sh", project, n.Name}, nil); strings.TrimSpace(o) == "sim" {
+		if o, _ := h.Run(ctx, "", []string{"sh", "-c", `d="${XDG_STATE_HOME:-$HOME/.local/state}/gantry/vms/$1/$2"; { [ -f "$d/iol" ] || [ -f "$d/dyn" ] || [ -f "$d/vpcs" ] || [ -f "$d/disk.qcow2" ]; } && echo sim`, "sh", project, n.Name}, nil); strings.TrimSpace(o) == "sim" {
 			log.WriteString(fmt.Sprintf("%s: já existe nesta máquina (projeto %s); a configuração do pacote não foi aplicada\n", n.Name, project))
 			continue
 		}
