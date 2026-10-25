@@ -244,5 +244,11 @@
   "Destacar {name}": "Highlight {name}",
   "Mostrar todos": "Show all",
   "Aberto na rede sem criptografia": "Open on the network without encryption",
-  "O Gantry está em {link} sem HTTPS: quem estiver na mesma rede pode ler a chave de acesso e controlar as suas máquinas. Reinicie com -tls (ou -cert e -key), ou use um túnel SSH.": "Gantry is at {link} without HTTPS: anyone on the same network can read the access key and control your machines. Restart it with -tls (or -cert and -key), or use an SSH tunnel."
+  "O Gantry está em {link} sem HTTPS: quem estiver na mesma rede pode ler a chave de acesso e controlar as suas máquinas. Reinicie com -tls (ou -cert e -key), ou use um túnel SSH.": "Gantry is at {link} without HTTPS: anyone on the same network can read the access key and control your machines. Restart it with -tls (or -cert and -key), or use an SSH tunnel.",
+  "Colar": "Paste",
+  "Selecionar tudo": "Select all",
+  "Limpar a tela": "Clear the screen",
+  "Copiado": "Copied",
+  "Não consegui copiar para a área de transferência": "Could not copy to the clipboard",
+  "Não consegui ler a área de transferência": "Could not read the clipboard"
 }

@@ -100,11 +100,54 @@ export function toYAML(v: unknown, ind = ""): string {
   return ind + scalar(v);
 }
 
+// The clipboard: the desktop app's (the Wails runtime: the WebKitGTK of
+// Linux does not give navigator.clipboard to the app's page), else the
+// browser's, else the old execCommand of a hidden textarea.
+type ClipRT = { ClipboardSetText?: (s: string) => Promise<boolean>; ClipboardGetText?: () => Promise<string> };
+const clipRT = () => (window as unknown as { runtime?: ClipRT }).runtime;
+
 export async function copyText(text: string): Promise<boolean> {
+  try {
+    const rt = clipRT();
+    if (rt?.ClipboardSetText && (await rt.ClipboardSetText(text))) return true;
+  } catch {
+    /* next */
+  }
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    return false;
+    /* next */
+  }
+  const keep = document.activeElement as HTMLElement | null;
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  ta.remove();
+  keep?.focus();
+  return ok;
+}
+
+// readText: the text in the clipboard, or null when it cannot be read.
+export async function readText(): Promise<string | null> {
+  try {
+    const rt = clipRT();
+    if (rt?.ClipboardGetText) return await rt.ClipboardGetText();
+  } catch {
+    /* next */
+  }
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    return null;
   }
 }

@@ -1,4 +1,5 @@
 import { Fragment, useRef } from "react";
+import { copyText } from "@/lib/format";
 import { openMenu } from "@/components/contextmenu";
 import { api, enc } from "@/lib/api";
 import { closeTabsWhere } from "@/shell/dock";
@@ -138,7 +139,7 @@ export function kubeMenu(e: React.MouseEvent, c: Cluster, kind: string, r: Row, 
       "-",
       ...acts.filter((a) => a.key !== "delete").map((a) => ({ label: a.label, onClick: a.onClick, hint: a.title })),
       "-",
-      { label: t("Copiar nome"), onClick: () => void navigator.clipboard?.writeText(r.name).then(() => gantry.toast(t("Copiado"), "ok")) },
+      { label: t("Copiar nome"), onClick: () => void copyText(r.name).then((ok) => ok && gantry.toast(t("Copiado"), "ok")) },
       "-",
       ...acts.filter((a) => a.key === "delete").map((a) => ({ label: a.label, onClick: a.onClick, danger: true })),
     ],

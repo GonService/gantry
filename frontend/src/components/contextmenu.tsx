@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
+import { copyText } from "@/lib/format";
 
 // The right-click menu of the items on screen (machines, clusters, projects,
 // containers, VMs, objects of a cluster): the usual actions of the item,
@@ -116,12 +117,7 @@ export function copyItem(label: string, text: string, done: () => void): MenuIte
   return {
     label,
     onClick: async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        done();
-      } catch {
-        /* no clipboard */
-      }
+      if (await copyText(text)) done();
     },
   };
 }

@@ -3,7 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { api, apiURL, enc, CFG } from "@/lib/api";
-import { b64ToBytes, fmtBytes } from "@/lib/format";
+import { b64ToBytes, copyText, fmtBytes, readText } from "@/lib/format";
+import { openMenu } from "@/components/contextmenu";
 import { hostByName, loadHosts, loadLocal, useStore } from "@/lib/store";
 import { localStore, toast } from "./toasts";
 import { pickPath } from "./pick";
@@ -126,13 +127,68 @@ function useXterm(opts: Record<string, unknown>, active: boolean) {
       }
     };
     doFit();
+    // Copy and paste: Ctrl+Shift+C / Ctrl+Shift+V (Cmd+C / Cmd+V on the Mac),
+    // Ctrl+C with text selected copies it (without a selection it is still
+    // the terminal's Ctrl+C), and the right-click menu.
+    const canType = !term.options.disableStdin;
+    const copySel = async () => {
+      const sel = term.getSelection();
+      if (!sel) return;
+      const ok = await copyText(sel);
+      toast(ok ? t("Copiado") : t("Não consegui copiar para a área de transferência"), ok ? "ok" : "err");
+      term.focus();
+    };
+    const paste = async () => {
+      const txt = await readText();
+      if (txt == null) toast(t("Não consegui ler a área de transferência"), "err");
+      else if (txt) term.paste(txt);
+      term.focus();
+    };
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type !== "keydown" || !(e.ctrlKey || e.metaKey) || e.altKey) return true;
+      const k = e.key.toLowerCase();
+      if (k === "c" && (e.shiftKey || e.metaKey || term.hasSelection())) {
+        e.preventDefault();
+        void copySel();
+        return false;
+      }
+      if (k === "v" && (e.shiftKey || e.metaKey) && canType) {
+        e.preventDefault();
+        void paste();
+        return false;
+      }
+      return true;
+    });
+    const menu = (e: MouseEvent) =>
+      openMenu(e, [
+        { label: t("Copiar"), disabled: !term.hasSelection(), hint: navigator.platform.startsWith("Mac") ? "⌘C" : "Ctrl+Shift+C", onClick: copySel },
+        canType && { label: t("Colar"), hint: navigator.platform.startsWith("Mac") ? "⌘V" : "Ctrl+Shift+V", onClick: paste },
+        "-",
+        {
+          label: t("Selecionar tudo"),
+          onClick: () => {
+            term.selectAll();
+            term.focus();
+          },
+        },
+        {
+          label: t("Limpar a tela"),
+          onClick: () => {
+            term.clear();
+            term.focus();
+          },
+        },
+      ]);
+    box.current!.addEventListener("contextmenu", menu);
     // The cell size changes when the monospace font finishes loading: fit again.
     document.fonts?.ready.then(() => activeRef.current && doFit()).catch(() => {});
     const ro = new ResizeObserver(() => {
       if (activeRef.current) doFit();
     });
     ro.observe(box.current!);
+    const el = box.current!;
     return () => {
+      el.removeEventListener("contextmenu", menu);
       ro.disconnect();
       term.dispose();
     };

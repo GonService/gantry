@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { copyText } from "@/lib/format";
 import { gantry } from "@/lib/gantry";
 import { t } from "@/lib/i18n";
 
@@ -41,12 +42,8 @@ export function Panel({ pad, className, children }: { pad?: boolean; className?:
 // CopyCommand: a command to run by hand, with Copiar.
 export function CopyCommand({ cmd }: { cmd: string }) {
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(cmd);
-      gantry.toast(t("Comando copiado."), "ok");
-    } catch {
-      gantry.toast(t("Não deu para copiar; selecione o comando."), "err");
-    }
+    if (await copyText(cmd)) gantry.toast(t("Comando copiado."), "ok");
+    else gantry.toast(t("Não deu para copiar; selecione o comando."), "err");
   };
   return (
     <div className="brew-cmd">
