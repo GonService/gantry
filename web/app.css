@@ -1051,6 +1051,9 @@ table.grid tr.selected > td { background: var(--brand-soft); }
   radial-gradient(circle, var(--border) 1px, transparent 1px) 0 0 / 20px 20px, var(--surface); }
 .cablemap-svg { display: block; touch-action: none; user-select: none; }
 .cablemap-svg.dragging { cursor: grabbing; }
+.cablemap-wrap .cablemap-svg { cursor: grab; }
+.cablemap-wrap.pan-ready .cablemap-svg, .cablemap-wrap.pan-ready .cablemap-svg * { cursor: grab; }
+.cablemap-wrap.panning .cablemap-svg, .cablemap-wrap.panning .cablemap-svg * { cursor: grabbing; }
 .cm-box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; cursor: grab; }
 .cm-node.on .cm-box { stroke: var(--ok); }
 .cm-node.warn .cm-box { stroke: var(--warn); }

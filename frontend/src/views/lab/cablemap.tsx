@@ -117,6 +117,62 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     const w = svg.current.viewBox.baseVal?.width;
     if (w) setZoomRaw(Math.max(0.25, Math.min(1, (wrap.current.clientWidth - 4) / w)));
   }, [nodes, zoom]);
+  // Moving around the drawing: drag the empty background, or anywhere with
+  // Space held or the middle button; Ctrl/⌘ + wheel zooms at the mouse.
+  const [space, setSpace] = useState(false);
+  const [panning, setPanning] = useState(false);
+  const pan = useRef<{ x: number; y: number; sl: number; st: number; id: number } | null>(null);
+  const over = useRef(false);
+  const anchor = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
+  useEffect(() => {
+    const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !over.current || typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault(); // not the page scrolling
+      setSpace(true);
+    };
+    const up = (e: KeyboardEvent) => e.code === "Space" && setSpace(false);
+    const off = () => setSpace(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", off);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", off);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const w = wrap.current;
+    if (!a || !w || zoom === null) return;
+    anchor.current = null;
+    w.scrollLeft = a.px * zoom - a.cx;
+    w.scrollTop = a.py * zoom - a.cy;
+  }, [zoom]);
+  const panStart = (e: React.PointerEvent) => {
+    const bg = e.button === 0 && (e.target === svg.current || (e.target as Element).classList?.contains("cm-bg"));
+    if (!(e.button === 1 || (e.button === 0 && space) || bg) || !wrap.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    wrap.current.setPointerCapture?.(e.pointerId);
+    pan.current = { x: e.clientX, y: e.clientY, sl: wrap.current.scrollLeft, st: wrap.current.scrollTop, id: e.pointerId };
+    setPanning(true);
+  };
+  const panMove = (e: React.PointerEvent) => {
+    const p = pan.current;
+    if (!p || !wrap.current) return;
+    e.stopPropagation();
+    wrap.current.scrollLeft = p.sl - (e.clientX - p.x);
+    wrap.current.scrollTop = p.st - (e.clientY - p.y);
+  };
+  const panEnd = (e: React.PointerEvent) => {
+    if (!pan.current) return;
+    e.stopPropagation();
+    wrap.current?.releasePointerCapture?.(pan.current.id);
+    pan.current = null;
+    setPanning(false);
+  };
 
   const load = () =>
     Promise.all([api<CVM[]>(base + "/cabos"), api<Redes>(base + "/redes").catch(() => ({ redes: [], leases: [] }) as Redes)])
@@ -494,6 +550,14 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
   const onWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return; // a pinch on the trackpad, or Ctrl/⌘ + wheel
     e.preventDefault();
+    const w = wrap.current;
+    if (w) {
+      // Keep the point under the mouse where it is.
+      const r = w.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      anchor.current = { px: (w.scrollLeft + cx) / z, py: (w.scrollTop + cy) / z, cx, cy };
+    }
     setZoom(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
   };
 
@@ -501,7 +565,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     <div className="block cablemap">
       <div className="block-head">
         <h2 className="block-title">{t("Rede do lab")}</h2>
-        <span className="muted small">{t("clique ou botão direito num equipamento ou numa rede para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; clique num cabo para desligar ou capturar")}</span>
+        <span className="muted small">{t("botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
         <span className="grow" />
         {busy ? <span className="spin" /> : null}
         <span className="seg cm-zoom" role="group" aria-label={t("Zoom do desenho")}>
@@ -522,7 +586,19 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
           {t("+ Rede")}
         </button>
       </div>
-      <div className="panel cablemap-wrap" ref={wrap} onWheel={onWheel}>
+      <div
+        className={"panel cablemap-wrap" + (panning ? " panning" : space ? " pan-ready" : "")}
+        ref={wrap}
+        onWheel={onWheel}
+        onPointerDownCapture={panStart}
+        onPointerMoveCapture={panMove}
+        onPointerUpCapture={panEnd}
+        onPointerCancelCapture={panEnd}
+        onPointerEnter={() => (over.current = true)}
+        onPointerLeave={() => (over.current = false)}
+        onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+        onAuxClick={(e) => e.button === 1 && e.preventDefault()}
+      >
         <svg ref={svg} width={W * z} height={H * z} viewBox={`0 0 ${W} ${H}`} className={"cablemap-svg" + (drag ? " dragging" : "")} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => (setDrag(null), setHover(""))} role="img" aria-label={t("Desenho dos cabos de {lab}", { lab: lab.name })}>
           {cables.map((c) => {
             const pa = ports[c.a.node + "\u0000" + c.a.port];
@@ -531,7 +607,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const up = states[c.a.node] === "on" && states[c.b.node] === "on";
             const d = pathOf(pa, pb);
             return (
-              <g key={c.link} className={"cm-cable" + (up ? " up" : " down")} onClick={(e) => cableMenu(e, c.a, c.b)} data-link={c.link}>
+              <g key={c.link} className={"cm-cable" + (up ? " up" : " down")} onContextMenu={(e) => cableMenu(e, c.a, c.b)} data-link={c.link}>
                 <title>{c.link + (up ? "" : " · " + t("um dos lados está parado"))}</title>
                 <path d={d} className="cm-hit" />
                 <path d={d} className="cm-line" />
@@ -544,7 +620,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const up = states[m.a.node] === "on";
             const d = pathOf(pa, cloudEnd(m.rede, pa));
             return (
-              <g key={m.a.node + "|" + m.a.port} className={"cm-cable cm-member" + (up ? " up" : " down")} onClick={(e) => memberMenu(e, m.a, m.rede)} data-member={m.rede}>
+              <g key={m.a.node + "|" + m.a.port} className={"cm-cable cm-member" + (up ? " up" : " down")} onContextMenu={(e) => memberMenu(e, m.a, m.rede)} data-member={m.rede}>
                 <title>{m.a.node + " · " + portName(nodes.find((v) => v.name === m.a.node)!, m.a.port) + " ⟶ " + t("rede {name}", { name: m.rede })}</title>
                 <path d={d} className="cm-hit" />
                 <path d={d} className="cm-line" />

@@ -183,7 +183,7 @@ x-vms:
 
 ![O desenho do lab](../images/pt/topology.png)
 
-O desenho também é um editor: arraste de uma porta a outra para ligar um cabo, arraste uma porta até uma nuvem para pôr naquela rede, clique num cabo para desligar ou capturar, clique com o botão direito num equipamento para console, shell, logs, iniciar e parar. **+ Rede** cria uma rede do lab (um switch, com subnet e DHCP opcionais). Posições e ícones ficam gravados no compose (`x-pos`, `x-icon`).
+O desenho também é um editor: arraste de uma porta a outra para ligar um cabo, arraste uma porta até uma nuvem para pôr naquela rede, e use o botão direito para as ações: num cabo, desligar ou capturar; num equipamento, console, shell, logs, iniciar e parar; numa rede, capturar e editar. Para andar pelo desenho, arraste o fundo (ou segure Espaço, ou o botão do meio, e arraste); Ctrl ou ⌘ + roda aproxima e afasta no ponto do mouse. **+ Rede** cria uma rede do lab (um switch, com subnet e DHCP opcionais). Posições e ícones ficam gravados no compose (`x-pos`, `x-icon`).
 
 A aba **Dispositivos** agrupa as partes do lab em sub-abas: **Máquinas virtuais** (aqui, o VPCS), **Containers**, **Cabos** e **Estados do lab**.
 

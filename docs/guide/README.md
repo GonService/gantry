@@ -183,7 +183,7 @@ x-vms:
 
 ![The lab drawing](../images/en/topology.png)
 
-The drawing is also an editor: drag from one port to another to wire a cable, drag a port onto a network cloud to plug it in, click a cable to unplug it or capture it, right-click a device for its console, shell, logs, start and stop. **+ Network** adds a lab network (a switch, with optional subnet and DHCP). Positions and icons are saved in the compose (`x-pos`, `x-icon`).
+The drawing is also an editor: drag from one port to another to wire a cable, drag a port onto a network cloud to plug it in, and use right-click for the actions: on a cable, unplug or capture; on a device, console, shell, logs, start and stop; on a network, capture and edit. To move around the drawing, drag the background (or hold Space, or the middle button, and drag); Ctrl or ⌘ + wheel zooms in and out at the mouse. **+ Network** adds a lab network (a switch, with optional subnet and DHCP). Positions and icons are saved in the compose (`x-pos`, `x-icon`).
 
 The **Devices** tab groups the lab's parts in sub-tabs: **Virtual machines** (here, the VPCS), **Containers**, **Cables** and **Lab states**.
 
