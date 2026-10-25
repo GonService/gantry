@@ -1087,6 +1087,9 @@ table.grid tr.selected > td { background: var(--brand-soft); }
 .cm-cable .cm-line { stroke: var(--brand); stroke-width: 2.5; fill: none; pointer-events: none; }
 .cm-cable.down .cm-line { stroke: var(--muted); stroke-dasharray: 6 5; }
 .cm-cable:hover .cm-line { stroke-width: 4; }
+.cablemap-svg.focus .cm-cable:not(.hl) { opacity: .18; }
+.cablemap-svg.focus .cm-cable.hl .cm-line { stroke-width: 3.5; }
+.cablemap-svg .cm-cable { transition: opacity .12s; }
 .cm-light { stroke: var(--surface); stroke-width: 1.5; }
 .cm-light.up { fill: var(--ok); }
 .cm-light.down { fill: var(--crit, #b91c1c); }

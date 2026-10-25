@@ -565,5 +565,13 @@
   "sem tráfego há {s} s: interface em shutdown?": "no traffic for {s} s: interface in shutdown?",
   "um dos lados está desligado": "one of the sides is down",
   "Levar a configuração dos equipamentos (IOL, Dynamips e VPCS): o lab sobe igual na outra máquina": "Take the configuration of the devices (IOL, Dynamips and VPCS): the lab comes up the same on the other machine",
-  "Gravar a configuração dos nós rodando antes (write memory nos roteadores, save nos VPCS)": "Save the configuration of the running nodes first (write memory on routers, save on VPCS)"
+  "Gravar a configuração dos nós rodando antes (write memory nos roteadores, save nos VPCS)": "Save the configuration of the running nodes first (write memory on routers, save on VPCS)",
+  "Retas": "Straight",
+  "Curvas": "Curves",
+  "Forma dos cabos": "Cable shape",
+  "Cabos em linha reta, como no Packet Tracer": "Straight cables, as in Packet Tracer",
+  "Cabos em curva": "Curved cables",
+  "Espaçar": "Spread out",
+  "Afasta os equipamentos que estão encostados, mantendo a mesma disposição": "Moves apart the devices that touch, keeping the same arrangement",
+  "O desenho já tem espaço entre os equipamentos.": "The drawing already has room between the devices."
 }

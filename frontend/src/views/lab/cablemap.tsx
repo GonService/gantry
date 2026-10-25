@@ -24,6 +24,10 @@ const CLOUD_H = 58;
 const CK = "\u0001"; // the key of a cloud in the positions (a network may have a node's name… not allowed, but keys stay apart)
 
 type State = "on" | "warn" | "";
+type Side = "t" | "b" | "l" | "r";
+type Port = { x: number; y: number; side: Side };
+// The way out of each side of a node.
+const NORMAL: Record<Side, [number, number]> = { t: [0, -1], b: [0, 1], l: [-1, 0], r: [1, 0] };
 type End = { node: string; port: number };
 type Drag = { kind: "node"; node: string; dx: number; dy: number; moved: boolean } | { kind: "cloud"; rede: string; dx: number; dy: number; moved: boolean } | { kind: "port"; from: End; x: number; y: number };
 
@@ -109,6 +113,26 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
       /* nothing */
     }
   };
+  // Straight cables (as in Packet Tracer) or curves, kept in this browser.
+  const lkey = "gantry.cabos.linhas";
+  const [lines, setLinesRaw] = useState<"retas" | "curvas">(() => {
+    try {
+      return localStorage.getItem(lkey) === "curvas" ? "curvas" : "retas";
+    } catch {
+      return "retas";
+    }
+  });
+  const setLines = (v: "retas" | "curvas") => {
+    setLinesRaw(v);
+    try {
+      localStorage.setItem(lkey, v);
+    } catch {
+      /* nothing */
+    }
+  };
+  // The mouse over a node, a network or a cable: its cables stand out and
+  // the others fade.
+  const [focus, setFocus] = useState("");
   const dragging = useRef(false);
   dragging.current = !!drag || busy;
   // No zoom chosen: a drawing wider than the panel starts fitted to it.
@@ -239,19 +263,53 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     return ago <= LIGHT_AGE ? { st: "up", why: t("ativa (tráfego há {s} s)", { s: ago }) } : { st: "down", why: t("sem tráfego há {s} s: interface em shutdown?", { s: ago }) };
   };
 
-  // Where each port is drawn: on top of the node when its peer is above.
+  // Where each port is drawn: on the side of the node that faces what it
+  // is wired to (a node, a network), in the order of those along the side,
+  // so the cables leave toward their peers instead of crossing the node.
+  // A free port stays at its place on the bottom.
   const ports = useMemo(() => {
-    const m: Record<string, { x: number; y: number; top: boolean }> = {};
+    const m: Record<string, Port> = {};
     if (!nodes) return m;
+    const center = (name: string): [number, number] | null => {
+      const v = nodes.find((x) => x.name === name);
+      const p = pos[name];
+      return v && p ? [p[0] + nodeW(v) / 2, p[1] + NODE_H / 2] : null;
+    };
     for (const v of nodes) {
       const [x, y] = pos[v.name] ?? [0, 0];
+      const w = nodeW(v);
+      const cx = x + w / 2;
+      const cy = y + NODE_H / 2;
+      const by: Record<Side, { i: number; k: number; d: number }[]> = { t: [], b: [], l: [], r: [] };
       v.interfaces.forEach((f, i) => {
         const peer = f.link ? peerOf(nodes, f.link, [v.name, i]) : null;
-        const cloud = f.rede ? pos[CK + f.rede] : undefined;
-        const py = peer ? (pos[peer[0]]?.[1] ?? y) : cloud ? cloud[1] + CLOUD_H / 2 - NODE_H / 2 : y;
-        const top = (!!peer || !!cloud) && py + NODE_H / 2 < y;
-        m[v.name + "\u0000" + i] = { x: x + PAD + i * GAP, y: top ? y : y + NODE_H, top };
+        const cl = f.rede ? pos[CK + f.rede] : undefined;
+        const tgt = peer && peer[0] !== v.name ? center(peer[0]) : cl ? ([cl[0] + CLOUD_W / 2, cl[1] + CLOUD_H / 2] as [number, number]) : null;
+        if (!tgt) {
+          by.b.push({ i, k: x + PAD + i * GAP, d: 0 });
+          return;
+        }
+        const dx = tgt[0] - cx;
+        const dy = tgt[1] - cy;
+        const side: Side = Math.abs(dx) * NODE_H > Math.abs(dy) * w ? (dx > 0 ? "r" : "l") : dy > 0 ? "b" : "t";
+        by[side].push({ i, k: side === "l" || side === "r" ? tgt[1] : tgt[0], d: dy });
       });
+      // A side of the node has room for two ports: the others go up or down.
+      for (const sd of ["l", "r"] as Side[]) {
+        by[sd].sort((a, b) => Math.abs(a.d) - Math.abs(b.d));
+        while (by[sd].length > 2) {
+          const e = by[sd].pop()!;
+          by[e.d > 0 ? "b" : "t"].push({ ...e, k: sd === "l" ? x - 1 : x + w + 1 });
+        }
+      }
+      for (const sd of ["t", "b", "l", "r"] as Side[]) {
+        const list = by[sd].sort((a, b) => a.k - b.k || a.i - b.i);
+        list.forEach((e, n) => {
+          const f = (n + 1) / (list.length + 1);
+          m[v.name + "\u0000" + e.i] =
+            sd === "t" ? { x: x + w * f, y, side: sd } : sd === "b" ? { x: x + w * f, y: y + NODE_H, side: sd } : sd === "l" ? { x, y: y + NODE_H * f, side: sd } : { x: x + w, y: y + NODE_H * f, side: sd };
+        });
+      }
     }
     return m;
   }, [nodes, pos]);
@@ -562,9 +620,52 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
       const p = peerOf(nodes, f.link, [v.name, i]);
       if (p && (p[0] > v.name || (p[0] === v.name && p[1] > i))) cables.push({ a: { node: v.name, port: i }, b: { node: p[0], port: p[1] }, link: f.link });
     });
-  const pathOf = (a: { x: number; y: number; top: boolean }, b: { x: number; y: number; top: boolean }) => {
-    const bend = Math.max(40, Math.min(120, Math.abs(a.y - b.y) / 2 + 30));
-    return `M${a.x} ${a.y} C${a.x} ${a.y + (a.top ? -bend : bend)} ${b.x} ${b.y + (b.top ? -bend : bend)} ${b.x} ${b.y}`;
+  // spread: the drawing opened up, the same arrangement with more room,
+  // until no two boxes touch (a lab from PNETLab or EVE-NG has small icons
+  // close together); saved like a move.
+  const spread = () => {
+    const boxes = [...nodes.map((v) => ({ k: v.name, w: nodeW(v), h: NODE_H })), ...redes.map((r) => ({ k: CK + r.name, w: CLOUD_W, h: CLOUD_H }))].filter((b) => pos[b.k]);
+    if (boxes.length < 2) return;
+    const x0 = Math.min(...boxes.map((b) => pos[b.k][0]));
+    const y0 = Math.min(...boxes.map((b) => pos[b.k][1]));
+    const place = (b: (typeof boxes)[0], f: number): [number, number] => [Math.round(x0 + (pos[b.k][0] + b.w / 2 - x0) * f - b.w / 2), Math.round(y0 + (pos[b.k][1] + b.h / 2 - y0) * f - b.h / 2)];
+    const clear = (f: number) =>
+      boxes.every((a, i) =>
+        boxes.every((b, j) => {
+          if (j <= i) return true;
+          const [ax, ay] = place(a, f);
+          const [bx, by] = place(b, f);
+          return ax + a.w + 50 <= bx || bx + b.w + 50 <= ax || ay + a.h + 60 <= by || by + b.h + 60 <= ay;
+        }),
+      );
+    let f = 1;
+    while (f < 5 && !clear(f)) f += 0.1;
+    if (f === 1) {
+      gantry.toast(t("O desenho já tem espaço entre os equipamentos."), "ok");
+      return;
+    }
+    const all: Record<string, [number, number]> = {};
+    for (const b of boxes) {
+      const [x, y] = place(b, f);
+      all[b.k.startsWith(CK) ? b.k.slice(CK.length) : b.k] = [Math.max(0, x), Math.max(0, y)];
+    }
+    setPos((m) => {
+      const out = { ...m };
+      for (const [k, p] of Object.entries(all)) out[redes.some((r) => r.name === k) ? CK + k : k] = p;
+      return out;
+    });
+    setNodes(nodes.map((v) => (all[v.name] ? { ...v, pos: all[v.name] } : v)));
+    setNet((n) => ({ ...n, redes: n.redes.map((r) => (all[r.name] ? { ...r, pos: all[r.name] } : r)) }));
+    api(base + "/posicoes", { method: "PUT", body: { pos: all } }).catch((err) => gantry.toast(fileError((err as Error).message), "err"));
+  };
+  // A cable: straight, as in Packet Tracer, or a curve that leaves each
+  // port square to its side.
+  const pathOf = (a: Port, b: Port) => {
+    if (lines === "retas") return `M${a.x} ${a.y} L${b.x} ${b.y}`;
+    const bend = Math.max(30, Math.min(120, Math.hypot(a.x - b.x, a.y - b.y) / 3));
+    const [ax, ay] = NORMAL[a.side];
+    const [bx, by] = NORMAL[b.side];
+    return `M${a.x} ${a.y} C${a.x + ax * bend} ${a.y + ay * bend} ${b.x + bx * bend} ${b.y + by * bend} ${b.x} ${b.y}`;
   };
   // The ports on networks: a line from each to its cloud.
   const members: { a: End; rede: string }[] = [];
@@ -583,7 +684,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     const k = Math.max(0, side.indexOf(from.x));
     const inset = CLOUD_H / 2;
     const x = side.length > 1 ? cx + inset + ((CLOUD_W - 2 * inset) * k) / (side.length - 1) : cx + CLOUD_W / 2;
-    return { x, y: above ? cy : cy + CLOUD_H, top: above };
+    return { x, y: above ? cy : cy + CLOUD_H, side: (above ? "t" : "b") as Side };
   };
   const xs = [...nodes.map((v) => (pos[v.name]?.[0] ?? 0) + nodeW(v)), ...redes.map((r) => (pos[CK + r.name]?.[0] ?? 0) + CLOUD_W)];
   const ys = [...nodes.map((v) => (pos[v.name]?.[1] ?? 0) + NODE_H), ...redes.map((r) => (pos[CK + r.name]?.[1] ?? 0) + CLOUD_H)];
@@ -612,6 +713,17 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
         <span className="muted small">{t("botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
         <span className="grow" />
         {busy ? <span className="spin" /> : null}
+        <button className="btn small" type="button" disabled={busy} onClick={spread} title={t("Afasta os equipamentos que estão encostados, mantendo a mesma disposição")}>
+          {t("Espaçar")}
+        </button>
+        <span className="seg cm-zoom" role="group" aria-label={t("Forma dos cabos")}>
+          <button className="seg-btn" type="button" aria-pressed={lines === "retas"} title={t("Cabos em linha reta, como no Packet Tracer")} onClick={() => setLines("retas")}>
+            {t("Retas")}
+          </button>
+          <button className="seg-btn" type="button" aria-pressed={lines === "curvas"} title={t("Cabos em curva")} onClick={() => setLines("curvas")}>
+            {t("Curvas")}
+          </button>
+        </span>
         <span className="seg cm-zoom" role="group" aria-label={t("Zoom do desenho")}>
           <button className="seg-btn" type="button" title={t("Afastar (Ctrl ou ⌘ + roda)")} onClick={() => setZoom(z / 1.25)}>
             −
@@ -643,7 +755,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
         onMouseDown={(e) => e.button === 1 && e.preventDefault()}
         onAuxClick={(e) => e.button === 1 && e.preventDefault()}
       >
-        <svg ref={svg} width={W * z} height={H * z} viewBox={`0 0 ${W} ${H}`} className={"cablemap-svg" + (drag ? " dragging" : "")} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => (setDrag(null), setHover(""))} role="img" aria-label={t("Desenho dos cabos de {lab}", { lab: lab.name })}>
+        <svg ref={svg} width={W * z} height={H * z} viewBox={`0 0 ${W} ${H}`} className={"cablemap-svg" + (drag ? " dragging" : "") + (focus && !drag ? " focus" : "")} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => (setDrag(null), setHover(""))} role="img" aria-label={t("Desenho dos cabos de {lab}", { lab: lab.name })}>
           {cables.map((c) => {
             const pa = ports[c.a.node + "\u0000" + c.a.port];
             const pb = ports[c.b.node + "\u0000" + c.b.port];
@@ -653,7 +765,14 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const up = la && lb ? la.st === "up" && lb.st === "up" : states[c.a.node] === "on" && states[c.b.node] === "on";
             const d = pathOf(pa, pb);
             return (
-              <g key={c.link} className={"cm-cable" + (up ? " up" : " down")} onContextMenu={(e) => cableMenu(e, c.a, c.b)} data-link={c.link}>
+              <g
+                key={c.link}
+                className={"cm-cable" + (up ? " up" : " down") + (focus === "link:" + c.link || focus === c.a.node || focus === c.b.node ? " hl" : "")}
+                onContextMenu={(e) => cableMenu(e, c.a, c.b)}
+                onPointerEnter={() => setFocus("link:" + c.link)}
+                onPointerLeave={() => setFocus("")}
+                data-link={c.link}
+              >
                 <title>{c.link + (up ? "" : " · " + (la && lb ? t("um dos lados está desligado") : t("um dos lados está parado")))}</title>
                 <path d={d} className="cm-hit" />
                 <path d={d} className="cm-line" />
@@ -667,7 +786,14 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const up = la ? la.st === "up" : states[m.a.node] === "on";
             const d = pathOf(pa, cloudEnd(m.rede, pa));
             return (
-              <g key={m.a.node + "|" + m.a.port} className={"cm-cable cm-member" + (up ? " up" : " down")} onContextMenu={(e) => memberMenu(e, m.a, m.rede)} data-member={m.rede}>
+              <g
+                key={m.a.node + "|" + m.a.port}
+                className={"cm-cable cm-member" + (up ? " up" : " down") + (focus === "m:" + m.a.node + "|" + m.a.port || focus === m.a.node || focus === CK + m.rede ? " hl" : "")}
+                onContextMenu={(e) => memberMenu(e, m.a, m.rede)}
+                onPointerEnter={() => setFocus("m:" + m.a.node + "|" + m.a.port)}
+                onPointerLeave={() => setFocus("")}
+                data-member={m.rede}
+              >
                 <title>{m.a.node + " · " + portName(nodes.find((v) => v.name === m.a.node)!, m.a.port) + " ⟶ " + t("rede {name}", { name: m.rede })}</title>
                 <path d={d} className="cm-hit" />
                 <path d={d} className="cm-line" />
@@ -679,7 +805,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             if (!p) return null;
             const [x, y] = p;
             return (
-              <g key={"rede:" + r.name} className={"cm-cloud" + (selRede === r.name ? " sel" : "") + (hover === CK + r.name ? " over" : "")} data-rede={r.name} onContextMenu={(e) => redeMenu(e, r)}>
+              <g key={"rede:" + r.name} className={"cm-cloud" + (selRede === r.name ? " sel" : "") + (hover === CK + r.name ? " over" : "")} data-rede={r.name} onContextMenu={(e) => redeMenu(e, r)} onPointerEnter={() => setFocus(CK + r.name)} onPointerLeave={() => setFocus("")}>
                 <rect
                   x={x}
                   y={y}
@@ -714,7 +840,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const w = nodeW(v);
             const st = states[v.name] ?? "";
             return (
-              <g key={v.name} className={"cm-node" + (st ? " " + st : "") + (sel === v.name ? " sel" : "")} data-node={v.name} onContextMenu={(e) => nodeMenu(e, v)}>
+              <g key={v.name} className={"cm-node" + (st ? " " + st : "") + (sel === v.name ? " sel" : "")} data-node={v.name} onContextMenu={(e) => nodeMenu(e, v)} onPointerEnter={() => setFocus(v.name)} onPointerLeave={() => setFocus("")}>
                 <rect
                   x={x}
                   y={y}
@@ -743,7 +869,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
                   const key = v.name + "|" + i;
                   return (
                     <g key={i}>
-                      <text x={p.x} y={p.top ? p.y + 17 : p.y - 9} className="cm-port-label" textAnchor="middle">
+                      <text x={p.side === "l" ? p.x - 8 : p.side === "r" ? p.x + 8 : p.x} y={p.side === "t" ? p.y + 17 : p.side === "b" ? p.y - 9 : p.y - 9} className="cm-port-label" textAnchor={p.side === "l" ? "end" : p.side === "r" ? "start" : "middle"}>
                         {shortPort(v, i)}
                       </text>
                       <circle
@@ -776,7 +902,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
               const l = p && light(v.name, i);
               if (!p || !l) return null;
               return (
-                <circle key={"luz:" + v.name + "|" + i} cx={p.x} cy={p.y + (p.top ? -16 : 16)} r={5} className={"cm-light " + l.st}>
+                <circle key={"luz:" + v.name + "|" + i} cx={p.x + NORMAL[p.side][0] * 16} cy={p.y + NORMAL[p.side][1] * 16} r={5} className={"cm-light " + l.st}>
                   <title>{v.name + " · " + portName(v, i) + ": " + l.why}</title>
                 </circle>
               );
