@@ -23,4 +23,8 @@ done
 for v in /opt/homebrew/opt/socket_vmnet/bin/socket_vmnet /usr/local/opt/socket_vmnet/bin/socket_vmnet /opt/socket_vmnet/bin/socket_vmnet; do
   [ -x "$v" ] && { echo "socket_vmnet=$v"; break; }
 done
+# 32-bit loader for the old IOL images (i86bi_linux…) on 64-bit Linux.
+if [ "$os" = Linux ] && [ "$arch" = x86_64 ]; then
+  [ -e /lib/ld-linux.so.2 ] && echo "lib32=1" || echo "lib32="
+fi
 exit 0

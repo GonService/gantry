@@ -533,5 +533,7 @@
   "a rede de VMs está cheia (de .%s a .%s)": "the VM network is full (from .%s to .%s)",
   "%s não é uma bridge: no Linux, o modo bridge usa uma bridge com a placa de rede (por exemplo br0, criada no NetworkManager ou no netplan)": "%s is not a bridge: on Linux, the bridge mode uses a bridge with the network card (for example br0, made in NetworkManager or netplan)",
   "falta 'allow %s' em /etc/qemu/bridge.conf": "'allow %s' is missing in /etc/qemu/bridge.conf",
-  "sem permissão no socket %s": "no permission on the socket %s"
+  "sem permissão no socket %s": "no permission on the socket %s",
+  "Bibliotecas de 32 bits": "32-bit libraries",
+  "As imagens IOL mais antigas (i86bi_linux…) são de 32 bits e precisam delas para rodar.": "The older IOL images (i86bi_linux…) are 32-bit and need them to run."
 }

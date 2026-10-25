@@ -563,10 +563,14 @@ start_vm() {
   BOOT=order=c
   if [ -n "$(sed -n 's/^vnc=//p' "$D/vm.env" 2>/dev/null)" ] && [ "$(du -k "$D/disk.qcow2" | cut -f1)" -lt 102400 ]; then BOOT=order=c,once=d; fi
   export BOOT
-  sh "$D/start.sh" 2>"$D/qemu.err" || die "o QEMU não iniciou: $(tail -n 3 "$D/qemu.err")"
+  # What runs: QEMU, or the program of a network device.
+  case "$(sed -n 's/^accel=//p' "$D/vm.env" 2>/dev/null)" in
+  iol) prog=IOL ;; dynamips) prog=Dynamips ;; vpcs) prog=VPCS ;; *) prog=QEMU ;;
+  esac
+  sh "$D/start.sh" 2>"$D/qemu.err" || die "o $prog não iniciou: $(tail -n 3 "$D/qemu.err")"
   i=0
   while [ $i -lt 20 ] && [ ! -f "$D/qemu.pid" ]; do sleep 0.2; i=$((i + 1)); done
-  alive "$D" || die "o QEMU parou logo depois de iniciar: $(tail -n 3 "$D/qemu.err")"
+  alive "$D" || die "o $prog parou logo depois de iniciar: $(tail -n 3 "$D/qemu.err")"
   links_down
   say "$N: iniciada (pid $(cat "$D/qemu.pid"))"
 }
@@ -984,6 +988,12 @@ iol_up() {
       mkdir -p "$ROOT/.iol-bin" && cp "$bin" "$c.tmp" && chmod +x "$c.tmp" && mv -f "$c.tmp" "$c" || die "não consegui fazer uma cópia executável de $bin em $ROOT/.iol-bin"
     fi
     bin=$c
+  fi
+  # A 32-bit image needs the 32-bit loader of glibc: without it, ldd sees
+  # nothing missing ("not a dynamic executable") and the start fails with
+  # "No such file or directory" for an image that is there.
+  if [ "$(iol_elfclass "$bin")" = 32 ] && [ "$(uname -m)" = x86_64 ] && [ ! -e /lib/ld-linux.so.2 ]; then
+    die "faltam as bibliotecas de 32 bits para o IOL nesta máquina (a imagem $(basename "$bin") é de 32 bits): Fedora: sudo dnf install glibc.i686 libstdc++.i686 openssl-libs.i686; Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install libc6:i386 libstdc++6:i386 libssl3:i386"
   fi
   missing=$(ldd "$bin" 2>/dev/null | awk '/not found/ { print $1 }' | tr '\n' ' ')
   iol_ldp=

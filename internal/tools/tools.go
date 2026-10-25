@@ -221,6 +221,20 @@ func Parse(out string, local bool) Report {
 			dyn.Note = "Sem pacote neste sistema: compile do código do GNS3 (github.com/GNS3/dynamips)."
 		}
 		add(dyn)
+		if _, ok := kv["lib32"]; ok {
+			l32 := Tool{ID: "lib32", Name: "Bibliotecas de 32 bits", Area: "Labs de rede", Need: "opcional",
+				Why: "As imagens IOL mais antigas (i86bi_linux…) são de 32 bits e precisam delas para rodar.", Have: kv["lib32"] != ""}
+			if l32.Have {
+				l32.Found = "/lib/ld-linux.so.2"
+			}
+			switch r.PM {
+			case "apt-get":
+				l32.Install = "sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install -y libc6:i386 libstdc++6:i386 libssl3:i386"
+			default:
+				l32.Install = pkg("", "", "glibc.i686 libstdc++.i686 openssl-libs.i686", "lib32-glibc lib32-gcc-libs lib32-openssl", "", "glibc-32bit libstdc++6-32bit libopenssl3-32bit")
+			}
+			add(l32)
+		}
 	}
 
 	// Geral

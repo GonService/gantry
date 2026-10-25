@@ -89,3 +89,26 @@ func TestDynamipsFedora(t *testing.T) {
 	}
 	t.Fatalf("falta dynamips em %+v", r.Tools)
 }
+
+func TestParseLib32(t *testing.T) {
+	find := func(r Report) *Tool {
+		for i := range r.Tools {
+			if r.Tools[i].ID == "lib32" {
+				return &r.Tools[i]
+			}
+		}
+		return nil
+	}
+	r := Parse("os=Linux\narch=x86_64\npm=dnf\nlib32=\n", false)
+	l := find(r)
+	if l == nil || l.Have || !strings.Contains(l.Install, "glibc.i686") {
+		t.Fatalf("lib32 faltando no Fedora: %+v", l)
+	}
+	r = Parse("os=Linux\narch=x86_64\npm=apt-get\nlib32=1\n", false)
+	if l := find(r); l == nil || !l.Have || l.Install != "" {
+		t.Fatalf("lib32 presente: %+v", l)
+	}
+	if find(Parse("os=Linux\narch=aarch64\npm=dnf\n", false)) != nil || find(Parse("os=Darwin\narch=arm64\npm=brew\n", true)) != nil {
+		t.Fatal("lib32 só vale para Linux x86_64")
+	}
+}
