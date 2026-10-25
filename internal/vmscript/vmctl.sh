@@ -577,6 +577,9 @@ start_vm() {
 
 stop_vm() {
   alive "$D" || { say "$N: já está parada"; rm -f "$D/qemu.pid"; return 0; }
+  # A VPCS keeps its addresses only after its "save": saved for you before
+  # it stops (as GNS3 does), so what was typed in the console survives.
+  [ -f "$D/vpcs" ] && [ "${GV_NOSAVE:-}" != 1 ] && (console_save) 2>/dev/null
   pid=$(cat "$D/qemu.pid")
   if isprog "$D"; then # IOL, Dynamips: no ACPI to ask, the program just stops
     kill "$pid" 2>/dev/null
@@ -1246,6 +1249,27 @@ leases = {}     # network -> {mac: (ip, node, port index)}
 SRV_MAC = bytes.fromhex("02474e000001")  # the DHCP server of the networks
 netio = "/tmp/netio%d" % os.getuid()
 usock = [None, 0]  # the relay as an IOL instance (#rid), for IOL nodes
+# When each port last sent a frame, for the link lights of the drawing: an
+# IOS interface that is up sends keepalives (and CDP, STP on a switch);
+# one in shutdown sends nothing. Written to ports.seen every few seconds.
+seen_file = os.path.join(os.path.dirname(path), "ports.seen")
+last = {}       # relay port -> time of its last frame
+last_w = [0.0, ""]
+def write_seen():
+    now = time.time()
+    if now - last_w[0] < 2:
+        return
+    last_w[0] = now
+    txt = "".join("%s %s %d\n" % (who[r][0], who[r][1], int(t)) for r, t in sorted(last.items()) if r in who)
+    if txt == last_w[1]:
+        return
+    last_w[1] = txt
+    try:
+        with open(seen_file + ".new", "w") as fh:
+            fh.write(txt)
+        os.replace(seen_file + ".new", seen_file)
+    except OSError:
+        pass
 reload = [True]
 signal.signal(signal.SIGHUP, lambda *_: reload.__setitem__(0, True))
 def ipn(s):
@@ -1399,6 +1423,7 @@ def write(fs, data):
         except OSError:
             pass
 def deliver(r, data):
+    last[r] = time.time()
     p = peer.get(r, 0)
     if isinstance(p, str):
         seg_in(r, p[4:], data)
@@ -1560,6 +1585,7 @@ while True:
         reload[0] = False
         load()
         load_caps()
+    write_seen()
     for s in ready:
         try:
             data, src = s.recvfrom(65535)
@@ -1617,6 +1643,14 @@ capture_stop() {
 # The addresses the DHCP of the lab networks handed out: "network mac ip
 # node port" per line.
 dhcp_leases() { [ -f "$ROOT/$P/dhcp.leases" ] && cat "$ROOT/$P/dhcp.leases"; true; }
+
+# When each port of the project last sent a frame through the cables'
+# relay: "now <epoch>", then "node port <epoch>" per line.
+ports_seen() {
+  echo "now $(date +%s)"
+  relay_alive "$ROOT/$P" && [ -f "$ROOT/$P/ports.seen" ] && cat "$ROOT/$P/ports.seen"
+  true
+}
 
 relay_alive() { [ -f "$1/relay.pid" ] && kill -0 "$(cat "$1/relay.pid")" 2>/dev/null; }
 
@@ -1822,14 +1856,16 @@ state_zero() {
 }
 
 # console_save: "write memory" on the console of a running node (IOL, or a
-# VM with a serial console), so its NVRAM has the running configuration.
+# VM with a serial console), so its NVRAM has the running configuration;
+# on a VPCS, its "save" (startup.vpc).
 console_save() {
   need_vm
   alive "$D" || { say "$N: parado, nada a gravar"; return 0; }
   port=$(sed -n 's/^serial=//p' "$D/vm.env" 2>/dev/null)
   [ -n "$port" ] || { say "$N: sem console serial, pulado"; return 0; }
   command -v python3 >/dev/null 2>&1 || die "gravar a configuração pelo console precisa do python3 nesta máquina"
-  r=$(python3 - "$port" <<'PY'
+  vpcs=0; [ -f "$D/vpcs" ] && vpcs=1
+  r=$(python3 - "$port" "$vpcs" <<'PY'
 
 import socket, sys, time
 s = socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=5)
@@ -1848,6 +1884,19 @@ def send(b, wait, until=None):
         except socket.timeout:
             break
 send(b"\r", 0.5)
+if sys.argv[2] == "1":
+    # VPCS: "Saving startup configuration to startup.vpc ... done"
+    # VPCS drops what is typed while a command runs (a ping, the duplicate
+    # check of a new address): one more try when nothing came back.
+    for _ in range(3):
+        n = len(out)
+        send(b"save\r", 4, b"done")
+        if b"done" in out[n:]:
+            break
+    tail = out.decode("latin-1").replace("\r", "")
+    ok = "done" in tail.split("save", 1)[-1]
+    print("configuração gravada (save)" if ok else "save enviado; resposta: " + " ".join(tail.split()[-12:]))
+    sys.exit(0)
 send(b"\x1a\r", 0.5)   # leaves configuration mode, if in it
 send(b"write memory\r", 8, b"[OK]")
 send(b"\r", 0.3)
@@ -2090,6 +2139,7 @@ case "${1:-}" in
   capture-start) capture_start ;;
   capture-stop) capture_stop ;;
   dhcp-leases) dhcp_leases ;;
+  ports-seen) ports_seen ;;
   image) base_image ;; # downloads (and checks) the base image only
   start) start_vm ;;
   stop) stop_vm ;;

@@ -1087,6 +1087,10 @@ table.grid tr.selected > td { background: var(--brand-soft); }
 .cm-cable .cm-line { stroke: var(--brand); stroke-width: 2.5; fill: none; pointer-events: none; }
 .cm-cable.down .cm-line { stroke: var(--muted); stroke-dasharray: 6 5; }
 .cm-cable:hover .cm-line { stroke-width: 4; }
+.cm-light { stroke: var(--surface); stroke-width: 1.5; }
+.cm-light.up { fill: var(--ok); }
+.cm-light.down { fill: var(--crit, #b91c1c); }
+.cm-light.off { fill: var(--muted); opacity: .6; }
 .cm-rubber { stroke: var(--brand); stroke-width: 2; stroke-dasharray: 4 4; pointer-events: none; }
 
 /* Command palette (Ctrl K) */

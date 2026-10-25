@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -435,4 +436,54 @@ func (s *Server) deleteRede(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 		return
 	}
 	writeJSON(w, resp)
+}
+
+// portSeen: how long ago (seconds) a port sent a frame through the cables'
+// relay.
+type portSeen struct {
+	Node string `json:"node"`
+	Port int    `json:"port"`
+	Ago  int64  `json:"ago"`
+}
+
+// portsSeen lists portSeen for the ports of the lab, for the link lights of
+// the drawing. A port that never sent anything is not listed.
+func (s *Server) portsSeen(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	l, err := s.findLab(ctx, h, r.PathValue("lab"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	txt, err := vms.Run(ctx, h, "ports-seen", map[string]string{"GV_PROJECT": l.ID})
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]any{"ports": parsePortsSeen(txt)})
+}
+
+// parsePortsSeen reads the output of ports-seen: "now <epoch>" and then
+// "node port <epoch>" lines (the host's clock on both).
+func parsePortsSeen(txt string) []portSeen {
+	out := []portSeen{}
+	var now int64
+	for _, line := range strings.Split(txt, "\n") {
+		f := strings.Fields(line)
+		if len(f) == 2 && f[0] == "now" {
+			now, _ = strconv.ParseInt(f[1], 10, 64)
+			continue
+		}
+		if len(f) != 3 || now == 0 {
+			continue
+		}
+		port, err1 := strconv.Atoi(f[1])
+		at, err2 := strconv.ParseInt(f[2], 10, 64)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		out = append(out, portSeen{f[0], port, max(0, now-at)})
+	}
+	return out
 }

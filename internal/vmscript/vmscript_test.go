@@ -920,6 +920,17 @@ func TestRelaySegment(t *testing.T) {
 	if l := run("dhcp-leases"); l != "lan 02:00:00:00:00:0c 10.0.1.100 c 1" {
 		t.Fatalf("leases %q", l)
 	}
+	// The link lights: the ports that sent frames are in ports-seen, the
+	// one that never sent (d) is not.
+	var seen string
+	for i := 0; i < 30 && !strings.Contains(seen, "\nc 1 "); i++ {
+		time.Sleep(200 * time.Millisecond)
+		send("a", frame(bcast, mac["a"], 0x88b5, []byte("luz")))
+		seen = run("ports-seen")
+	}
+	if !strings.HasPrefix(seen, "now ") || !strings.Contains(seen, "\na ") || !strings.Contains(seen, "\nb ") || !strings.Contains(seen, "\nc 1 ") || strings.Contains(seen, "\nd ") {
+		t.Fatalf("ports-seen %q", seen)
+	}
 	// ARP for the server: it answers.
 	arp := []byte{0, 1, 8, 0, 6, 4, 0, 1}
 	arp = append(append(append(arp, mac["a"]...), 10, 0, 1, 50), 0, 0, 0, 0, 0, 0, 10, 0, 1, 254)
@@ -1089,6 +1100,21 @@ func TestVPCS(t *testing.T) {
 	d := filepath.Join(state, "gantry/vms/lab/PC01")
 	if env, _ := os.ReadFile(filepath.Join(d, "vm.env")); !strings.Contains(string(env), "accel=vpcs") {
 		t.Fatalf("vm.env: %s", env)
+	}
+	// An address typed in the console, without save: stopping saves it
+	// (startup.vpc), and the next start keeps it instead of the file's.
+	time.Sleep(2 * time.Second) // the ping above
+	c.Write([]byte("ip 10.7.7.7 10.7.7.1 24\n"))
+	time.Sleep(2500 * time.Millisecond) // VPCS checks for a duplicate address
+	c.Close()
+	stop := exec.Command("sh", "-c", Script, "vmctl", "stop")
+	stop.Env = env
+	out, err := stop.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "save") {
+		t.Fatalf("stop: %v %s", err, out)
+	}
+	if b, _ := os.ReadFile(filepath.Join(d, "startup.vpc")); !strings.Contains(string(b), "10.7.7.7") {
+		t.Fatalf("startup.vpc depois de parar: %q (stop: %s)", b, out)
 	}
 }
 

@@ -50,7 +50,7 @@ x-vms:
 - **Dynamips:** Dynamips itself writes the file to NVRAM (`-C`).
 - **VPCS:** the file becomes its `startup.vpc`.
 
-After that, what the device saved (`write memory`) is what counts. To go back to the file configuration, remove the node and bring it up again. To keep a point of the exercise and go back to it, use **Lab states**.
+After that, what the device saved (`write memory`; on VPCS, `save`) is what counts. `write memory` writes the node's NVRAM, in Gantry's state folder, and does not change the project file; since the NVRAM exists, the file is not applied again on restart. A VPCS is saved on its own (`save`) when Gantry stops it, as GNS3 does. To go back to the file configuration, remove the node and bring it up again. To keep a point of the exercise and go back to it, use **Lab states**.
 
 The file text goes in as it is, without corrections. The lines IOS rejects while reading the configuration (a typo, a command from another version, an interface the device does not have) are kept: in the project's VM list, the node shows **N lines refused**, and clicking it opens each line with the IOS message. The count is for the last start of the node; errors you type later, on the console, are not included.
 

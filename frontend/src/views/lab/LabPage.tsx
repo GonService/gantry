@@ -97,8 +97,8 @@ function exportLabDialog(host: string, lab: Lab) {
       { id: "env", label: t("Incluir o .env (tem as senhas do projeto)"), type: "checkbox", value: false },
       ...(lab.vms?.length
         ? [
-            { id: "nvram", label: t("Levar a configuração dos nós IOL (NVRAM): o lab sobe igual na outra máquina"), type: "checkbox" as const, value: true },
-            { id: "write", label: t("Gravar a configuração dos nós rodando antes (write memory)"), type: "checkbox" as const, value: true },
+            { id: "nvram", label: t("Levar a configuração dos equipamentos (IOL, Dynamips e VPCS): o lab sobe igual na outra máquina"), type: "checkbox" as const, value: true },
+            { id: "write", label: t("Gravar a configuração dos nós rodando antes (write memory nos roteadores, save nos VPCS)"), type: "checkbox" as const, value: true },
             { id: "disks", label: t("Levar os discos das VMs (o pacote fica grande)"), type: "checkbox" as const, value: false },
           ]
         : []),

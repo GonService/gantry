@@ -195,6 +195,50 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     };
   }, [base]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The link lights, as in Packet Tracer: when each port last sent a frame
+  // through the cables (seconds ago). null: not known (the relay of an
+  // older Gantry, or the lab is down).
+  const [seen, setSeen] = useState<Record<string, number> | null>(null);
+  const anyOn = Object.values(states).some((x) => x === "on");
+  useEffect(() => {
+    if (!anyOn) {
+      setSeen(null);
+      return;
+    }
+    let live = true;
+    const get = () =>
+      !document.hidden &&
+      api<{ ports: { node: string; port: number; ago: number }[] }>(base + "/portas")
+        .then((r) => {
+          if (!live) return;
+          const m: Record<string, number> = {};
+          for (const x of r.ports) m[x.node + "\u0000" + x.port] = x.ago;
+          setSeen(m);
+        })
+        .catch(() => live && setSeen(null));
+    void get();
+    const timer = setInterval(() => void get(), 5000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [base, anyOn]);
+  // light: the state of a port. A Cisco interface that is up sends
+  // keepalives (CDP, spanning tree on a switch) every few seconds, and one in
+  // shutdown sends nothing: it follows the traffic. VPCS, containers and VMs
+  // have no shutdown seen from outside: lit while the machine runs.
+  const LIGHT_AGE = 30;
+  const light = (name: string, i: number): { st: "up" | "down" | "off"; why: string } | null => {
+    const v = nodes?.find((x) => x.name === name);
+    if (!v) return null;
+    if (states[name] !== "on") return { st: "off", why: t("equipamento parado") };
+    if (v.kind !== "iol" && v.kind !== "dyn") return { st: "up", why: t("ligado") };
+    if (!seen) return null;
+    const ago = seen[name + "\u0000" + i];
+    if (ago === undefined) return { st: "down", why: t("nada saiu desta porta: interface em shutdown, ou o equipamento ainda está iniciando") };
+    return ago <= LIGHT_AGE ? { st: "up", why: t("ativa (tráfego há {s} s)", { s: ago }) } : { st: "down", why: t("sem tráfego há {s} s: interface em shutdown?", { s: ago }) };
+  };
+
   // Where each port is drawn: on top of the node when its peer is above.
   const ports = useMemo(() => {
     const m: Record<string, { x: number; y: number; top: boolean }> = {};
@@ -604,11 +648,13 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const pa = ports[c.a.node + "\u0000" + c.a.port];
             const pb = ports[c.b.node + "\u0000" + c.b.port];
             if (!pa || !pb) return null;
-            const up = states[c.a.node] === "on" && states[c.b.node] === "on";
+            const la = light(c.a.node, c.a.port);
+            const lb = light(c.b.node, c.b.port);
+            const up = la && lb ? la.st === "up" && lb.st === "up" : states[c.a.node] === "on" && states[c.b.node] === "on";
             const d = pathOf(pa, pb);
             return (
               <g key={c.link} className={"cm-cable" + (up ? " up" : " down")} onContextMenu={(e) => cableMenu(e, c.a, c.b)} data-link={c.link}>
-                <title>{c.link + (up ? "" : " · " + t("um dos lados está parado"))}</title>
+                <title>{c.link + (up ? "" : " · " + (la && lb ? t("um dos lados está desligado") : t("um dos lados está parado")))}</title>
                 <path d={d} className="cm-hit" />
                 <path d={d} className="cm-line" />
               </g>
@@ -617,7 +663,8 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
           {members.map((m) => {
             const pa = ports[m.a.node + "\u0000" + m.a.port];
             if (!pa) return null;
-            const up = states[m.a.node] === "on";
+            const la = light(m.a.node, m.a.port);
+            const up = la ? la.st === "up" : states[m.a.node] === "on";
             const d = pathOf(pa, cloudEnd(m.rede, pa));
             return (
               <g key={m.a.node + "|" + m.a.port} className={"cm-cable cm-member" + (up ? " up" : " down")} onContextMenu={(e) => memberMenu(e, m.a, m.rede)} data-member={m.rede}>
@@ -722,6 +769,19 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
               </g>
             );
           })}
+          {nodes.flatMap((v) =>
+            v.interfaces.map((f, i) => {
+              if (!f.link && !f.rede) return null;
+              const p = ports[v.name + "\u0000" + i];
+              const l = p && light(v.name, i);
+              if (!p || !l) return null;
+              return (
+                <circle key={"luz:" + v.name + "|" + i} cx={p.x} cy={p.y + (p.top ? -16 : 16)} r={5} className={"cm-light " + l.st}>
+                  <title>{v.name + " · " + portName(v, i) + ": " + l.why}</title>
+                </circle>
+              );
+            }),
+          )}
         </svg>
       </div>
       {sel && nodes.some((v) => v.name === sel) ? <NodePanel v={nodes.find((x) => x.name === sel)!} nodes={nodes} leases={net.leases} state={states[sel] ?? ""} actions={nodeActions(nodes.find((x) => x.name === sel)!)} host={host} lab={lab} onAddr={editAddr} onClose={() => setSel("")} /> : null}

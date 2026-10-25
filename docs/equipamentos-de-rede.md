@@ -56,8 +56,12 @@ x-vms:
 - **Dynamips:** o próprio Dynamips grava o arquivo na NVRAM (`-C`).
 - **VPCS:** o arquivo vira o `startup.vpc` dele.
 
-Depois disso vale o que o equipamento salvou (`write memory`). Para voltar à
-configuração do arquivo, remova o nó e suba de novo. Para guardar e voltar a
+Depois disso vale o que o equipamento salvou (`write memory`; no VPCS,
+`save`). O `write memory` grava na NVRAM do nó, na pasta de estado do Gantry,
+e não muda o arquivo do projeto; como a NVRAM já existe, o arquivo não é
+aplicado de novo ao reiniciar. O VPCS é gravado sozinho (`save`) quando é
+parado pelo Gantry, como no GNS3. Para voltar à configuração do arquivo,
+remova o nó e suba de novo. Para guardar e voltar a
 um ponto do exercício, use **Lab states**.
 
 O texto do arquivo entra como está, sem correção. As linhas que o IOS

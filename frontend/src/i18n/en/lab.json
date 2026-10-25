@@ -442,8 +442,6 @@
   "restaurar {name}": "restore {name}",
   "salvar estado": "save state",
   "todos ({n})": "all ({n})",
-  "Gravar a configuração dos nós rodando antes (write memory)": "Save the configuration of the running nodes first (write memory)",
-  "Levar a configuração dos nós IOL (NVRAM): o lab sobe igual na outra máquina": "Take the configuration of the IOL nodes (NVRAM): the lab comes up the same on the other machine",
   "Levar os discos das VMs (o pacote fica grande)": "Take the VM disks (the package gets large)",
   "com a configuração dos equipamentos": "with the configuration of the devices",
   "Gera um pacote .gantrylab com o compose, os arquivos da pasta e a configuração dos equipamentos; você escolhe onde salvar. Na outra máquina, use Importar pacote: o lab sobe igual (as imagens precisam estar cadastradas lá). Os dados dos volumes não vão (para isso, use Backup).": "Creates a .gantrylab package with the compose file, the folder files and the configuration of the devices; you choose where to save it. On the other machine, use Import package: the lab comes up the same (the images must be set up there). Volume data is not included (use Backup for that).",
@@ -559,5 +557,13 @@
   "O IOS não aceitou estas linhas da configuração inicial e seguiu sem elas. Pode ser erro de digitação, comando de outra versão do IOS ou uma interface que este equipamento não tem. Elas não estão na configuração em uso (show running-config).": "IOS did not accept these lines of the startup configuration and went on without them. It may be a typo, a command from another IOS version or an interface this device does not have. They are not in the configuration in use (show running-config).",
   "sem idle-PC": "no idle-PC",
   "Sem o idle-PC, o roteador ocupa uma thread inteira do processador mesmo parado. Calcule em Gerenciar, com ele no prompt.": "Without the idle-PC, the router keeps a whole CPU thread busy even when idle. Calculate it in Manage, with the router at the prompt.",
-  "botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom": "right-click a device, a network or a cable for its actions; drag from one port to another to connect a cable, or onto a cloud to put the port on that network; drag the background (or hold Space) to move the drawing, Ctrl or ⌘ + wheel to zoom"
+  "botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom": "right-click a device, a network or a cable for its actions; drag from one port to another to connect a cable, or onto a cloud to put the port on that network; drag the background (or hold Space) to move the drawing, Ctrl or ⌘ + wheel to zoom",
+  "equipamento parado": "device stopped",
+  "ligado": "on",
+  "nada saiu desta porta: interface em shutdown, ou o equipamento ainda está iniciando": "nothing came out of this port: interface in shutdown, or the device is still starting",
+  "ativa (tráfego há {s} s)": "active (traffic {s} s ago)",
+  "sem tráfego há {s} s: interface em shutdown?": "no traffic for {s} s: interface in shutdown?",
+  "um dos lados está desligado": "one of the sides is down",
+  "Levar a configuração dos equipamentos (IOL, Dynamips e VPCS): o lab sobe igual na outra máquina": "Take the configuration of the devices (IOL, Dynamips and VPCS): the lab comes up the same on the other machine",
+  "Gravar a configuração dos nós rodando antes (write memory nos roteadores, save nos VPCS)": "Save the configuration of the running nodes first (write memory on routers, save on VPCS)"
 }

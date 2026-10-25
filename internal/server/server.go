@@ -262,6 +262,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/hosts/{host}/labs/{lab}/posicoes", s.withHost(s.savePositions))
 	mux.HandleFunc("PUT /api/hosts/{host}/labs/{lab}/icones", s.withHost(s.saveIcons))
 	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/redes", s.withHost(s.listRedes))
+	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/portas", s.withHost(s.portsSeen))
 	mux.HandleFunc("PUT /api/hosts/{host}/labs/{lab}/redes/{rede}", s.withHost(s.saveRede))
 	mux.HandleFunc("DELETE /api/hosts/{host}/labs/{lab}/redes/{rede}", s.withHost(s.deleteRede))
 	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/estados", s.withHost(s.listLabStates))
