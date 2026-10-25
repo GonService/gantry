@@ -101,7 +101,7 @@ func TestParseLib32(t *testing.T) {
 	}
 	r := Parse("os=Linux\narch=x86_64\npm=dnf\nlib32=\n", false)
 	l := find(r)
-	if l == nil || l.Have || !strings.Contains(l.Install, "glibc.i686") {
+	if l == nil || l.Have || !strings.Contains(l.Install, "upgrade -y --refresh") || !strings.Contains(l.Install, "glibc.i686") {
 		t.Fatalf("lib32 faltando no Fedora: %+v", l)
 	}
 	r = Parse("os=Linux\narch=x86_64\npm=apt-get\nlib32=1\n", false)
@@ -110,5 +110,27 @@ func TestParseLib32(t *testing.T) {
 	}
 	if find(Parse("os=Linux\narch=aarch64\npm=dnf\n", false)) != nil || find(Parse("os=Darwin\narch=arm64\npm=brew\n", true)) != nil {
 		t.Fatal("lib32 só vale para Linux x86_64")
+	}
+}
+
+func TestComposeInstallByRepo(t *testing.T) {
+	inst := func(out string) string {
+		for _, x := range Parse(out, false).Tools {
+			if x.ID == "compose" {
+				return x.Install
+			}
+		}
+		return ""
+	}
+	cases := map[string]string{
+		"os=Linux\narch=x86_64\npm=dnf\ndocker=/usr/bin/docker\ndocker-repo=1\n":     "sudo dnf install -y docker-compose-plugin",
+		"os=Linux\narch=x86_64\npm=apt-get\ndocker=/usr/bin/docker\ndocker-repo=1\n": "sudo apt install -y docker-compose-plugin",
+		"os=Linux\narch=x86_64\npm=dnf\ndocker=/usr/bin/docker\n":                    "sudo dnf install -y docker-compose",
+		"os=Linux\narch=x86_64\npm=apt-get\ndocker=/usr/bin/docker\n":                "sudo apt install -y docker-compose-v2",
+	}
+	for out, want := range cases {
+		if got := inst(out); got != want {
+			t.Errorf("%q: %q, esperava %q", out, got, want)
+		}
 	}
 }

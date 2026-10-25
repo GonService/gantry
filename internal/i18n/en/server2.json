@@ -535,5 +535,6 @@
   "falta 'allow %s' em /etc/qemu/bridge.conf": "'allow %s' is missing in /etc/qemu/bridge.conf",
   "sem permissão no socket %s": "no permission on the socket %s",
   "Bibliotecas de 32 bits": "32-bit libraries",
-  "As imagens IOL mais antigas (i86bi_linux…) são de 32 bits e precisam delas para rodar.": "The older IOL images (i86bi_linux…) are 32-bit and need them to run."
+  "As imagens IOL mais antigas (i86bi_linux…) são de 32 bits e precisam delas para rodar.": "The older IOL images (i86bi_linux…) are 32-bit and need them to run.",
+  "Com o Docker do repositório oficial (download.docker.com), o pacote é docker-compose-plugin.": "With Docker from the official repository (download.docker.com), the package is docker-compose-plugin."
 }

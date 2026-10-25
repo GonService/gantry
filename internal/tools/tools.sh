@@ -15,6 +15,12 @@ done
 echo "qemu-system=$(command -v qemu-system-$qa 2>/dev/null)"
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker-compose-plugin=1"; fi
 if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then echo "podman-compose-wrapper=1"; fi
+# Docker from the official repository (download.docker.com): there the
+# compose package is docker-compose-plugin, not the distribution's one.
+if ls /etc/yum.repos.d/docker-ce*.repo /etc/apt/sources.list.d/docker*.list /etc/apt/sources.list.d/docker*.sources /etc/zypp/repos.d/docker-ce*.repo >/dev/null 2>&1 \
+  || grep -qs download.docker.com /etc/apt/sources.list /etc/yum.repos.d/*.repo; then
+  echo "docker-repo=1"
+fi
 [ -e /dev/kvm ] && echo "kvm-exists=1"
 [ -w /dev/kvm ] && echo "kvm=1"
 for h in /usr/lib/qemu/qemu-bridge-helper /usr/libexec/qemu-bridge-helper /usr/lib/qemu-bridge-helper; do

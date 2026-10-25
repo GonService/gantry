@@ -142,9 +142,13 @@ func Parse(out string, local bool) Report {
 		cmp.Install = "brew install docker-compose"
 	case kv["podman"] != "" && kv["docker"] == "":
 		cmp.Install = pkg("podman-compose", "podman-compose", "podman-compose", "podman-compose", "podman-compose", "podman-compose")
+	case kv["docker-repo"] != "":
+		// Docker CE from download.docker.com: same package name everywhere.
+		cmp.Install = pkg("", "docker-compose-plugin", "docker-compose-plugin", "", "", "docker-compose-plugin")
 	default:
-		cmp.Install = pkg("docker-compose", "docker-compose-v2", "docker-compose-plugin", "docker-compose", "docker-cli-compose", "docker-compose")
-		cmp.Note = "Com o Docker do repositório oficial, o pacote é docker-compose-plugin."
+		// The distribution's Docker (moby-engine, docker.io): its own package.
+		cmp.Install = pkg("docker-compose", "docker-compose-v2", "docker-compose", "docker-compose", "docker-cli-compose", "docker-compose")
+		cmp.Note = "Com o Docker do repositório oficial (download.docker.com), o pacote é docker-compose-plugin."
 	}
 	add(cmp)
 
@@ -230,6 +234,10 @@ func Parse(out string, local bool) Report {
 			switch r.PM {
 			case "apt-get":
 				l32.Install = "sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install -y libc6:i386 libstdc++6:i386 libssl3:i386"
+			case "dnf", "yum":
+				// The i686 packages must match the x86_64 versions exactly; an
+				// older x86_64 libstdc++ makes the whole transaction fail.
+				l32.Install = "sudo " + r.PM + " upgrade -y --refresh glibc libgcc libstdc++ && sudo " + r.PM + " install -y glibc.i686 libstdc++.i686 openssl-libs.i686"
 			default:
 				l32.Install = pkg("", "", "glibc.i686 libstdc++.i686 openssl-libs.i686", "lib32-glibc lib32-gcc-libs lib32-openssl", "", "glibc-32bit libstdc++6-32bit libopenssl3-32bit")
 			}

@@ -993,7 +993,7 @@ iol_up() {
   # nothing missing ("not a dynamic executable") and the start fails with
   # "No such file or directory" for an image that is there.
   if [ "$(iol_elfclass "$bin")" = 32 ] && [ "$(uname -m)" = x86_64 ] && [ ! -e /lib/ld-linux.so.2 ]; then
-    die "faltam as bibliotecas de 32 bits para o IOL nesta máquina (a imagem $(basename "$bin") é de 32 bits): Fedora: sudo dnf install glibc.i686 libstdc++.i686 openssl-libs.i686; Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install libc6:i386 libstdc++6:i386 libssl3:i386"
+    die "faltam as bibliotecas de 32 bits para o IOL nesta máquina (a imagem $(basename "$bin") é de 32 bits): Fedora: sudo dnf upgrade --refresh glibc libgcc libstdc++ && sudo dnf install glibc.i686 libstdc++.i686 openssl-libs.i686; Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install libc6:i386 libstdc++6:i386 libssl3:i386"
   fi
   missing=$(ldd "$bin" 2>/dev/null | awk '/not found/ { print $1 }' | tr '\n' ' ')
   iol_ldp=
@@ -1013,7 +1013,7 @@ iol_up() {
   esac
   if [ -n "$missing" ]; then
     case "$(iol_elfclass "$bin")" in
-    32) die "faltam bibliotecas de 32 bits para o IOL nesta máquina: $missing(Fedora: sudo dnf install glibc.i686 libstdc++.i686 openssl-libs.i686; Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install libc6:i386 libstdc++6:i386 libssl3:i386)" ;;
+    32) die "faltam bibliotecas de 32 bits para o IOL nesta máquina: $missing(Fedora: sudo dnf upgrade --refresh glibc libgcc libstdc++ && sudo dnf install glibc.i686 libstdc++.i686 openssl-libs.i686; Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install libc6:i386 libstdc++6:i386 libssl3:i386)" ;;
     *) die "faltam bibliotecas para o IOL nesta máquina: $missing(instale os pacotes que as trazem)" ;;
     esac
   fi
