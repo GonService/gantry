@@ -1156,6 +1156,23 @@ func TestExportImport(t *testing.T) {
 		t.Errorf("pasta ocupada: %d", resp.StatusCode)
 	}
 	resp.Body.Close()
+	// With replace, the old folder is kept aside and the package comes in.
+	_ = os.WriteFile(filepath.Join(dest, "conf", "a.yml"), []byte("mudado\n"), 0o644)
+	req, _ = http.NewRequest("POST", e.url+"/api/hosts/fake/labs/import?replace=1&dir="+url.QueryEscape(dest), bytes.NewReader(data))
+	req.Header.Set("Authorization", "Bearer "+e.srv.Token())
+	resp, _ = http.DefaultClient.Do(req)
+	var rep struct{ Kept string }
+	_ = json.NewDecoder(resp.Body).Decode(&rep)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.HasPrefix(rep.Kept, dest+".antes-") {
+		t.Fatalf("substituir: %d %+v", resp.StatusCode, rep)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dest, "conf", "a.yml")); string(b) != "a: 1\n" {
+		t.Errorf("depois de substituir: %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(rep.Kept, "conf", "a.yml")); string(b) != "mudado\n" {
+		t.Errorf("a pasta antiga não ficou guardada: %q", b)
+	}
 	// A package that escapes its folder is refused.
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)

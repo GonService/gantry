@@ -307,26 +307,7 @@ func (s *Server) listRedes(w http.ResponseWriter, r *http.Request, h *hosts.Host
 	out := struct {
 		Redes  []redeInfo  `json:"redes"`
 		Leases []redeLease `json:"leases"`
-	}{Redes: []redeInfo{}, Leases: []redeLease{}}
-	for _, n := range p.RedeNames {
-		ri := redeInfo{Rede: p.Redes[n]}
-		if ri.DHCP {
-			ri.Server = ri.DHCPServer()
-		}
-		for _, v := range p.Nodes() {
-			for i, f := range v.Interfaces {
-				if f.Net == n {
-					ri.Ports = append(ri.Ports, struct {
-						Node string   `json:"node"`
-						Port int      `json:"port"`
-						IPs  []string `json:"ips,omitempty"`
-						DHCP bool     `json:"dhcp,omitempty"`
-					}{v.Name, i, f.IPs, f.DHCP})
-				}
-			}
-		}
-		out.Redes = append(out.Redes, ri)
-	}
+	}{Redes: redesOf(p), Leases: []redeLease{}}
 	if len(p.RedeNames) > 0 {
 		if txt, err := vms.Run(ctx, h, "dhcp-leases", map[string]string{"GV_PROJECT": l.ID}); err == nil {
 			for _, line := range strings.Split(txt, "\n") {
@@ -446,22 +427,34 @@ type portSeen struct {
 	Ago  int64  `json:"ago"`
 }
 
-// portsSeen lists portSeen for the ports of the lab, for the link lights of
-// the drawing. A port that never sent anything is not listed.
-func (s *Server) portsSeen(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	defer cancel()
-	l, err := s.findLab(ctx, h, r.PathValue("lab"))
-	if err != nil {
-		writeErr(w, http.StatusNotFound, err)
+// labLive: what changes by the second in the drawing, in one command on
+// the machine: when each port last sent a frame (the link lights) and the
+// addresses the networks' DHCP gave.
+func (s *Server) labLive(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
+	id := r.PathValue("lab")
+	if !labName.MatchString(id) {
+		writeErr(w, http.StatusBadRequest, errors.New("lab inválido"))
 		return
 	}
-	txt, err := vms.Run(ctx, h, "ports-seen", map[string]string{"GV_PROJECT": l.ID})
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	txt, err := vms.Run(ctx, h, "lab-live", map[string]string{"GV_PROJECT": id})
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, map[string]any{"ports": parsePortsSeen(txt)})
+	leases := []redeLease{}
+	var seen strings.Builder
+	for _, line := range strings.Split(txt, "\n") {
+		if rest, ok := strings.CutPrefix(line, "lease "); ok {
+			if f := strings.Fields(rest); len(f) >= 5 {
+				leases = append(leases, redeLease{f[0], f[1], f[2], f[3], f[4]})
+			}
+			continue
+		}
+		seen.WriteString(line + "\n")
+	}
+	writeJSON(w, map[string]any{"ports": parsePortsSeen(seen.String()), "leases": leases})
 }
 
 // parsePortsSeen reads the output of ports-seen: "now <epoch>" and then
@@ -486,4 +479,47 @@ func parsePortsSeen(txt string) []portSeen {
 		out = append(out, portSeen{f[0], port, max(0, now-at)})
 	}
 	return out
+}
+
+// redesOf: the networks of a project with the ports on each.
+func redesOf(p *composex.Project) []redeInfo {
+	out := []redeInfo{}
+	for _, n := range p.RedeNames {
+		ri := redeInfo{Rede: p.Redes[n]}
+		if ri.DHCP {
+			ri.Server = ri.DHCPServer()
+		}
+		for _, v := range p.Nodes() {
+			for i, f := range v.Interfaces {
+				if f.Net == n {
+					ri.Ports = append(ri.Ports, struct {
+						Node string   `json:"node"`
+						Port int      `json:"port"`
+						IPs  []string `json:"ips,omitempty"`
+						DHCP bool     `json:"dhcp,omitempty"`
+					}{v.Name, i, f.IPs, f.DHCP})
+				}
+			}
+		}
+		out = append(out, ri)
+	}
+	return out
+}
+
+// labDrawing: what the drawing of a lab shows, read once: the nodes with
+// their cables and the networks (the leases come with the live state).
+func (s *Server) labDrawing(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	l, err := s.findLab(ctx, h, r.PathValue("lab"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	p, _, err := s.loadProject(ctx, h, l.Files)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, map[string]any{"vms": cablesOf(p), "redes": redesOf(p)})
 }

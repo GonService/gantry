@@ -130,7 +130,7 @@ O Gantry conversa direto com a API do Docker ou do Podman, sem nada hospedado e 
 - **Versões do Gantry**
   - O app consulta as páginas de versões (as releases deste repositório e a cópia delas no homebrew-tap, a cada 6 h) e mostra **↑ versão** no rodapé da barra lateral, com as notas; não baixa nem instala nada. Clicar na versão do rodapé verifica na hora.
 - **Exportar, importar e enviar**
-  - Exportar gera um `.tar.gz` com a pasta do projeto (o `.env` só se você marcar), no lugar que você escolher. Importar pacote, em Outras formas, abre esse pacote numa pasta nova e sobe.
+  - Exportar gera um `.tar.gz` com a pasta do projeto (o `.env` só se você marcar), no lugar que você escolher. Importar pacote, em Outras formas, abre esse pacote numa pasta nova e sobe. Se a pasta já existir, **Substituir** guarda a antiga ao lado (`<pasta>.antes-<data>`) e tira do Gantry o projeto que a usava, com containers, VMs e a configuração dos equipamentos, antes de abrir o pacote.
   - Enviar para… copia o projeto para outra máquina (deploy remoto) e sobe lá. No Criar projeto, Máquina de destino faz o mesmo para um projeto novo, com as portas conferidas na máquina escolhida.
   - Volumes e discos de VM não vão junto: o projeto recomeça do zero no destino.
 - **Alertas**
@@ -351,7 +351,7 @@ Ao subir o lab, as VMs sobem antes dos containers. Para cada VM, o app:
 - gera o cloud-init com o usuário `gantry` e uma chave SSH só das VMs;
 - inicia o QEMU em segundo plano.
 
-Tudo de uma VM fica em `~/.local/state/gantry/vms/<lab>/<vm>/`. Na aba Containers, a seção Máquinas virtuais tem:
+Tudo de uma VM fica em `~/.local/state/gantry/vms/<lab>/<vm>/`. Num servidor por SSH, o script que controla as VMs e os equipamentos vai uma vez e fica em `~/.cache/gantry/vmctl-<hash>.sh` (o hash é o do conteúdo: uma versão nova do app grava a dela; as que ficam um mês sem uso saem); cada comando depois só chama o arquivo. Na aba Containers, a seção Máquinas virtuais tem:
 
 - Shell: um terminal na VM dentro do Gantry (SSH com a chave das VMs; num servidor, pelo túnel SSH);
 - Logs: os logs do sistema da VM ao vivo (`journalctl -f`, ou o syslog onde não há journald);

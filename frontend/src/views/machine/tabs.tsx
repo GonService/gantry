@@ -327,6 +327,7 @@ export function importDialog(host: string) {
       { id: "file", label: t("Pacote"), type: "file", accept: ".tar.gz,.tgz,.gantrylab,application/gzip" },
       { id: "dir", label: t("Pasta no host"), placeholder: "~/gantry/nome-do-projeto", type: "folder", host },
       { id: "up", label: t("Subir depois de importar"), type: "checkbox", value: true },
+      { id: "replace", label: t("Substituir se a pasta já existir: a pasta antiga fica guardada ao lado (.antes-data) e o projeto que a usava sai do Gantry, com os containers, as VMs e a configuração dos equipamentos"), type: "checkbox", value: false },
     ],
     onSubmit: async (v) => {
       const file = v.file as File | null;
@@ -338,12 +339,15 @@ export function importDialog(host: string) {
             .replace(/\.(tar\.gz|tgz|gantrylab)$/, "")
             .replace(/^gantry-/, "")
             .replace(/-\d{8}-\d{4}(-\d+)?$/, "") || "projeto");
-      const r = await gantry.rawFetch("/hosts/" + enc(host) + "/labs/import?dir=" + enc(dir) + (v.up ? "&up=1&job=1" : ""), { method: "POST", body: file, headers: { "Content-Type": "application/gzip" } });
+      const r = await gantry.rawFetch("/hosts/" + enc(host) + "/labs/import?dir=" + enc(dir) + (v.up ? "&up=1&job=1" : "") + (v.replace ? "&replace=1" : ""), { method: "POST", body: file, headers: { "Content-Type": "application/gzip" } });
       const res = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(res.error || r.statusText);
       if (res.output) gantry.showOutput(host + ": " + res.id, res);
       if (!res.ok) throw new Error(res.error || t("falhou"));
-      gantry.toast(t("Projeto {name} importado em {dir}", { name: res.id, dir: res.dir }) + (res.equipment ? " · " + t("configuração dos equipamentos aplicada") : ""), "ok");
+      gantry.toast(
+        t("Projeto {name} importado em {dir}", { name: res.id, dir: res.dir }) + (res.equipment ? " · " + t("configuração dos equipamentos aplicada") : "") + (res.kept ? " · " + t("a pasta antiga ficou em {path}", { path: res.kept }) : ""),
+        "ok",
+      );
       if (res.job)
         gantry.openJob(res.job, t("Subir · {name}", { name: res.id }), async () => {
           await gantry.loadLabs(host);

@@ -557,7 +557,6 @@
   "O IOS não aceitou estas linhas da configuração inicial e seguiu sem elas. Pode ser erro de digitação, comando de outra versão do IOS ou uma interface que este equipamento não tem. Elas não estão na configuração em uso (show running-config).": "IOS did not accept these lines of the startup configuration and went on without them. It may be a typo, a command from another IOS version or an interface this device does not have. They are not in the configuration in use (show running-config).",
   "sem idle-PC": "no idle-PC",
   "Sem o idle-PC, o roteador ocupa uma thread inteira do processador mesmo parado. Calcule em Gerenciar, com ele no prompt.": "Without the idle-PC, the router keeps a whole CPU thread busy even when idle. Calculate it in Manage, with the router at the prompt.",
-  "botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom": "right-click a device, a network or a cable for its actions; drag from one port to another to connect a cable, or onto a cloud to put the port on that network; drag the background (or hold Space) to move the drawing, Ctrl or ⌘ + wheel to zoom",
   "equipamento parado": "device stopped",
   "ligado": "on",
   "nada saiu desta porta: interface em shutdown, ou o equipamento ainda está iniciando": "nothing came out of this port: interface in shutdown, or the device is still starting",
@@ -573,5 +572,8 @@
   "Cabos em curva": "Curved cables",
   "Espaçar": "Spread out",
   "Afasta os equipamentos que estão encostados, mantendo a mesma disposição": "Moves apart the devices that touch, keeping the same arrangement",
-  "O desenho já tem espaço entre os equipamentos.": "The drawing already has room between the devices."
+  "O desenho já tem espaço entre os equipamentos.": "The drawing already has room between the devices.",
+  "{name} está parado: inicie para abrir o terminal.": "{name} is stopped: start it to open the terminal.",
+  "{name} está parado: inicie para abrir o console.": "{name} is stopped: start it to open the console.",
+  "dois cliques num equipamento abrem o console; botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom": "double-click a device to open its console; right-click a device, a network or a cable for its actions; drag from one port to another to connect a cable, or onto a cloud to put the port on that network; drag the background (or hold Space) to move the drawing, Ctrl or ⌘ + wheel to zoom"
 }

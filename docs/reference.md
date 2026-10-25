@@ -132,7 +132,7 @@ The interface is available in English and Portuguese (gear › General). Some na
 - **Gantry versions**
   - The app checks the release pages (this repository's releases and their copy in homebrew-tap, every 6 h) and shows **↑ version** at the bottom of the sidebar, with the notes; it does not download or install anything. Clicking the version at the bottom checks right away.
 - **Export, import and send**
-  - Export creates a `.tar.gz` with the project folder (`.env` only if you check it), where you choose. Import package, under Other ways, opens that package in a new folder and brings it up.
+  - Export creates a `.tar.gz` with the project folder (`.env` only if you check it), where you choose. Import package, under Other ways, opens that package in a new folder and brings it up. If the folder already exists, **Replace** keeps the old one next to it (`<folder>.antes-<date>`) and removes from Gantry the project that used it, with its containers, VMs and device configuration, before opening the package.
   - Send to… copies the project to another machine (remote deploy) and brings it up there. In Create project, Target machine does the same for a new project, with the ports checked on the chosen machine.
   - Volumes and VM disks do not go along: the project starts from scratch at the destination.
 - **Alerts**
@@ -352,7 +352,7 @@ When the lab comes up, VMs start before the containers. For each VM, the app:
 - generates the cloud-init with the `gantry` user and an SSH key just for VMs;
 - starts QEMU in the background.
 
-Everything about a VM is in `~/.local/state/gantry/vms/<lab>/<vm>/`. In the Containers tab, the Virtual machines section has:
+Everything about a VM is in `~/.local/state/gantry/vms/<lab>/<vm>/`. On a server over SSH, the script that controls VMs and network devices goes once and stays in `~/.cache/gantry/vmctl-<hash>.sh` (the hash is of its contents: a new version of the app writes its own; copies unused for a month go away); each command after that only calls the file. In the Containers tab, the Virtual machines section has:
 
 - Shell: a terminal in the VM inside Gantry (SSH with the VM key; on a server, through the SSH tunnel);
 - Logs: the VM system logs live (`journalctl -f`, or syslog where there is no journald);

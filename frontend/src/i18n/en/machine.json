@@ -424,5 +424,7 @@
   "até o endereço": "to address",
   "Rede entre VMs em bridge na {iface}": "Network between VMs in bridge on {iface}",
   "Rede entre VMs compartilhada": "Network between VMs is shared",
-  "a rede precisa ser /24 (máscara 255.255.255.0), o comum em casa": "the network must be a /24 (mask 255.255.255.0), the usual at home"
+  "a rede precisa ser /24 (máscara 255.255.255.0), o comum em casa": "the network must be a /24 (mask 255.255.255.0), the usual at home",
+  "Substituir se a pasta já existir: a pasta antiga fica guardada ao lado (.antes-data) e o projeto que a usava sai do Gantry, com os containers, as VMs e a configuração dos equipamentos": "Replace if the folder exists: the old folder is kept next to it (.antes-date) and the project that used it leaves Gantry, with its containers, VMs and device configuration",
+  "a pasta antiga ficou em {path}": "the old folder is at {path}"
 }

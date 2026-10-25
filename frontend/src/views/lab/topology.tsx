@@ -7,12 +7,13 @@ import { t } from "@/lib/i18n";
 import { ErrorBox, Loading } from "@/components/ui";
 import { VM_STATE } from "@/views/shared/vm";
 import type { Lab } from "./types";
-import { CableMap } from "./cablemap";
+import { CableMap, type Drawing } from "./cablemap";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Port = { host: string; hostIp?: string; container: string; proto: string };
 type Svc = { name: string; runtime: string; image?: string; build?: boolean; networkMode?: string; ports: Port[]; networks: string[]; dependsOn: string[]; profiles?: string[]; containers: { state: string; ips?: Record<string, string> }[] };
 type Topo = {
+  drawing?: Drawing;
   warnings: string[];
   gantry: boolean;
   default: string;
@@ -63,7 +64,7 @@ export function TopologyTab({ hst, lab }: { hst: Host; lab: Lab }) {
   }
   return (
     <>
-      {hst.files ? <CableMap key={hst.name + "/" + lab.id} host={hst.name} lab={lab} states={states} /> : null}
+      {hst.files ? <CableMap key={hst.name + "/" + lab.id} host={hst.name} lab={lab} states={states} drawing={topo.drawing} /> : null}
       <TopoView hst={hst} t={topo} />
     </>
   );

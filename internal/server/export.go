@@ -225,7 +225,7 @@ func (s *Server) importLab(w http.ResponseWriter, r *http.Request, h *hosts.Host
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Minute)
 	defer cancel()
-	resp, code, err := s.importPackage(ctx, h, dir, data, q.Get("up") == "1", q.Get("job") == "1")
+	resp, code, err := s.importPackage(ctx, h, dir, data, q.Get("up") == "1", q.Get("job") == "1", q.Get("replace") == "1")
 	if err != nil {
 		writeErr(w, code, err)
 		return
@@ -234,15 +234,38 @@ func (s *Server) importLab(w http.ResponseWriter, r *http.Request, h *hosts.Host
 }
 
 // importPackage unpacks a project package into a new folder of the host and
-// registers it (bringing it up when asked).
-func (s *Server) importPackage(ctx context.Context, h *hosts.Host, dir string, data []byte, up, job bool) (map[string]any, int, error) {
+// registers it (bringing it up when asked). With replace, a folder that is
+// already there is kept aside (<folder>.antes-<date>) and the project that
+// used it is removed (containers, VMs and the configuration of its
+// devices), so the package comes in whole.
+func (s *Server) importPackage(ctx context.Context, h *hosts.Host, dir string, data []byte, up, job, replace bool) (map[string]any, int, error) {
 	dir, err := expandDir(ctx, h, dir)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
+	var kept, removed string
 	if h.Exists(ctx, dir) {
 		if out, _ := h.Run(ctx, "", []string{"sh", "-c", `ls -A "$1" | head -1`, "sh", dir}, nil); strings.TrimSpace(out) != "" {
-			return nil, http.StatusConflict, fmt.Errorf("a pasta %s já existe e não está vazia em %s", dir, h.Name)
+			if !replace {
+				return nil, http.StatusConflict, fmt.Errorf("a pasta %s já existe e não está vazia em %s (marque Substituir para trocar)", dir, h.Name)
+			}
+			if ls, err := s.labsOf(ctx, h); err == nil {
+				for _, l := range ls {
+					if path.Clean(l.WorkingDir) != path.Clean(dir) {
+						continue
+					}
+					if _, err := s.labViaEngine(ctx, h, l, "down"); err != nil {
+						return nil, http.StatusBadRequest, fmt.Errorf("não consegui remover o projeto %s que usa a pasta: %v", l.Name, err)
+					}
+					s.dropKubeLab(h, l.ID)
+					s.store.Forget(h.Name, l.ID)
+					removed = l.Name
+				}
+			}
+			kept = dir + ".antes-" + time.Now().Format("20060102-150405")
+			if _, err := h.Run(ctx, "", []string{"mv", dir, kept}, nil); err != nil {
+				return nil, http.StatusBadRequest, fmt.Errorf("não consegui guardar a pasta antiga: %v", err)
+			}
 		}
 	}
 	if h.Kind == hosts.Unix {
@@ -263,9 +286,13 @@ func (s *Server) importPackage(ctx context.Context, h *hosts.Host, dir string, d
 		project = p.Name
 	}
 	resp := map[string]any{"ok": true, "id": project, "dir": dir, "host": h.Name}
+	if kept != "" {
+		resp["kept"] = kept
+		resp["removed"] = removed
+	}
 	// The equipment of a network lab (.gantrylab): in the nodes before they
 	// go up.
-	if o, err := s.applyLabExtras(ctx, h, dir, project); err != nil {
+	if o, err := s.applyLabExtras(ctx, h, dir, project, replace); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("%v (o projeto ficou em %s)", err, dir)
 	} else if o != "" {
 		resp["equipment"] = o
@@ -369,7 +396,7 @@ func (s *Server) copyLab(w http.ResponseWriter, r *http.Request, h *hosts.Host) 
 			}
 		}
 	}
-	resp, code, err := s.importPackage(ctx, t, dir, buf.Bytes(), req.Up, req.Job)
+	resp, code, err := s.importPackage(ctx, t, dir, buf.Bytes(), req.Up, req.Job, false)
 	if err != nil {
 		writeErr(w, code, err)
 		return

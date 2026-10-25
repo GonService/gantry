@@ -536,5 +536,11 @@
   "sem permissão no socket %s": "no permission on the socket %s",
   "Bibliotecas de 32 bits": "32-bit libraries",
   "As imagens IOL mais antigas (i86bi_linux…) são de 32 bits e precisam delas para rodar.": "The older IOL images (i86bi_linux…) are 32-bit and need them to run.",
-  "Com o Docker do repositório oficial (download.docker.com), o pacote é docker-compose-plugin.": "With Docker from the official repository (download.docker.com), the package is docker-compose-plugin."
+  "Com o Docker do repositório oficial (download.docker.com), o pacote é docker-compose-plugin.": "With Docker from the official repository (download.docker.com), the package is docker-compose-plugin.",
+  "a pasta %s já existe e não está vazia em %s (marque Substituir para trocar)": "folder %s already exists and is not empty on %s (check Replace to swap it)",
+  "não consegui remover o projeto %s que usa a pasta: %v": "could not remove the project %s that uses the folder: %v",
+  "não consegui guardar a pasta antiga: %v": "could not keep the old folder: %v",
+  "as posições do desenho foram afastadas %.1f vezes, porque os equipamentos ficavam encostados nas caixas do Gantry; a disposição é a mesma do original": "the drawing positions were spread %.1f times, because the devices touched in Gantry's boxes; the arrangement is the same as the original",
+  "não consegui gravar o script das VMs na máquina: %v": "could not write the VM script on the machine: %v",
+  "lab inválido": "invalid lab"
 }

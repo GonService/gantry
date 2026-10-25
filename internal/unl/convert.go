@@ -2,6 +2,7 @@ package unl
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"regexp"
 	"sort"
@@ -214,6 +215,21 @@ func Convert(l *Lab, original []byte, file string) *Result {
 	for _, g := range nodes {
 		r.Remarks = append(r.Remarks, remarks(g.n, g.kind, g.ifs)...)
 	}
+	// Positions: PNETLab and EVE-NG draw small icons, so nodes close there
+	// overlap in Gantry's boxes; the drawing is opened up, the same
+	// arrangement with room between the boxes.
+	boxes := make([]posBox, len(nodes))
+	for i, g := range nodes {
+		boxes[i] = posBox{x: g.n.Left, y: g.n.Top, w: max(140, 36+(len(g.ports)-1)*30), h: 72}
+	}
+	f := spreadFactor(boxes)
+	if f > 1 {
+		r.Notes = append(r.Notes, fmt.Sprintf("as posições do desenho foram afastadas %.1f vezes, porque os equipamentos ficavam encostados nas caixas do Gantry; a disposição é a mesma do original", f))
+	}
+	place := map[*gnode][2]int{}
+	for i, g := range nodes {
+		place[g] = spreadAt(boxes, i, f)
+	}
 	// compose.yaml
 	var c strings.Builder
 	fmt.Fprintf(&c, "# %s\n#\n# Importado do PNETLab/EVE-NG (%s) sem adaptar nada: os mesmos\n", oneLine(l.Name), oneLine(file))
@@ -280,7 +296,7 @@ func Convert(l *Lab, original []byte, file string) *Result {
 			r.Files[f] = strings.ReplaceAll(n.Config, "\r\n", "\n")
 			fmt.Fprintf(&c, "    config: %s\n", f)
 		}
-		fmt.Fprintf(&c, "    pos: [%d, %d]\n", n.Left, n.Top)
+		fmt.Fprintf(&c, "    pos: [%d, %d]\n", place[g][0], place[g][1])
 		if g.kind == "dyn" {
 			if n.IdlePC != "" && n.IdlePC != "0x0" {
 				note(n.Name, fmt.Sprintf("o idle-PC do original é %s; no Gantry calcule em Gerenciar (ele guarda um por imagem)", n.IdlePC))
@@ -505,4 +521,45 @@ func originalName(file string) string {
 		n += ".unl"
 	}
 	return n
+}
+
+// posBox: a node of the drawing, its corner and size.
+type posBox struct{ x, y, w, h int }
+
+// spreadFactor: how much the positions must be multiplied (around the
+// top-left of the drawing) for no two boxes to touch, with room for the
+// port names and the cables; 1 when they already have it.
+func spreadFactor(b []posBox) float64 {
+	clear := func(f float64) bool {
+		for i := range b {
+			for j := i + 1; j < len(b); j++ {
+				a, c := spreadAt(b, i, f), spreadAt(b, j, f)
+				if !(a[0]+b[i].w+50 <= c[0] || c[0]+b[j].w+50 <= a[0] || a[1]+b[i].h+60 <= c[1] || c[1]+b[j].h+60 <= a[1]) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	f := 1.0
+	for f < 5 && !clear(f) {
+		f += 0.1
+	}
+	return math.Ceil(f*10-1e-6) / 10
+}
+
+// spreadAt: where box i goes with the positions multiplied by f, keeping
+// the center of each box where the original arrangement puts it.
+func spreadAt(b []posBox, i int, f float64) [2]int {
+	if len(b) == 0 {
+		return [2]int{}
+	}
+	x0, y0 := b[0].x, b[0].y
+	for _, p := range b {
+		x0, y0 = min(x0, p.x), min(y0, p.y)
+	}
+	p := b[i]
+	cx := float64(x0) + (float64(p.x)+float64(p.w)/2-float64(x0))*f
+	cy := float64(y0) + (float64(p.y)+float64(p.h)/2-float64(y0))*f
+	return [2]int{max(0, int(math.Round(cx-float64(p.w)/2))), max(0, int(math.Round(cy-float64(p.h)/2)))}
 }

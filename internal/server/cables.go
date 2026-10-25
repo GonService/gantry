@@ -47,19 +47,7 @@ func (s *Server) listCables(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	out := []cableVM{}
-	for _, v := range p.Nodes() {
-		ifs := v.Interfaces
-		if ifs == nil {
-			ifs = []composex.VMIface{}
-		}
-		c := cableVM{Name: v.Name, Interfaces: ifs, NIC: v.NIC, Management: !v.NoManagement, Kind: v.Kind, Pos: v.Pos, Platform: v.Platform, Icon: composex.IconOf(v), IconSet: v.Icon != ""}
-		if v.Kind == "dyn" {
-			c.Ports = vms.DynPortNames(v)
-		}
-		out = append(out, c)
-	}
-	writeJSON(w, out)
+	writeJSON(w, cablesOf(p))
 }
 
 // ifacesFlow writes the ports as one line of YAML.
@@ -324,4 +312,21 @@ func (s *Server) saveIcons(w http.ResponseWriter, r *http.Request, h *hosts.Host
 		return
 	}
 	writeJSON(w, resp)
+}
+
+// cablesOf: the nodes of a project with their ports, for the drawing.
+func cablesOf(p *composex.Project) []cableVM {
+	out := []cableVM{}
+	for _, v := range p.Nodes() {
+		ifs := v.Interfaces
+		if ifs == nil {
+			ifs = []composex.VMIface{}
+		}
+		c := cableVM{Name: v.Name, Interfaces: ifs, NIC: v.NIC, Management: !v.NoManagement, Kind: v.Kind, Pos: v.Pos, Platform: v.Platform, Icon: composex.IconOf(v), IconSet: v.Icon != ""}
+		if v.Kind == "dyn" {
+			c.Ports = vms.DynPortNames(v)
+		}
+		out = append(out, c)
+	}
+	return out
 }

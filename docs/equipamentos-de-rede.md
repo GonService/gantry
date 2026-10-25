@@ -212,6 +212,9 @@ Mudanças que o Gantry é obrigado a fazer, sempre anotadas no
   na máquina, em Gerenciar.
 - **Redes `pnet` (a nuvem do PNETLab):** as portas ligadas nelas ficam sem
   cabo.
+- **Posições do desenho:** os ícones do PNETLab são pequenos; quando os
+  equipamentos ficariam encostados nas caixas do Gantry, as posições são
+  afastadas na mesma proporção, sem mudar a disposição.
 
 A importação também aponta, sem mudar, o que parece errado no original, na
 seção "Pontos de atenção no original" do `IMPORTACAO.md` (e num aviso ao

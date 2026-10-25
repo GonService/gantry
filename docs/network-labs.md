@@ -163,6 +163,7 @@ Changes Gantry has to make, always noted in `IMPORTACAO.md`:
 - **More than 256 MB of memory on a 7200:** becomes 256 MB (see above).
 - **The original idle-PC:** only noted, because the right value is calculated on the machine, in Manage.
 - **`pnet` networks (PNETLab's cloud):** the ports connected to them stay without a cable.
+- **Drawing positions:** PNETLab icons are small; when devices would touch in Gantry's boxes, the positions are spread in the same proportion, without changing the arrangement.
 
 The import also points out, without changing them, what looks wrong in the original, in the "Pontos de atenção no original" (points of attention in the original) section of `IMPORTACAO.md` (and in a notice when it finishes). In a troubleshooting exercise it may be on purpose.
 

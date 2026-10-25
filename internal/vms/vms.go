@@ -774,6 +774,23 @@ func specHash(parts []string, nixHash string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// The script of the VMs kept on a remote machine:
+// ~/.cache/gantry/vmctl-<hash of its contents>.sh, written the first time
+// a command finds it missing (a new version of the app writes its own).
+var (
+	scriptID      = func() string { sum := sha256.Sum256([]byte(script)); return hex.EncodeToString(sum[:8]) }()
+	scriptMissing = "gantry-vmctl-ausente"
+	scriptDir     = `"${XDG_CACHE_HOME:-$HOME/.cache}/gantry"`
+	scriptCall    = `f=` + scriptDir + `/vmctl-` + scriptID + `.sh; [ -r "$f" ] || { echo ` + scriptMissing + `; exit 97; }; exec sh "$f" "$@"`
+	// The copy goes in under a temporary name and is renamed, so a command
+	// running at the same time never reads half of it; copies of other
+	// versions not used for a month go away.
+	scriptInstall = `d=` + scriptDir + `; mkdir -p "$d" && cat >"$d/vmctl-` + scriptID + `.sh.$$" && mv -f "$d/vmctl-` + scriptID + `.sh.$$" "$d/vmctl-` + scriptID + `.sh" && { find "$d" -name 'vmctl-*.sh' -mtime +30 -exec rm -f {} + 2>/dev/null; true; }`
+)
+
+// cacheScript: the hosts that receive the script over a connection.
+var cacheScript = func(h *hosts.Host) bool { return h.Kind == hosts.SSH || h.Kind == hosts.WSL }
+
 // Run executes a vmctl command on the host's machine.
 func Run(ctx context.Context, h *hosts.Host, cmd string, env map[string]string) (string, error) {
 	if h.Kind == hosts.TCP {
@@ -783,13 +800,26 @@ func Run(ctx context.Context, h *hosts.Host, cmd string, env map[string]string) 
 	for _, k := range sortedKeys(env) {
 		argv = append(argv, k+"="+env[k])
 	}
-	argv = append(argv, "sh", "-c", script, "vmctl", cmd)
 	run := h.Run
 	switch cmd {
 	case "up", "start", "stop", "rm":
 		run = h.RunLive
 	}
-	out, err := run(ctx, "", argv, nil)
+	var out string
+	var err error
+	if cacheScript(h) {
+		// Over SSH (or into WSL) the script goes once and stays on the
+		// machine, under a name of its contents; each command only calls it.
+		out, err = run(ctx, "", append(argv, "sh", "-c", scriptCall, "vmctl", cmd), nil)
+		if err != nil && strings.Contains(out+err.Error(), scriptMissing) {
+			if _, ierr := h.Run(ctx, "", []string{"sh", "-c", scriptInstall}, []byte(script)); ierr != nil {
+				return "", fmt.Errorf("não consegui gravar o script das VMs na máquina: %v", ierr)
+			}
+			out, err = run(ctx, "", append(argv, "sh", "-c", scriptCall, "vmctl", cmd), nil)
+		}
+	} else {
+		out, err = run(ctx, "", append(argv, "sh", "-c", script, "vmctl", cmd), nil)
+	}
 	if err != nil {
 		msg := strings.TrimSpace(err.Error())
 		msg = strings.TrimPrefix(msg, "erro: ")

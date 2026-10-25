@@ -2140,6 +2140,7 @@ case "${1:-}" in
   capture-stop) capture_stop ;;
   dhcp-leases) dhcp_leases ;;
   ports-seen) ports_seen ;;
+  lab-live) ports_seen; dhcp_leases | sed 's/^/lease /' ;;
   image) base_image ;; # downloads (and checks) the base image only
   start) start_vm ;;
   stop) stop_vm ;;

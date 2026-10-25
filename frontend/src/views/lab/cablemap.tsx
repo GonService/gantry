@@ -24,6 +24,7 @@ const CLOUD_H = 58;
 const CK = "\u0001"; // the key of a cloud in the positions (a network may have a node's name… not allowed, but keys stay apart)
 
 type State = "on" | "warn" | "";
+export type Drawing = { vms: CVM[]; redes: Rede[] };
 type Side = "t" | "b" | "l" | "r";
 type Port = { x: number; y: number; side: Side };
 // The way out of each side of a node.
@@ -80,7 +81,7 @@ export function layout(nodes: CVM[], redes: Rede[] = []): Record<string, [number
   return out;
 }
 
-export function CableMap({ host, lab, states }: { host: string; lab: Lab; states: Record<string, State> }) {
+export function CableMap({ host, lab, states, drawing }: { host: string; lab: Lab; states: Record<string, State>; drawing?: Drawing }) {
   const base = "/hosts/" + enc(host) + "/labs/" + enc(lab.id);
   const [nodes, setNodes] = useState<CVM[] | null>(null);
   const [net, setNet] = useState<Redes>({ redes: [], leases: [] });
@@ -198,25 +199,29 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     setPanning(false);
   };
 
+  // The drawing (nodes, cables, networks): it comes with the topology the
+  // page already reads every few seconds, and is read here only after a
+  // change; what changes by the second (lights, DHCP leases) comes apart,
+  // below.
+  const apply = (r: Drawing) => {
+    if (dragging.current) return;
+    setNodes(r.vms);
+    setNet((n) => ({ redes: r.redes, leases: n.leases }));
+    setPos(layout(r.vms, r.redes));
+    setErr("");
+  };
   const load = () =>
-    Promise.all([api<CVM[]>(base + "/cabos"), api<Redes>(base + "/redes").catch(() => ({ redes: [], leases: [] }) as Redes)])
-      .then(([l, r]) => {
-        if (dragging.current) return;
-        setNodes(l);
-        setNet(r);
-        setPos(layout(l, r.redes));
-        setErr("");
-      })
+    api<Drawing>(base + "/desenho")
+      .then(apply)
       .catch((e) => setErr((e as Error).message));
   useEffect(() => {
-    void load();
+    if (drawing) apply(drawing);
+  }, [drawing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!drawing) void load();
     const on = (e: Event) => (e as CustomEvent).detail === lab.id && void load();
     window.addEventListener(CABLES_CHANGED, on);
-    const timer = setInterval(() => !document.hidden && void load(), 15000);
-    return () => {
-      window.removeEventListener(CABLES_CHANGED, on);
-      clearInterval(timer);
-    };
+    return () => window.removeEventListener(CABLES_CHANGED, on);
   }, [base]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The link lights, as in Packet Tracer: when each port last sent a frame
@@ -225,23 +230,21 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
   const [seen, setSeen] = useState<Record<string, number> | null>(null);
   const anyOn = Object.values(states).some((x) => x === "on");
   useEffect(() => {
-    if (!anyOn) {
-      setSeen(null);
-      return;
-    }
     let live = true;
     const get = () =>
       !document.hidden &&
-      api<{ ports: { node: string; port: number; ago: number }[] }>(base + "/portas")
+      api<{ ports: { node: string; port: number; ago: number }[]; leases: Lease[] }>(base + "/vivo")
         .then((r) => {
           if (!live) return;
           const m: Record<string, number> = {};
           for (const x of r.ports) m[x.node + "\u0000" + x.port] = x.ago;
-          setSeen(m);
+          setSeen(anyOn ? m : null);
+          setNet((n) => ({ ...n, leases: r.leases }));
         })
         .catch(() => live && setSeen(null));
     void get();
-    const timer = setInterval(() => void get(), 5000);
+    // Every 5 s while something runs; a lab that is down changes little.
+    const timer = setInterval(() => void get(), anyOn ? 5000 : 30000);
     return () => {
       live = false;
       clearInterval(timer);
@@ -607,6 +610,24 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
       const [live] = captureItems(host, lab.id, v, i, portName(v, i)) as { label: string; onClick: () => void }[];
       return [{ label: t("Capturar {port}", { port: portName(v, i) }) + to, onClick: live.onClick }];
     });
+  // openConsole: the double click on a node, as in GNS3 and EVE-NG: the
+  // console of a router, switch or PC, the terminal of a container, the
+  // shell of a VM without a serial console.
+  const openConsole = (v: CVM) => {
+    if (v.kind === "ctr") {
+      const c = ctrOf(v.name);
+      if (c?.state === "running") gantry.openTerminal(host, c);
+      else gantry.toast(t("{name} está parado: inicie para abrir o terminal.", { name: v.name }), "err");
+      return;
+    }
+    const vm = vmOf(v.name);
+    if (vm?.state !== "running") {
+      gantry.toast(t("{name} está parado: inicie para abrir o console.", { name: v.name }), "err");
+      return;
+    }
+    if (vm.serial) gantry.openTerminal(host, term(v.name, "serial"));
+    else if (!vm.noCloudInit && !vm.vnc) gantry.openTerminal(host, term(v.name, "shell"));
+  };
   const nodeMenu = (e: React.MouseEvent, v: CVM) => {
     e.preventDefault();
     openMenu(e, [...nodeActions(v), "-", { label: t("Interfaces e conexões…"), onClick: () => setSel(v.name) }, { label: t("Ícone…"), onClick: () => pickIcon(v.name, v.icon ?? "", !!v.iconSet, (ic) => void setIcon(v, ic)) }, ...(captures(v).length ? ["-" as const, ...captures(v)] : [])], v.name);
@@ -710,7 +731,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
     <div className="block cablemap">
       <div className="block-head">
         <h2 className="block-title">{t("Rede do lab")}</h2>
-        <span className="muted small">{t("botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
+        <span className="muted small">{t("dois cliques num equipamento abrem o console; botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
         <span className="grow" />
         {busy ? <span className="spin" /> : null}
         <button className="btn small" type="button" disabled={busy} onClick={spread} title={t("Afasta os equipamentos que estão encostados, mantendo a mesma disposição")}>
@@ -840,7 +861,7 @@ export function CableMap({ host, lab, states }: { host: string; lab: Lab; states
             const w = nodeW(v);
             const st = states[v.name] ?? "";
             return (
-              <g key={v.name} className={"cm-node" + (st ? " " + st : "") + (sel === v.name ? " sel" : "")} data-node={v.name} onContextMenu={(e) => nodeMenu(e, v)} onPointerEnter={() => setFocus(v.name)} onPointerLeave={() => setFocus("")}>
+              <g key={v.name} className={"cm-node" + (st ? " " + st : "") + (sel === v.name ? " sel" : "")} data-node={v.name} onDoubleClick={() => openConsole(v)} onContextMenu={(e) => nodeMenu(e, v)} onPointerEnter={() => setFocus(v.name)} onPointerLeave={() => setFocus("")}>
                 <rect
                   x={x}
                   y={y}

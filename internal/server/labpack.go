@@ -166,8 +166,9 @@ func withLabExtras(src io.Reader, dst io.Writer, dir string) error {
 }
 
 // applyLabExtras puts the equipment of an unpacked package (dir/.gantrylab)
-// in the nodes of project on the host, then removes the folder.
-func (s *Server) applyLabExtras(ctx context.Context, h *hosts.Host, dir, project string) (string, error) {
+// in the nodes of project on the host, then removes the folder. A node that
+// already exists here keeps its configuration, unless replace.
+func (s *Server) applyLabExtras(ctx context.Context, h *hosts.Host, dir, project string, replace bool) (string, error) {
 	base := path.Join(dir, labPackDir)
 	b, err := h.ReadFile(ctx, path.Join(base, "manifest.json"))
 	if err != nil {
@@ -183,8 +184,9 @@ func (s *Server) applyLabExtras(ctx context.Context, h *hosts.Host, dir, project
 		if !packNode.MatchString(n.Name) {
 			return log.String(), fmt.Errorf("pacote: nó com nome inválido (%q)", n.Name)
 		}
-		// A project of the same name already here keeps its nodes.
-		if o, _ := h.Run(ctx, "", []string{"sh", "-c", `d="${XDG_STATE_HOME:-$HOME/.local/state}/gantry/vms/$1/$2"; { [ -f "$d/iol" ] || [ -f "$d/dyn" ] || [ -f "$d/vpcs" ] || [ -f "$d/disk.qcow2" ]; } && echo sim`, "sh", project, n.Name}, nil); strings.TrimSpace(o) == "sim" {
+		// A project of the same name already here keeps its nodes (unless
+		// the import replaces it: then the package's configuration goes in).
+		if !replace && nodeExists(ctx, h, project, n.Name) {
 			log.WriteString(fmt.Sprintf("%s: já existe nesta máquina (projeto %s); a configuração do pacote não foi aplicada\n", n.Name, project))
 			continue
 		}
@@ -204,4 +206,10 @@ func (s *Server) applyLabExtras(ctx context.Context, h *hosts.Host, dir, project
 		}
 	}
 	return log.String(), nil
+}
+
+// nodeExists: a node of the project was already created on the host.
+func nodeExists(ctx context.Context, h *hosts.Host, project, node string) bool {
+	o, _ := h.Run(ctx, "", []string{"sh", "-c", `d="${XDG_STATE_HOME:-$HOME/.local/state}/gantry/vms/$1/$2"; { [ -f "$d/iol" ] || [ -f "$d/dyn" ] || [ -f "$d/vpcs" ] || [ -f "$d/disk.qcow2" ]; } && echo sim`, "sh", project, node}, nil)
+	return strings.TrimSpace(o) == "sim"
 }
