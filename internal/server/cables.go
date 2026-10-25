@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +34,45 @@ type cableVM struct {
 	Ports      []string           `json:"ports,omitempty"`    // a Dynamips router's port names (its adapters)
 	Icon       string             `json:"icon"`               // how it is drawn
 	IconSet    bool               `json:"iconSet,omitempty"`  // chosen in the file (not the default)
+	VPCSAddr   string             `json:"vpcsAddr,omitempty"` // a VPCS's address in its startup.vpc
+}
+
+// vpcsAddr: the address a VPCS gets from its startup configuration (the
+// last "ip" line wins, as in VPCS): "10.0.0.10/24 gw 10.0.0.1", "DHCP", or
+// "" when there is none.
+func vpcsAddr(cfg string) string {
+	out := ""
+	for _, l := range strings.Split(cfg, "\n") {
+		f := strings.Fields(l)
+		if len(f) < 2 || f[0] != "ip" {
+			continue
+		}
+		a := f[1:]
+		if a[0] == "dhcp" {
+			out = "DHCP"
+			continue
+		}
+		if net.ParseIP(strings.SplitN(a[0], "/", 2)[0]) == nil {
+			continue
+		}
+		addr, rest := a[0], a[1:]
+		// "ip 10.0.0.10 255.255.255.0 10.0.0.1" or "ip 10.0.0.10 24 10.0.0.1"
+		if !strings.Contains(addr, "/") && len(rest) > 0 {
+			if m := net.ParseIP(rest[0]); m != nil && m.To4() != nil && strings.HasPrefix(rest[0], "255.") {
+				ones, _ := net.IPMask(m.To4()).Size()
+				addr += "/" + strconv.Itoa(ones)
+				rest = rest[1:]
+			} else if n, err := strconv.Atoi(rest[0]); err == nil && n > 0 && n <= 32 {
+				addr += "/" + rest[0]
+				rest = rest[1:]
+			}
+		}
+		if len(rest) > 0 && net.ParseIP(rest[0]) != nil {
+			addr += " gw " + rest[0]
+		}
+		out = addr
+	}
+	return out
 }
 
 func (s *Server) listCables(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
@@ -56,6 +97,9 @@ func (s *Server) listCables(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 		c := cableVM{Name: v.Name, Interfaces: ifs, NIC: v.NIC, Management: !v.NoManagement, Kind: v.Kind, Pos: v.Pos, Platform: v.Platform, Icon: composex.IconOf(v), IconSet: v.Icon != ""}
 		if v.Kind == "dyn" {
 			c.Ports = vms.DynPortNames(v)
+		}
+		if v.Kind == "vpcs" {
+			c.VPCSAddr = vpcsAddr(v.Config)
 		}
 		out = append(out, c)
 	}

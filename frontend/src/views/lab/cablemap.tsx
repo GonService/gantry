@@ -734,8 +734,13 @@ function Addr({ v, i, leases }: { v: CVM; i: number; leases: Lease[] }) {
   const l = f.rede ? leases.find((x) => x.node === v.name && x.port === String(i) && x.rede === f.rede) : undefined;
   if (l) return <span className="mono small" title={l.mac}>{l.ip + " (DHCP)"}</span>;
   if (f.dhcp) return <span className="muted small">{t("DHCP · ainda sem endereço")}</span>;
+  if (v.kind === "vpcs") {
+    const tip = t("Da configuração inicial do VPCS (startup.vpc). Se mudou no console, veja lá com show ip.");
+    if (v.vpcsAddr) return <span className="mono small" title={tip}>{v.vpcsAddr === "DHCP" ? t("DHCP (no VPCS)") : v.vpcsAddr}</span>;
+    return <span className="muted small" title={tip}>{t("sem IP na configuração inicial · no console: show ip")}</span>;
+  }
   if (!f.link && !f.rede) return null;
-  return <span className="muted small">{v.kind === "iol" || v.kind === "dyn" ? t("configurado no roteador") : v.kind === "vpcs" ? t("configurado no VPCS (ip …)") : t("dentro da máquina")}</span>;
+  return <span className="muted small">{v.kind === "iol" || v.kind === "dyn" ? t("configurado no roteador") : t("dentro da máquina")}</span>;
 }
 
 // RedePanel: a lab network: its subnet and DHCP, every port on it with its
