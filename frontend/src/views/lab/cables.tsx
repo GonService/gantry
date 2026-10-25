@@ -52,7 +52,7 @@ export const addrText = (f: Iface) => (f.dhcp ? "dhcp" : (f.ips ?? []).join(", "
 // takesAddr: the ports Gantry can give an address (not IOL, Dynamips, a
 // bridge or a free port).
 export const takesAddr = (v: CVM, f: Iface) => v.kind !== "iol" && v.kind !== "dyn" && v.kind !== "vpcs" && !f.bridge && !!(f.link || f.rede);
-export type CVM = { name: string; interfaces: Iface[]; nic?: string; management: boolean; kind?: string; pos?: [number, number]; platform?: string; ports?: string[]; icon?: string; iconSet?: boolean; vpcsAddr?: string };
+export type CVM = { name: string; interfaces: Iface[]; nic?: string; management: boolean; kind?: string; pos?: [number, number]; platform?: string; ports?: string[]; icon?: string; iconSet?: boolean };
 
 // fileError makes an error of the compose (as YAML reports it) say where
 // to fix it.

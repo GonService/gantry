@@ -802,21 +802,16 @@ function NodePanel({ v, nodes, leases, state, actions, host, lab, onAddr, onClos
   );
 }
 
-// Addr: the addresses of a port: the fixed ones, the one its DHCP gave, or
-// a note that they are configured inside the machine.
+// Addr: the addresses of a port that Gantry knows for real: the fixed ones
+// it gives and the one its DHCP gave. What is configured inside a device
+// (a router, a VPCS, a VM) is not guessed from files: empty.
 function Addr({ v, i, leases }: { v: CVM; i: number; leases: Lease[] }) {
   const f = v.interfaces[i];
   if (f.ips?.length) return <span className="mono small">{f.ips.join(", ")}</span>;
   const l = f.rede ? leases.find((x) => x.node === v.name && x.port === String(i) && x.rede === f.rede) : undefined;
   if (l) return <span className="mono small" title={l.mac}>{l.ip + " (DHCP)"}</span>;
   if (f.dhcp) return <span className="muted small">{t("DHCP · ainda sem endereço")}</span>;
-  if (v.kind === "vpcs") {
-    const tip = t("Da configuração inicial do VPCS (startup.vpc). Se mudou no console, veja lá com show ip.");
-    if (v.vpcsAddr) return <span className="mono small" title={tip}>{v.vpcsAddr === "DHCP" ? t("DHCP (no VPCS)") : v.vpcsAddr}</span>;
-    return <span className="muted small" title={tip}>{t("sem IP na configuração inicial · no console: show ip")}</span>;
-  }
-  if (!f.link && !f.rede) return null;
-  return <span className="muted small">{v.kind === "iol" || v.kind === "dyn" ? t("configurado no roteador") : t("dentro da máquina")}</span>;
+  return null;
 }
 
 // RedePanel: a lab network: its subnet and DHCP, every port on it with its

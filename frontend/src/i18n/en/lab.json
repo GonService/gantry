@@ -523,8 +523,6 @@
   "Um ou mais IP/máscara separados por vírgula, ou vazio para configurar dentro da máquina. Vale quando a VM é criada (o container, quando sobe).": "One or more IP/mask separated by commas, or empty to configure it inside the machine. Takes effect when the VM is created (the container, when it starts).",
   "Uma rede do lab é um switch: várias portas entram nela, com subnet e DHCP opcionais": "A lab network is a switch: many ports go on it, with optional subnet and DHCP",
   "Uma rede do lab é um switch: várias portas entram nela. A subnet e o DHCP são opcionais; sem eles, os IPs se configuram dentro das máquinas, como num roteador.": "A lab network is a switch: many ports go on it. The subnet and DHCP are optional; without them, the IPs are configured inside the machines, as on a router.",
-  "configurado no roteador": "configured on the router",
-  "dentro da máquina": "inside the machine",
   "padrão: .100 a .199": "default: .100 to .199",
   "switch": "switch",
   "só o switch, sem subnet": "just the switch, no subnet",
@@ -561,8 +559,5 @@
   "O IOS não aceitou estas linhas da configuração inicial e seguiu sem elas. Pode ser erro de digitação, comando de outra versão do IOS ou uma interface que este equipamento não tem. Elas não estão na configuração em uso (show running-config).": "IOS did not accept these lines of the startup configuration and went on without them. It may be a typo, a command from another IOS version or an interface this device does not have. They are not in the configuration in use (show running-config).",
   "sem idle-PC": "no idle-PC",
   "Sem o idle-PC, o roteador ocupa uma thread inteira do processador mesmo parado. Calcule em Gerenciar, com ele no prompt.": "Without the idle-PC, the router keeps a whole CPU thread busy even when idle. Calculate it in Manage, with the router at the prompt.",
-  "Da configuração inicial do VPCS (startup.vpc). Se mudou no console, veja lá com show ip.": "From the VPCS startup configuration (startup.vpc). If it was changed in the console, check there with show ip.",
-  "DHCP (no VPCS)": "DHCP (in the VPCS)",
-  "sem IP na configuração inicial · no console: show ip": "no IP in the startup configuration · in the console: show ip",
   "botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom": "right-click a device, a network or a cable for its actions; drag from one port to another to connect a cable, or onto a cloud to put the port on that network; drag the background (or hold Space) to move the drawing, Ctrl or ⌘ + wheel to zoom"
 }
