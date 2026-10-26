@@ -62,7 +62,10 @@ function SysBlock({ m }: { m: Machine }) {
   const meters: React.ReactNode[] = [];
   if (i.cpus) meters.push(<Meter key="cpu" label="CPU" used={i.hasCpu ? i.cpuPct : 0} total={100} text={i.hasCpu ? t("{pct} de {n} núcleos", { pct: fmtPct(i.cpuPct), n: i.cpus }) : t("{n} núcleos", { n: i.cpus })} />);
   if (i.memTotal) meters.push(<Meter key="mem" label={t("Memória")} used={i.memUsed || 0} total={i.memTotal} text={i.memUsed ? t("{used} de {total}", { used: fmtBytes(i.memUsed), total: fmtBytes(i.memTotal) }) : fmtBytes(i.memTotal)} />);
-  for (const d of i.disks || []) meters.push(<Meter key={"d" + d.path} label={t("Disco {path}", { path: d.path })} used={d.used} total={d.total} text={t("{used} de {total}", { used: fmtBytes(d.used), total: fmtBytes(d.total) })} />);
+  // The main disk next to CPU and memory; the others (another partition, a
+  // second SSD, a USB drive) in a compact list below, one line each.
+  const [disk0, ...otherDisks] = (i.disks || []) as { path: string; used: number; total: number }[];
+  if (disk0) meters.push(<Meter key="d0" label={t("Disco {path}", { path: disk0.path })} used={disk0.used} total={disk0.total} text={t("{used} de {total}", { used: fmtBytes(disk0.used), total: fmtBytes(disk0.total) })} />);
   if (i.swapTotal) meters.push(<Meter key="swap" label="Swap" used={i.swapUsed} total={i.swapTotal} text={t("{used} de {total}", { used: fmtBytes(i.swapUsed), total: fmtBytes(i.swapTotal) })} />);
   return (
     <div className="panel panel-pad sys" id="sys-box">
@@ -79,6 +82,26 @@ function SysBlock({ m }: { m: Machine }) {
         {i.load ? <span title={t("carga média em 1, 5 e 15 min")}>{t("carga {load}", { load: i.load })}</span> : null}
       </div>
       <div className="meters">{meters}</div>
+      {otherDisks.length ? (
+        <div className="disk-list" aria-label={t("Outros discos")}>
+          <span className="disk-list-title">{t("Outros discos")}</span>
+          {otherDisks.map((d) => {
+            const frac = d.total ? Math.min(1, d.used / d.total) : 0;
+            const level = frac > 0.9 ? "crit" : frac > 0.75 ? "warn" : "";
+            return (
+              <div className="disk-row" key={d.path}>
+                <span className="mono disk-path" title={d.path}>
+                  {d.path}
+                </span>
+                <div className="meter-bar thin">
+                  <span className={level} style={{ width: (frac * 100).toFixed(1) + "%" }} />
+                </div>
+                <span className="meter-val">{t("{used} de {total}", { used: fmtBytes(d.used), total: fmtBytes(d.total) })}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

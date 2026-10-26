@@ -571,6 +571,12 @@ input:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
 .meter-bar span { display: block; height: 100%; background: var(--brand); border-radius: 99px; transition: width .4s; }
 .meter-bar span.warn { background: var(--warn); }
 .meter-bar span.crit { background: var(--crit); }
+/* the other disks of a machine: one compact line each */
+.disk-list { display: grid; grid-template-columns: minmax(80px, 220px) minmax(80px, 1fr) auto; gap: 6px 16px; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; }
+.disk-list-title { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.disk-row { display: contents; }
+.disk-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meter-bar.thin { height: 5px; }
 .tab-count { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 99px; background: var(--surface-2); font-size: 12px; color: var(--muted); font-weight: 600; }
 .tab[aria-selected="true"] .tab-count { background: var(--brand-soft); color: var(--brand); }
 .eng-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
