@@ -14,6 +14,7 @@ import { NodeIcon, pickIcon } from "./icons";
 import { addrText, attach, captureItems, fileError, CABLES_CHANGED, cablesChanged, connect, dynPort, ifaceBody, peerOf, portName, redeCaptureItems, setAddr, takesAddr, unplug, type CVM, type Lease, type Rede, type Redes } from "./cables";
 import { loadDrift } from "./drift";
 import type { Lab } from "./types";
+import { NOTE_CORES, NOTE_H, NOTE_W, newNoteID, noteHTML, type Nota } from "./notes";
 
 const NODE_H = 72;
 const GAP = 30; // between ports
@@ -24,13 +25,18 @@ const CLOUD_H = 58;
 const CK = "\u0001"; // the key of a cloud in the positions (a network may have a node's name… not allowed, but keys stay apart)
 
 type State = "on" | "warn" | "";
-export type Drawing = { vms: CVM[]; redes: Rede[] };
+export type Drawing = { vms: CVM[]; redes: Rede[]; notas?: Nota[] };
 type Side = "t" | "b" | "l" | "r";
 type Port = { x: number; y: number; side: Side };
 // The way out of each side of a node.
 const NORMAL: Record<Side, [number, number]> = { t: [0, -1], b: [0, 1], l: [-1, 0], r: [1, 0] };
 type End = { node: string; port: number };
-type Drag = { kind: "node"; node: string; dx: number; dy: number; moved: boolean } | { kind: "cloud"; rede: string; dx: number; dy: number; moved: boolean } | { kind: "port"; from: End; x: number; y: number };
+type Drag =
+  | { kind: "node"; node: string; dx: number; dy: number; moved: boolean }
+  | { kind: "cloud"; rede: string; dx: number; dy: number; moved: boolean }
+  | { kind: "port"; from: End; x: number; y: number }
+  | { kind: "note"; id: string; dx: number; dy: number; moved: boolean }
+  | { kind: "note-size"; id: string; x0: number; y0: number; w0: number; h0: number; moved: boolean };
 
 const nodeW = (v: CVM) => Math.max(MIN_W, PAD * 2 + Math.max(0, v.interfaces.length - 1) * GAP);
 
@@ -90,6 +96,7 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [notas, setNotas] = useState<Nota[]>([]);
   const [hover, setHover] = useState("");
   const [sel, setSel] = useState(""); // the node whose panel is open
   const svg = useRef<SVGSVGElement>(null);
@@ -207,6 +214,7 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
     if (dragging.current) return;
     setNodes(r.vms);
     setNet((n) => ({ redes: r.redes, leases: n.leases }));
+    setNotas(r.notas ?? []);
     setPos(layout(r.vms, r.redes));
     setErr("");
   };
@@ -491,10 +499,52 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
     );
   };
 
+  // The notes: kept in the compose (x-notas), all of them at each change.
+  const saveNotas = async (next: Nota[]) => {
+    setNotas(next);
+    try {
+      await api(base + "/notas", { method: "PUT", body: { notas: next } });
+    } catch (err) {
+      gantry.toast(fileError((err as Error).message), "err");
+    }
+  };
+  const corName: Record<string, string> = { "": t("sem fundo"), amarela: t("amarela"), azul: t("azul"), verde: t("verde"), rosa: t("rosa"), cinza: t("cinza") };
+  const editNote = (n: Nota | null, where?: { x: number; y: number }) =>
+    formDialog({
+      title: n ? t("Editar a nota") : t("Nova nota"),
+      intro: t("Texto simples, com **negrito**, *itálico*, # títulos, - listas, tabelas (| a | b |) e imagens da pasta do projeto: ![](notas/foto.png)."),
+      submit: t("Salvar"),
+      fields: [
+        { id: "text", label: t("Texto"), type: "textarea", rows: 8, value: n?.text ?? "" },
+        { id: "cor", label: t("Cor"), type: "select", value: n ? (n.cor ?? "") : "amarela", options: NOTE_CORES.map((c) => [c, corName[c]] as [string, string]) },
+      ],
+      onSubmit: async (v) => {
+        const text = String(v.text ?? "");
+        const cor = String(v.cor ?? "");
+        if (n) await saveNotas(notas.map((x) => (x.id === n.id ? { ...x, text, cor } : x)));
+        else await saveNotas([...notas, { id: newNoteID(notas), text, cor, pos: [Math.round(where?.x ?? 40), Math.round(where?.y ?? 40)], size: [NOTE_W, NOTE_H] }]);
+      },
+    });
+  const noteMenu = (e: React.MouseEvent, n: Nota) =>
+    openMenu(e, [{ label: t("Editar…"), onClick: () => editNote(n) }, "-", { label: t("Remover a nota"), danger: true, onClick: () => void saveNotas(notas.filter((x) => x.id !== n.id)) }], t("nota"));
+  const bgMenu = (e: React.MouseEvent) => {
+    if (e.target !== svg.current) return;
+    const p = at(e);
+    openMenu(e, [{ label: t("Nova nota aqui…"), onClick: () => editNote(null, p) }, { label: t("Nova rede aqui…"), onClick: () => redeDialog() }]);
+  };
+
   const onMove = (e: React.PointerEvent) => {
     if (!drag) return;
     const p = at(e);
-    if (drag.kind === "node" || drag.kind === "cloud") {
+    if (drag.kind === "note") {
+      setNotas((l) => l.map((n) => (n.id === drag.id ? { ...n, pos: [Math.max(0, Math.round(p.x - drag.dx)), Math.max(0, Math.round(p.y - drag.dy))] } : n)));
+      if (!drag.moved) setDrag({ ...drag, moved: true });
+    } else if (drag.kind === "note-size") {
+      const w = Math.max(60, Math.round(drag.w0 + p.x - drag.x0));
+      const h = Math.max(30, Math.round(drag.h0 + p.y - drag.y0));
+      setNotas((l) => l.map((n) => (n.id === drag.id ? { ...n, size: [w, h] } : n)));
+      if (!drag.moved) setDrag({ ...drag, moved: true });
+    } else if (drag.kind === "node" || drag.kind === "cloud") {
       const key = drag.kind === "node" ? drag.node : CK + drag.rede;
       setPos((m) => ({ ...m, [key]: [Math.round(p.x - drag.dx), Math.round(p.y - drag.dy)] }));
       if (!drag.moved) setDrag({ ...drag, moved: true });
@@ -534,6 +584,7 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
       setNet((n) => ({ ...n, redes: n.redes.map((r) => (all[r.name] ? { ...r, pos: all[r.name] } : r)) }));
       api(base + "/posicoes", { method: "PUT", body: { pos: all } }).catch((err) => gantry.toast(fileError((err as Error).message), "err"));
     }
+    if ((d.kind === "note" || d.kind === "note-size") && d.moved) void saveNotas(notas);
     if (d.kind === "port") {
       const to = portAt(e);
       const cl = to ? "" : cloudAt(e);
@@ -677,7 +728,12 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
     });
     setNodes(nodes.map((v) => (all[v.name] ? { ...v, pos: all[v.name] } : v)));
     setNet((n) => ({ ...n, redes: n.redes.map((r) => (all[r.name] ? { ...r, pos: all[r.name] } : r)) }));
-    api(base + "/posicoes", { method: "PUT", body: { pos: all } }).catch((err) => gantry.toast(fileError((err as Error).message), "err"));
+    api(base + "/posicoes", { method: "PUT", body: { pos: all } })
+      .then(() => {
+        // the notes go with the drawing, in the same proportion
+        if (notas.some((n) => n.pos)) void saveNotas(notas.map((n) => (n.pos ? { ...n, pos: [Math.round(x0 + (n.pos[0] - x0) * f), Math.round(y0 + (n.pos[1] - y0) * f)] as [number, number] } : n)));
+      })
+      .catch((err) => gantry.toast(fileError((err as Error).message), "err"));
   };
   // A cable: straight, as in Packet Tracer, or a curve that leaves each
   // port square to its side.
@@ -707,8 +763,8 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
     const x = side.length > 1 ? cx + inset + ((CLOUD_W - 2 * inset) * k) / (side.length - 1) : cx + CLOUD_W / 2;
     return { x, y: above ? cy : cy + CLOUD_H, side: (above ? "t" : "b") as Side };
   };
-  const xs = [...nodes.map((v) => (pos[v.name]?.[0] ?? 0) + nodeW(v)), ...redes.map((r) => (pos[CK + r.name]?.[0] ?? 0) + CLOUD_W)];
-  const ys = [...nodes.map((v) => (pos[v.name]?.[1] ?? 0) + NODE_H), ...redes.map((r) => (pos[CK + r.name]?.[1] ?? 0) + CLOUD_H)];
+  const xs = [...nodes.map((v) => (pos[v.name]?.[0] ?? 0) + nodeW(v)), ...redes.map((r) => (pos[CK + r.name]?.[0] ?? 0) + CLOUD_W), ...notas.map((n) => (n.pos?.[0] ?? 0) + (n.size?.[0] ?? NOTE_W))];
+  const ys = [...nodes.map((v) => (pos[v.name]?.[1] ?? 0) + NODE_H), ...redes.map((r) => (pos[CK + r.name]?.[1] ?? 0) + CLOUD_H), ...notas.map((n) => (n.pos?.[1] ?? 0) + (n.size?.[1] ?? NOTE_H))];
   const W = Math.max(600, ...xs) + 80;
   const H = Math.max(260, ...ys) + 110;
   const fit = () => Math.min(1, ((wrap.current?.clientWidth ?? W) - 4) / W);
@@ -731,7 +787,7 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
     <div className="block cablemap">
       <div className="block-head">
         <h2 className="block-title">{t("Rede do lab")}</h2>
-        <span className="muted small">{t("dois cliques num equipamento abrem o console; botão direito num equipamento, numa rede ou num cabo para as ações; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
+        <span className="muted small">{t("dois cliques num equipamento abrem o console; botão direito num equipamento, numa rede ou num cabo para as ações, e no fundo para uma nota; arraste de uma porta a outra para ligar um cabo, ou até uma nuvem para pôr a porta naquela rede; arraste o fundo (ou segure Espaço) para mover o desenho, Ctrl ou ⌘ + roda para o zoom")}</span>
         <span className="grow" />
         {busy ? <span className="spin" /> : null}
         <button className="btn small" type="button" disabled={busy} onClick={spread} title={t("Afasta os equipamentos que estão encostados, mantendo a mesma disposição")}>
@@ -776,7 +832,44 @@ export function CableMap({ host, lab, states, drawing }: { host: string; lab: La
         onMouseDown={(e) => e.button === 1 && e.preventDefault()}
         onAuxClick={(e) => e.button === 1 && e.preventDefault()}
       >
-        <svg ref={svg} width={W * z} height={H * z} viewBox={`0 0 ${W} ${H}`} className={"cablemap-svg" + (drag ? " dragging" : "") + (focus && !drag ? " focus" : "")} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={() => (setDrag(null), setHover(""))} role="img" aria-label={t("Desenho dos cabos de {lab}", { lab: lab.name })}>
+        <svg ref={svg} width={W * z} height={H * z} viewBox={`0 0 ${W} ${H}`} className={"cablemap-svg" + (drag ? " dragging" : "") + (focus && !drag ? " focus" : "")} onPointerMove={onMove} onPointerUp={onUp} onContextMenu={bgMenu} onPointerLeave={() => (setDrag(null), setHover(""))} role="img" aria-label={t("Desenho dos cabos de {lab}", { lab: lab.name })}>
+          {notas.map((n, i) => {
+            const [x, y] = n.pos ?? [40 + i * 30, 40 + i * 30];
+            const [w, h] = n.size ?? [NOTE_W, NOTE_H];
+            return (
+              <g key={"nota:" + n.id} className="cm-note" data-nota={n.id} onContextMenu={(e) => noteMenu(e, n)} onDoubleClick={() => editNote(n)}>
+                <foreignObject x={x} y={y} width={w} height={h}>
+                  <div
+                    className={"cm-note-box" + (n.cor ? " cor-" + n.cor : "")}
+                    title={t("Arraste para mover; dois cliques para editar")}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0 || busy || space) return;
+                      e.preventDefault();
+                      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+                      const q = at(e);
+                      setDrag({ kind: "note", id: n.id, dx: q.x - x, dy: q.y - y, moved: false });
+                    }}
+                    dangerouslySetInnerHTML={{ __html: noteHTML(n.text, host, lab.id) || '<div class="muted">' + t("(nota vazia)") + "</div>" }}
+                  />
+                </foreignObject>
+                <rect
+                  x={x + w - 12}
+                  y={y + h - 12}
+                  width={12}
+                  height={12}
+                  className="cm-note-grip"
+                  onPointerDown={(e) => {
+                    if (e.button !== 0 || busy) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    (e.target as Element).setPointerCapture?.(e.pointerId);
+                    const q = at(e);
+                    setDrag({ kind: "note-size", id: n.id, x0: q.x, y0: q.y, w0: w, h0: h, moved: false });
+                  }}
+                />
+              </g>
+            );
+          })}
           {cables.map((c) => {
             const pa = ports[c.a.node + "\u0000" + c.a.port];
             const pb = ports[c.b.node + "\u0000" + c.b.port];

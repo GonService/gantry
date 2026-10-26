@@ -1090,6 +1090,28 @@ table.grid tr.selected > td { background: var(--brand-soft); }
 .cablemap-svg.focus .cm-cable:not(.hl) { opacity: .18; }
 .cablemap-svg.focus .cm-cable.hl .cm-line { stroke-width: 3.5; }
 .cablemap-svg .cm-cable { transition: opacity .12s; }
+/* notes on the drawing (x-notas) */
+.cm-note-box { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; padding: 6px 8px; font: 12px/1.4 var(--font); color: var(--text);
+  border: 1px dashed transparent; border-radius: 6px; cursor: grab; user-select: none; -webkit-user-select: none; }
+.cm-note:hover .cm-note-box { border-color: var(--border); }
+.cm-note-box.cor-amarela { background: #fff4c2; border-color: #e9d48a; color: #3b3214; }
+.cm-note-box.cor-azul { background: #dcebff; border-color: #a9c6ef; color: #15293f; }
+.cm-note-box.cor-verde { background: #dcf3e3; border-color: #a7d7b5; color: #173823; }
+.cm-note-box.cor-rosa { background: #fde2ea; border-color: #efb1c3; color: #3f1621; }
+.cm-note-box.cor-cinza { background: var(--surface-2); border-color: var(--border); }
+.cm-note-box .h1 { font-size: 16px; font-weight: 700; } .cm-note-box .h2 { font-size: 14px; font-weight: 700; }
+.cm-note-box .h3, .cm-note-box .h4 { font-weight: 700; }
+.cm-note-box .gap { height: .6em; }
+.cm-note-box ul { margin: 2px 0; padding-left: 18px; }
+.cm-note-box table { border-collapse: collapse; margin: 2px 0; font-size: 11.5px; }
+.cm-note-box td { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding: 1px 6px; white-space: nowrap; }
+.cm-note-box img { max-width: 100%; display: block; pointer-events: none; }
+.cm-note-box code { font: 11px var(--mono); }
+/* a note without color (as PNETLab draws text) shows all of it, past its box */
+.cm-note foreignObject { overflow: visible; }
+.cm-note-box:not([class*="cor-"]) { overflow: visible; height: auto; min-height: 100%; }
+.cm-note-grip { fill: transparent; cursor: nwse-resize; }
+.cm-note:hover .cm-note-grip { fill: var(--border); }
 .cm-light { stroke: var(--surface); stroke-width: 1.5; }
 .cm-light.up { fill: var(--ok); }
 .cm-light.down { fill: var(--crit, #b91c1c); }

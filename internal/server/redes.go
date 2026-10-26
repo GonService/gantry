@@ -521,5 +521,5 @@ func (s *Server) labDrawing(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSON(w, map[string]any{"vms": cablesOf(p), "redes": redesOf(p)})
+	writeJSON(w, map[string]any{"vms": cablesOf(p), "redes": redesOf(p), "notas": notasOf(p)})
 }

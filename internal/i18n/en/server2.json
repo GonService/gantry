@@ -542,5 +542,12 @@
   "não consegui guardar a pasta antiga: %v": "could not keep the old folder: %v",
   "as posições do desenho foram afastadas %.1f vezes, porque os equipamentos ficavam encostados nas caixas do Gantry; a disposição é a mesma do original": "the drawing positions were spread %.1f times, because the devices touched in Gantry's boxes; the arrangement is the same as the original",
   "não consegui gravar o script das VMs na máquina: %v": "could not write the VM script on the machine: %v",
-  "lab inválido": "invalid lab"
+  "lab inválido": "invalid lab",
+  "# Notas do desenho do lab (texto, tabelas, imagens da pasta do projeto)\nx-notas:\n": "# Notes on the lab drawing (text, tables, images of the project folder)\nx-notas:\n",
+  "%s: use um mapa, como {nota-1: {text: Olá, pos: [100, 80]}}": "%s: use a map, like {nota-1: {text: Hello, pos: [100, 80]}}",
+  "%s.size: use [largura, altura], como [240, 120]": "%s.size: use [width, height], like [240, 120]",
+  "%s.cor: use amarela, azul, verde, rosa ou cinza": "%s.cor: use amarela, azul, verde, rosa or cinza",
+  "%s: campo desconhecido %q (use text, pos, size, cor)": "%s: unknown field %q (use text, pos, size, cor)",
+  "nota com nome inválido ou repetido": "note with an invalid or repeated name",
+  "nota %s: cor, posição ou tamanho inválido": "note %s: invalid color, position or size"
 }

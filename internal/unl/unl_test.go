@@ -45,6 +45,7 @@ func sample(extra string) []byte {
   <objects>
     <textobjects>
       <textobject id="1" name="txt 1" type="text"><data>` + b64("%3Cp%3ERela%C3%A7%C3%A3o%20IP%3C%2Fp%3E%3Ctable%3E%3Ctr%3E%3Ctd%3EPC01%3C%2Ftd%3E%3Ctd%3E192.168.1.10%3C%2Ftd%3E%3C%2Ftr%3E%3C%2Ftable%3E") + `</data></textobject>
+      <textobject id="2" name="txt 2" type="text"><data>` + b64("%3Cdiv%20id%3D%22customText2%22%20class%3D%22customShape%22%20style%3D%22position%3A%20absolute%3B%20top%3A%20251.994px%3B%20left%3A%2061.9744px%3B%20width%3A%20310px%3B%20height%3A%20439.858px%3B%22%3E%3Cp%3EFoto%3C%2Fp%3E%3Cfigure%3E%3Cimg%20class%3D%22ck_image%22%20src%3D%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUg%3D%3D%22%3E%3C%2Ffigure%3E%3C%2Fdiv%3E") + `</data></textobject>
     </textobjects>
   </objects>
   <workbooks><workbook id="Roteiro" type="html"><content><page>` + b64("%3Ch2%3EEtapa%201%20%u2014%20Corrigir%3C/h2%3E%3Cp%3EAche%20as%20falhas.%3C/p%3E") + `</page></content></workbook></workbooks>
@@ -169,5 +170,34 @@ func TestConvertInjection(t *testing.T) {
 		if strings.Contains(f, "..") || strings.Count(f, "/") > 1 {
 			t.Fatalf("arquivo fora da pasta: %q", f)
 		}
+	}
+}
+
+func TestConvertNotas(t *testing.T) {
+	b := sample("")
+	l, err := Parse(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := Convert(l, b, "teste.unl")
+	p, err := composex.Parse([]byte(r.Compose))
+	if err != nil {
+		t.Fatalf("%v\n%s", err, r.Compose)
+	}
+	if len(p.Notas) != 2 {
+		t.Fatalf("notas: %+v\n%s", p.Notas, r.Compose)
+	}
+	if !strings.Contains(p.Notas[0].Text, "| PC01 | 192.168.1.10 |") || !strings.Contains(p.Notas[0].Text, "|---|---|") {
+		t.Errorf("tabela: %q", p.Notas[0].Text)
+	}
+	n := p.Notas[1]
+	if !strings.Contains(n.Text, "Foto") || !strings.Contains(n.Text, "![](notas/nota-2-1.png)") || len(n.Size) != 2 || n.Size[0] != 310 || n.Size[1] != 440 {
+		t.Errorf("nota com imagem: %+v", n)
+	}
+	if len(n.Pos) != 2 {
+		t.Errorf("posição: %v", n.Pos)
+	}
+	if img := r.Files["notas/nota-2-1.png"]; !strings.HasPrefix(img, "\x89PNG") {
+		t.Errorf("imagem: %q", img)
 	}
 }

@@ -216,6 +216,11 @@ Mudanças que o Gantry é obrigado a fazer, sempre anotadas no
   equipamentos ficariam encostados nas caixas do Gantry, as posições são
   afastadas na mesma proporção, sem mudar a disposição.
 
+As caixas de texto da topologia (tabelas de IP, imagens, roteiro) viram
+notas no desenho, no mesmo lugar e com o mesmo tamanho: o texto em
+Markdown no `x-notas` do compose, as imagens em `notas/`. O texto continua
+também no `README.md` do lab.
+
 A importação também aponta, sem mudar, o que parece errado no original, na
 seção "Pontos de atenção no original" do `IMPORTACAO.md` (e num aviso ao
 terminar). Num exercício de troubleshooting pode ser de propósito.

@@ -149,7 +149,7 @@ func (s *Server) topology(w http.ResponseWriter, r *http.Request, h *hosts.Host)
 		"links":    links,
 		"warnings": warnings,
 		// The drawing of the cables, from the same read of the compose.
-		"drawing": map[string]any{"vms": cablesOf(p), "redes": redesOf(p)},
+		"drawing": map[string]any{"vms": cablesOf(p), "redes": redesOf(p), "notas": notasOf(p)},
 	})
 }
 

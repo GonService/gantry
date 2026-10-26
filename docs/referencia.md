@@ -88,6 +88,7 @@ O Gantry conversa direto com a API do Docker ou do Podman, sem nada hospedado e 
 - **Labs mistos e topologia**
   - Com a extensão `x-gantry`, um mesmo compose divide os serviços entre Docker e Podman (veja abaixo).
   - Aba Topologia em cada lab: engines, redes, portas publicadas no host e as dependências que atravessam engines.
+  - **Notas no desenho** (`x-notas` no compose): botão direito no fundo › Nova nota. Texto com **negrito**, *itálico*, `# títulos`, `- listas`, tabelas (`| a | b |`) e imagens da pasta do projeto (`![](notas/foto.png)`), em cinco cores ou sem fundo. Arraste para mover, pelo canto para mudar o tamanho, dois cliques para editar. As caixas de texto de um lab do PNETLab ou do EVE-NG viram notas no mesmo lugar, com as tabelas e imagens.
 - **VMs no lab**
   - Com a extensão `x-vms`, o lab também cria máquinas virtuais no QEMU da máquina do host (veja abaixo).
   - **Gerenciar…** em cada VM: **snapshots** (com a VM rodando guardam também a memória; voltar retoma sem reiniciar), **aumentar o disco**, **clonar** (a cópia entra no compose sem as portas publicadas) e **iniciar junto com a máquina** (LaunchAgent no Mac, systemd do usuário ou crontab no Linux).

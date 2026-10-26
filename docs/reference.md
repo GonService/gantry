@@ -90,6 +90,7 @@ The interface is available in English and Portuguese (gear › General). Some na
 - **Mixed labs and topology**
   - With the `x-gantry` extension, one compose splits its services between Docker and Podman (see below).
   - Topology tab in each lab: engines, networks, ports published on the host and dependencies that cross engines.
+  - **Notes on the drawing** (`x-notas` in the compose): right-click the background › New note. Text with **bold**, *italic*, `# titles`, `- lists`, tables (`| a | b |`) and images of the project folder (`![](notas/photo.png)`), in five colors or without background. Drag to move, from the corner to resize, double-click to edit. The text boxes of a PNETLab or EVE-NG lab become notes in the same place, with their tables and images.
 - **VMs in the lab**
   - With the `x-vms` extension, the lab also creates virtual machines in the QEMU of the host machine (see below).
   - **Manage…** on each VM: **snapshots** (with the VM running they also keep the memory; restoring resumes without rebooting), **grow the disk**, **clone** (the copy goes into the compose without the published ports) and **start with the machine** (LaunchAgent on a Mac, user systemd or crontab on Linux).

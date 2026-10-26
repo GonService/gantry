@@ -23,8 +23,9 @@ type Lab struct {
 	Description string
 	Nodes       []Node
 	Nets        map[int]Net
-	Texts       []string // the text boxes of the topology, as plain text
-	Workbook    []Page   // PNETLab workbook pages
+	Texts       []string  // the text boxes of the topology, as plain text
+	Boxes       []TextBox // the same boxes where they are, with their images
+	Workbook    []Page    // PNETLab workbook pages
 }
 
 // Node is one equipment of the lab.
@@ -57,6 +58,20 @@ type Net struct {
 	ID   int
 	Name string
 	Type string // bridge, ovs, pnet0…pnet9
+}
+
+// TextBox is a text box of the topology: its text (Markdown-ish, with
+// @@IMGn@@ where its n-th image was), where it is and its size.
+type TextBox struct {
+	Text            string
+	Left, Top, W, H int
+	Images          []BoxImage
+}
+
+// BoxImage is an image inside a text box (a data: URL in the original).
+type BoxImage struct {
+	Ext  string // png, jpg, gif, webp
+	Data []byte
 }
 
 // Page is a page of the workbook, as text.
@@ -143,8 +158,12 @@ func Parse(b []byte) (*Lab, error) {
 		l.Nets[atoi(xn.ID)] = Net{ID: atoi(xn.ID), Name: xn.Name, Type: xn.Type}
 	}
 	for _, t := range x.Texts {
-		if s := strings.TrimSpace(htmlText(decodeText(t.Data))); s != "" {
+		h := decodeText(t.Data)
+		if s := strings.TrimSpace(htmlText(h)); s != "" {
 			l.Texts = append(l.Texts, s)
+		}
+		if b, ok := textBox(h); ok {
+			l.Boxes = append(l.Boxes, b)
 		}
 	}
 	for _, w := range x.Workbooks {
@@ -245,4 +264,54 @@ func htmlText(s string) string {
 		lines = append(lines, strings.TrimLeft(l, " \t"))
 	}
 	return strings.TrimSpace(reBlank.ReplaceAllString(strings.Join(lines, "\n"), "\n\n"))
+}
+
+var (
+	reBoxStyle = regexp.MustCompile(`(?is)^\s*<div[^>]*style="([^"]*)"`)
+	reImgSrc   = regexp.MustCompile(`(?is)<img[^>]*src="data:image/(png|jpe?g|gif|webp);base64,([A-Za-z0-9+/=\s]+)"[^>]*>`)
+)
+
+// textBox reads a text box of the topology: the position and size from the
+// style of its outer div, the images (data: URLs) apart, the text as
+// htmlText makes it. False when it has neither text nor image.
+func textBox(h string) (TextBox, bool) {
+	var b TextBox
+	if m := reBoxStyle.FindStringSubmatch(h); m != nil {
+		for _, decl := range strings.Split(m[1], ";") {
+			k, v, ok := strings.Cut(decl, ":")
+			if !ok {
+				continue
+			}
+			n, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimSpace(v), "px"), 64)
+			if err != nil {
+				continue
+			}
+			switch strings.TrimSpace(strings.ToLower(k)) {
+			case "left":
+				b.Left = int(n + 0.5)
+			case "top":
+				b.Top = int(n + 0.5)
+			case "width":
+				b.W = int(n + 0.5)
+			case "height":
+				b.H = int(n + 0.5)
+			}
+		}
+	}
+	h = reImgSrc.ReplaceAllStringFunc(h, func(m string) string {
+		sub := reImgSrc.FindStringSubmatch(m)
+		data, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(sub[2]), ""))
+		if err != nil || len(data) == 0 {
+			return ""
+		}
+		ext := strings.ToLower(sub[1])
+		if ext == "jpeg" {
+			ext = "jpg"
+		}
+		b.Images = append(b.Images, BoxImage{Ext: ext, Data: data})
+		// a marker that survives htmlText: it becomes the Markdown of the image
+		return "<p>@@IMG" + strconv.Itoa(len(b.Images)) + "@@</p>"
+	})
+	b.Text = strings.TrimSpace(htmlText(h))
+	return b, b.Text != ""
 }

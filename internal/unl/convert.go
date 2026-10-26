@@ -306,6 +306,27 @@ func Convert(l *Lab, original []byte, file string) *Result {
 	for _, m := range noteOrder {
 		r.Notes = append(r.Notes, strings.Join(noteNodes[m], ", ")+": "+m)
 	}
+	// The text boxes of the topology become notes on the drawing, where they
+	// were (moved with the nodes when the drawing was opened up), their
+	// images as files of the project.
+	var notas []*composex.Nota
+	for i, tb := range l.Boxes {
+		id := fmt.Sprintf("nota-%d", i+1)
+		text := mdTables(tb.Text)
+		for k, img := range tb.Images {
+			file := fmt.Sprintf("notas/%s-%d.%s", id, k+1, img.Ext)
+			r.Files[file] = string(img.Data)
+			text = strings.ReplaceAll(text, fmt.Sprintf("@@IMG%d@@", k+1), "![]("+file+")")
+		}
+		n := &composex.Nota{ID: id, Text: text, Pos: spreadPoint(boxes, tb.Left, tb.Top, f)}
+		if tb.W >= 20 && tb.H >= 20 {
+			n.Size = []int{tb.W, tb.H}
+		}
+		notas = append(notas, n)
+	}
+	if len(notas) > 0 {
+		c.WriteString("\n" + composex.NotasYAML(notas))
+	}
 	r.Compose = c.String()
 	// The compose made here has only network equipment: anything else (a
 	// services: block slipped in by the file) stops the import.
@@ -562,4 +583,17 @@ func spreadAt(b []posBox, i int, f float64) [2]int {
 	cx := float64(x0) + (float64(p.x)+float64(p.w)/2-float64(x0))*f
 	cy := float64(y0) + (float64(p.y)+float64(p.h)/2-float64(y0))*f
 	return [2]int{max(0, int(math.Round(cx-float64(p.w)/2))), max(0, int(math.Round(cy-float64(p.h)/2)))}
+}
+
+// spreadPoint: where a point of the original drawing (a note's corner)
+// goes when the positions are multiplied by f, as spreadAt does the nodes.
+func spreadPoint(b []posBox, x, y int, f float64) []int {
+	if len(b) == 0 || f <= 1 {
+		return []int{max(0, x), max(0, y)}
+	}
+	x0, y0 := b[0].x, b[0].y
+	for _, p := range b {
+		x0, y0 = min(x0, p.x), min(y0, p.y)
+	}
+	return []int{max(0, int(math.Round(float64(x0)+float64(x-x0)*f))), max(0, int(math.Round(float64(y0)+float64(y-y0)*f)))}
 }

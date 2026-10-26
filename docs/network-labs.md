@@ -165,6 +165,8 @@ Changes Gantry has to make, always noted in `IMPORTACAO.md`:
 - **`pnet` networks (PNETLab's cloud):** the ports connected to them stay without a cable.
 - **Drawing positions:** PNETLab icons are small; when devices would touch in Gantry's boxes, the positions are spread in the same proportion, without changing the arrangement.
 
+The text boxes of the topology (IP tables, images, instructions) become notes on the drawing, in the same place and size: the text as Markdown in the compose's `x-notas`, the images in `notas/`. The text also stays in the lab's `README.md`.
+
 The import also points out, without changing them, what looks wrong in the original, in the "Pontos de atenção no original" (points of attention in the original) section of `IMPORTACAO.md` (and in a notice when it finishes). In a troubleshooting exercise it may be on purpose.
 
 - **Switch with a router image:** a node with a switch name (`SW…`) running an IOL L3 image. Without configuration, its ports stay down and it does not switch frames.

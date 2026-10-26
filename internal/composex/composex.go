@@ -108,6 +108,111 @@ type Project struct {
 	// file order.
 	Redes     map[string]*Rede `json:"redes,omitempty"`
 	RedeNames []string         `json:"-"`
+	// Notas are the notes on the drawing of a lab (x-notas): text, a
+	// table, an image, where the teacher put them in PNETLab or EVE-NG.
+	Notas []*Nota `json:"notas,omitempty"`
+}
+
+// Nota is one note on the drawing: its text in a small Markdown (lines,
+// **bold**, tables, # titles, - lists and images of the project folder),
+// where it is and its size.
+type Nota struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+	Pos  []int  `json:"pos,omitempty"`
+	Size []int  `json:"size,omitempty"`
+	Cor  string `json:"cor,omitempty"` // amarela, azul, verde, rosa, cinza ("" : sem fundo)
+}
+
+// NotaCores are the colors a note can have.
+var NotaCores = map[string]bool{"": true, "amarela": true, "azul": true, "verde": true, "rosa": true, "cinza": true}
+
+// NotasYAML writes the x-notas block of the compose ("" when there are no
+// notes).
+func NotasYAML(notas []*Nota) string {
+	if len(notas) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("# Notas do desenho do lab (texto, tabelas, imagens da pasta do projeto)\nx-notas:\n")
+	for _, n := range notas {
+		fmt.Fprintf(&b, "  %s:\n", n.ID)
+		if len(n.Pos) == 2 {
+			fmt.Fprintf(&b, "    pos: [%d, %d]\n", n.Pos[0], n.Pos[1])
+		}
+		if len(n.Size) == 2 {
+			fmt.Fprintf(&b, "    size: [%d, %d]\n", n.Size[0], n.Size[1])
+		}
+		if n.Cor != "" {
+			fmt.Fprintf(&b, "    cor: %s\n", n.Cor)
+		}
+		text := strings.TrimRight(strings.ReplaceAll(n.Text, "\r\n", "\n"), "\n ")
+		if strings.TrimSpace(text) == "" {
+			b.WriteString("    text: \"\"\n")
+			continue
+		}
+		// A literal block keeps the text as typed; the indentation is
+		// stated when the first line starts with spaces.
+		ind := ""
+		if strings.HasPrefix(text, " ") {
+			ind = "2"
+		}
+		fmt.Fprintf(&b, "    text: |%s-\n", ind)
+		for _, l := range strings.Split(text, "\n") {
+			if strings.TrimSpace(l) == "" {
+				b.WriteString("\n")
+				continue
+			}
+			// $ is doubled: compose reads $NAME as a variable, in x- fields too
+			b.WriteString("      " + strings.ReplaceAll(strings.TrimRight(l, " \t"), "$", "$$") + "\n")
+		}
+	}
+	return b.String()
+}
+
+// parseNotas reads x-notas: {nota-1: {text: …, pos: [x, y], size: [w, h], cor: amarela}}.
+func (p *Project) parseNotas(k string, x any) error {
+	m := asMap(x)
+	if m == nil && x != nil {
+		return fmt.Errorf("%s: use um mapa, como {nota-1: {text: Olá, pos: [100, 80]}}", k)
+	}
+	for _, it := range m {
+		id := str(it.Key)
+		where := k + "." + id
+		if !vmName.MatchString(id) {
+			return fmt.Errorf("%s: nome inválido", where)
+		}
+		n := &Nota{ID: id}
+		for _, kv := range asMap(it.Value) {
+			f, v := str(kv.Key), kv.Value
+			switch f {
+			case "text", "texto":
+				// $$ is how a compose writes a $ (it reads $NAME as a variable)
+				n.Text = strings.ReplaceAll(str(v), "$$", "$")
+			case "pos":
+				pos, err := parsePos(where+".pos", v)
+				if err != nil {
+					return err
+				}
+				n.Pos = pos
+			case "size", "tamanho":
+				sz, err := parsePos(where+".size", v)
+				if err != nil || sz[0] < 20 || sz[1] < 20 {
+					return fmt.Errorf("%s.size: use [largura, altura], como [240, 120]", where)
+				}
+				n.Size = sz
+			case "cor", "color":
+				n.Cor = str(v)
+				if !NotaCores[n.Cor] {
+					return fmt.Errorf("%s.cor: use amarela, azul, verde, rosa ou cinza", where)
+				}
+			default:
+				return fmt.Errorf("%s: campo desconhecido %q (use text, pos, size, cor)", where, f)
+			}
+		}
+		p.Notas = append(p.Notas, n)
+	}
+	return nil
 }
 
 // Rede is one lab network: a switch every port on it joins.
@@ -988,6 +1093,14 @@ func (p *Project) merge(doc yaml.MapSlice) error {
 	for _, k := range []string{"x-redes", "x-networks"} {
 		if x, ok := get(doc, k); ok {
 			if err := p.parseRedes(x); err != nil {
+				return err
+			}
+		}
+	}
+	for _, k := range []string{"x-notas", "x-notes"} {
+		if x, ok := get(doc, k); ok {
+			p.Notas = nil // a later file replaces the notes of an earlier one
+			if err := p.parseNotas(k, x); err != nil {
 				return err
 			}
 		}
