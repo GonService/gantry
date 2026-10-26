@@ -16,10 +16,12 @@ import (
 
 // projectFilesScript lists the text files of a project folder that are worth
 // editing in the app: configs next to the compose (prometheus.yml, routes,
-// dashboards…), up to three levels down.
+// dashboards…, the startup configuration of the devices of a network lab:
+// .cfg of the routers, .vpc of the VPCS; the README and IMPORTACAO.md of
+// an imported lab), up to three levels down.
 const projectFilesScript = `cd "$1" 2>/dev/null || exit 0
 find . -maxdepth 3 -type f -size -1024k \( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.conf' -o -name '*.toml' \
-  -o -name '*.ini' -o -name '*.cfg' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name '*.nix' -o -name 'Dockerfile*' \) \
+  -o -name '*.ini' -o -name '*.cfg' -o -name '*.vpc' -o -name '*.md' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name '*.nix' -o -name 'Dockerfile*' \) \
   -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -100`
 
 // projectFiles returns the extra editable files of the lab, relative to its folder.
