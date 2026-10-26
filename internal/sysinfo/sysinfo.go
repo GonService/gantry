@@ -55,10 +55,20 @@ func Parse(out string) Info {
 	if v, err := strconv.ParseFloat(kv["cpu_pct"], 64); err == nil {
 		i.CPUPct, i.HasCPU = v, true
 	}
-	for _, p := range []string{"disk", "disk2"} {
-		dup := p == "disk2" && len(i.Disks) == 1 && i.Disks[0].Total == n(p+"_total") && i.Disks[0].Used == n(p+"_used")
-		if kv[p+"_path"] != "" && n(p+"_total") > 0 && !dup {
-			i.Disks = append(i.Disks, Disk{Path: kv[p+"_path"], Total: n(p + "_total"), Used: n(p + "_used")})
+	for _, l := range strings.Split(out, "\n") {
+		// fs=<total> <used> <mount point>
+		rest, ok := strings.CutPrefix(strings.TrimSpace(l), "fs=")
+		if !ok {
+			continue
+		}
+		f := strings.SplitN(rest, " ", 3)
+		if len(f) != 3 {
+			continue
+		}
+		total, _ := strconv.ParseInt(f[0], 10, 64)
+		used, _ := strconv.ParseInt(f[1], 10, 64)
+		if total > 0 && f[2] != "" {
+			i.Disks = append(i.Disks, Disk{Path: f[2], Total: total, Used: used})
 		}
 	}
 	return i

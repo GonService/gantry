@@ -15,7 +15,7 @@ The interface is available in English and Portuguese (gear › General). Some na
   - **Folders and subfolders** organize the sidebar (by client, environment…). A folder shows how many machines it has and how many have a problem, even closed; its 🔍 filters only inside it; large folders open summarized (problems first) with "see all". The search at the top looks in all of them and shows the folder of each result.
   - The **gear** next to the version opens Settings: **Machines** (add, edit, remove, choose the folder), **Folders** (create, rename, move, delete; only empty folders), **Credentials** (image registries, SSH passwords of this session, where secrets are kept) and **General** (theme, language, version).
   - Remote servers connect only when you open them: the app does not open SSH to all of them at startup. **Disconnect** closes the connection.
-  - The machine page shows the hardware and the CPU, memory and disk usage, read by a short script (local or over SSH, no agent). Then the tabs:
+  - The machine page shows the hardware and the usage of CPU, memory and each disk (every local filesystem: another partition, a second SSD, a USB drive), read by a short script (local or over SSH, no agent). Then the tabs:
     - **Projects** (the first tab), newest first, with **Create project**;
     - **Containers**, with one sub-tab per engine (Docker, Podman, containerd…) and, in each, Containers, Images, Volumes and Networks;
     - **VMs** of all projects, with screen (VNC), console, SSH, start, stop and remove;

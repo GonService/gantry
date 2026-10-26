@@ -21,8 +21,8 @@ func TestScriptHere(t *testing.T) {
 }
 
 func TestParseMac(t *testing.T) {
-	i := Parse("os=macOS 15.1\ncpus=10\nmem_total=17179869184\nmem_used=8589934592\ncpu_pct=12.5\ndisk_path=/System/Volumes/Data\ndisk_total=100\ndisk_used=40\n")
-	if i.OS != "macOS 15.1" || i.CPUs != 10 || i.CPUPct != 12.5 || len(i.Disks) != 1 || i.Disks[0].Used != 40 {
+	i := Parse("os=macOS 15.1\ncpus=10\nmem_total=17179869184\nmem_used=8589934592\ncpu_pct=12.5\nfs=100 40 /System/Volumes/Data\nfs=500 10 /Volumes/Meu Disco\n")
+	if i.OS != "macOS 15.1" || i.CPUs != 10 || i.CPUPct != 12.5 || len(i.Disks) != 2 || i.Disks[0].Used != 40 || i.Disks[1].Path != "/Volumes/Meu Disco" {
 		t.Errorf("%+v", i)
 	}
 }

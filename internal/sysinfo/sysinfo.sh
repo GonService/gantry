@@ -39,12 +39,28 @@ else
 	echo "ip=$ip"
 	d=/
 fi
-root_dev=$(df -Pk "$d" | awk 'NR==2 {print $1}')
-df -Pk "$d" | awk 'NR==2 {printf "disk_path=%s\ndisk_total=%d\ndisk_used=%d\n", $6, $2*1024, $3*1024}'
-for p in /var/lib/docker /var/lib/containers /var/lib/containerd; do
-	[ -d "$p" ] || continue
-	df -Pk "$p" | awk -v dev="$root_dev" 'NR==2 && $1 != dev {printf "disk2_path=%s\ndisk2_total=%d\ndisk2_used=%d\n", $6, $2*1024, $3*1024; exit}'
-done
+# Disks: the main one first, then every other filesystem on a disk of
+# its own (a second SSD, /home on another partition, a USB drive), one
+# line each, "fs=<total> <used> <mount point>". Filesystems in memory, the
+# images of snaps and containers, /boot and the like stay out; two mount
+# points of one device (btrfs subvolumes) show once.
+if [ "$os" = Darwin ]; then
+	mounts=$( (echo "$d"; for v in /Volumes/*; do [ -d "$v" ] && echo "$v"; done) )
+else
+	mounts=$( (echo "$d"; awk '$3 !~ /^(tmpfs|devtmpfs|squashfs|overlay|efivarfs|ramfs|proc|sysfs|cgroup2?|nsfs|devpts|mqueue|debugfs|tracefs|securityfs|pstore|bpf|configfs|fusectl|hugetlbfs|autofs|binfmt_misc|rpc_pipefs|nfsd|selinuxfs|iso9660|udf|zram|fuse|fuse\..*|portal|erofs|nfs4?|cifs|smb3?|ceph|glusterfs|9p|davfs)$/ { print $2 }' /proc/mounts 2>/dev/null) |
+		grep -Ev '^/(boot|snap|run|sys|proc|dev|var/lib/docker/|var/lib/containers/storage/|var/lib/kubelet/|var/snap)' | sed 's/\\040/ /g')
+fi
+printf '%s\n' "$mounts" | while IFS= read -r m; do
+	# -l: only local filesystems (a network share that stopped answering
+	# would hold the whole page)
+	[ -n "$m" ] && df -Pkl "$m" 2>/dev/null | awk 'NR == 2 { print }'
+done | awk -v mac="$os" '
+	# device, total, used, mount point (it may have spaces)
+	{ dev = $1; mp = $0; sub(/^[^ ]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+% +/, "", mp) }
+	seen[dev]++ || seen["mp:" mp]++ { next }
+	mac == "Darwin" && n > 0 && (mp == "/" || mp ~ /^\/System\//) { next }  # the system volume, again
+	$2 < 262144 { next }  # under 256 MB: EFI and other small partitions
+	n++ < 8 { printf "fs=%d %d %s\n", $2 * 1024, $3 * 1024, mp }'
 command -v qemu-system-x86_64 >/dev/null 2>&1 || command -v qemu-system-aarch64 >/dev/null 2>&1 && echo "qemu=1"
 [ -e /dev/kvm ] && echo "kvm=1"
 exit 0
