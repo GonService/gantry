@@ -294,8 +294,15 @@ func (s *Server) composeLabRun(ctx context.Context, h *hosts.Host, id, dir strin
 			}
 			if f, err := s.writeTaps(ctx, h, id, dir, p); err != nil {
 				return pre, preCmd, err
-			} else if f != "" && !slices.Contains(files, f) {
-				files = append(append([]string{}, files...), f)
+			} else if f != "" {
+				if !slices.Contains(files, f) {
+					files = append(append([]string{}, files...), f)
+				}
+				// A sidecar lives in its service's network (network_mode:
+				// service:X): Podman will not remove X while the sidecar
+				// exists, so recreating X failed ("has dependent
+				// containers"). The sidecars go first; up makes them again.
+				s.dropTapSidecars(ctx, h, id, dir, files, p)
 			}
 		} else if f := tapsOverride(dir); !slices.Contains(files, f) && h.Exists(ctx, f) {
 			files = append(append([]string{}, files...), f)

@@ -68,6 +68,31 @@ func tapsYAML(id string, p *composex.Project, bin string) string {
 	return b.String()
 }
 
+// dropTapSidecars removes the cable sidecars of a project before an up, so
+// compose can recreate the services they hang on. Nothing to remove (a
+// first up) is not an error, and a failure here only shows up again in up.
+func (s *Server) dropTapSidecars(ctx context.Context, h *hosts.Host, id, dir string, files []string, p *composex.Project) {
+	if len(p.Taps) == 0 {
+		return
+	}
+	argv := append([]string{}, h.Compose()...)
+	argv = append(argv, "-p", id)
+	for _, f := range files {
+		argv = append(argv, "-f", f)
+	}
+	argv = append(argv, tapSidecarArgs(p)...)
+	_, _ = h.Run(ctx, dir, argv, nil)
+}
+
+// tapSidecarArgs is "rm -s -f" with the sidecars of the project.
+func tapSidecarArgs(p *composex.Project) []string {
+	out := []string{"rm", "-s", "-f"}
+	for _, t := range p.Taps {
+		out = append(out, tapSidecar(t.Name))
+	}
+	return out
+}
+
 // writeTaps sends the tap binary to the machine and writes the override.
 // No service on cables: the override goes (and the sidecars with it, by
 // --remove-orphans).
