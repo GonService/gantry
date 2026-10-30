@@ -22,7 +22,7 @@
   "Lab importado do PNETLab/EVE-NG. Como foi importado e o que mudou:\n[IMPORTACAO.md](IMPORTACAO.md). O arquivo original está em `original/`.\n\n",
   "No such file",
   "[Unit]\nDescription=Gantry: VMs que iniciam com a máquina\nAfter=network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/bin/sh \"",
-  "cd \"$1\" 2>/dev/null || exit 0\nfind . -maxdepth 3 -type f -size -1024k \\( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.conf' -o -name '*.toml' \\\n  -o -name '*.ini' -o -name '*.cfg' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name 'Dockerfile*' \\) \\\n  -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -100",
+  "cd \"$1\" 2>/dev/null || exit 0\nfind . -maxdepth 3 -type f -size -1024k \\( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.conf' -o -name '*.toml' \\\n  -o -name '*.ini' -o -name '*.cfg' -o -name '*.vpc' -o -name '*.md' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name '*.nix' -o -name 'Dockerfile*' \\) \\\n  -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -100",
   "echo \"Filas do vhost \"",
   "gravada na NVRAM antes do primeiro boot. Nenhuma linha de configuração foi\nmudada.\n\n",
   "if command -v journalctl >/dev/null && sudo journalctl -n 1 -q >/dev/null 2>&1; then sudo journalctl -f -n 300 --no-pager; else sudo tail -n 300 -F /var/log/syslog /var/log/messages /var/log/cloud-init-output.log 2>/dev/null; fi",

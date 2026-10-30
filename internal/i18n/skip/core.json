@@ -1,6 +1,6 @@
 [
   "ERR cabeçalho desconhecido\n",
-  "cd \"$1\" 2>/dev/null || exit 0\nfind . -maxdepth 3 -type f -size -1024k \\( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.conf' -o -name '*.toml' \\\n  -o -name '*.ini' -o -name '*.cfg' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name '*.nix' -o -name 'Dockerfile*' \\) \\\n  -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -100",
+  "cd \"$1\" 2>/dev/null || exit 0\nfind . -maxdepth 3 -type f -size -1024k \\( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.conf' -o -name '*.toml' \\\n  -o -name '*.ini' -o -name '*.cfg' -o -name '*.vpc' -o -name '*.md' -o -name '*.txt' -o -name '*.sh' -o -name '*.html' -o -name '*.properties' -o -name '*.nix' -o -name 'Dockerfile*' \\) \\\n  -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -100",
   "chave do servidor",
   "descrição",
   "gerência",
