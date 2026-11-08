@@ -133,7 +133,7 @@ function Page() {
   const s = useStore();
   const r = s.route;
   if (!s.hostsLoaded) return <Loading>{t("Conectando aos hosts…")}</Loading>;
-  if (r.cvmNew) return <CvmCreate key={"cc" + s.visit} />;
+  if (r.cvmNew) return <CvmCreate key={"cc" + s.visit + (r.q.de || "") + (r.q.engine || "")} from={r.q.de || ""} engine={r.q.engine || ""} />;
   if (r.cvm) return <CvmPage key={"cv" + r.cvm} name={r.cvm} tab={r.cvmTab || "processos"} />;
   if (r.kube) return <KubePage cluster={clusterById(r.kube) || null} loaded={!!s.clusters} kind={r.kkind || ""} kinds={s.kinds || []} />;
   if (r.welcome) {

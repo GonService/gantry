@@ -1,6 +1,12 @@
 [
+  "\n# Comandos que rodam na Container VM (docker, podman, nerdctl); os do\n# Mac, quando existem, vêm antes.\nexport PATH=\"$PATH:$HOME/.gantry/bin\"\n",
+  "\" with administrator privileges with prompt \"O Gantry quer apontar /var/run/docker.sock para a Container VM.\"",
+  "do shell script \"",
+  "docker context use ",
   "docker ps --no-trunc --format '{{.ID}} {{.Names}} {{.Label \"com.docker.compose.project\"}}' 2>/dev/null\nsudo podman ps --no-trunc --format '{{.ID}} {{.Names}} {{index .Labels \"com.docker.compose.project\"}}' 2>/dev/null",
+  "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-user-static || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-user qemu-user-binfmt",
   "sudo journalctl -b --no-pager -o short-iso -n %d",
   "sudo journalctl -b --no-pager -o short-iso -n %d -u docker.service -u containerd.service",
-  "sudo journalctl -b --no-pager -o short-iso -n %d -u podman.service -u podman.socket"
+  "sudo journalctl -b --no-pager -o short-iso -n %d -u podman.service -u podman.socket",
+  "sudo journalctl -f -n 300 --no-pager"
 ]

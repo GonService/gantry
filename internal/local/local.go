@@ -253,7 +253,7 @@ func containerVMs(ctx context.Context) []Engine {
 			e.State = "running"
 			if spec.Docker {
 				e.Socket = cvm.DockerSocket(name)
-			} else {
+			} else if spec.Podman {
 				e.Socket = cvm.PodmanSocket(name)
 			}
 			e.Detail = fmt.Sprintf("%d CPU · %d GiB", spec.CPUs, spec.MemoryMiB/1024)

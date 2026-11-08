@@ -14,6 +14,7 @@ export type Spec = {
   dataGiB: number;
   docker: boolean;
   podman: boolean;
+  containerd?: boolean;
   rosetta: boolean;
   qemu: boolean;
   sshAgent: boolean;
@@ -21,7 +22,36 @@ export type Spec = {
   image?: string;
   autoStart: boolean;
   idleStopMin?: number;
+  shares?: Share[];
+  snapDaily?: boolean;
+  snapKeep?: number;
 };
+
+export type Share = { path: string; readOnly?: boolean };
+
+export type Integration = {
+  dockerContext: string;
+  podmanContext: string;
+  podmanConn: boolean;
+  podmanCli: boolean;
+  dockerCli: string;
+  path: boolean;
+  rc: string;
+  link: boolean;
+  linkOther?: string;
+  shims: string[];
+  currentContext: string;
+  dockerSock?: string;
+  podmanSock?: string;
+  binDir: string;
+  commands: string[];
+};
+
+export type Snap = { id: string; at: number; reason: string; auto: boolean; extra: number };
+export type Platform = { name: string; how: string; active: boolean };
+export type Creds = { agent: boolean; agentKeys: number; agentSock: string; registries: string[]; store: string; folders: string[] };
+
+export const recreateHref = (name: string, engine?: string) => "#/cvm/criar?de=" + enc(name) + (engine ? "&engine=" + enc(engine) : "");
 
 export type DiskUse = { name: string; size: number; occupied: number };
 
@@ -97,6 +127,9 @@ export function refreshAfter() {
   void loadLocal();
   void loadHosts(true);
 }
+
+// engineNames lists the engines of a spec.
+export const engineNames = (s: Spec) => [s.docker ? "Docker" : "", s.podman ? "Podman" : "", s.containerd ? "containerd" : ""].filter(Boolean).join(" · ");
 
 // power runs ligar, desligar, reiniciar or apagar in a job of the dock.
 export async function power(name: string, act: "ligar" | "desligar" | "reiniciar" | "apagar", after?: () => void) {

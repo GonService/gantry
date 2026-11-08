@@ -35,8 +35,11 @@ type Spec struct {
 	DataGiB   int    `json:"dataGiB"`
 	Docker    bool   `json:"docker"`
 	Podman    bool   `json:"podman"`
-	Rosetta   bool   `json:"rosetta"`
-	QEMU      bool   `json:"qemu"`
+	// Containerd adds nerdctl (with BuildKit); on the Mac a nerdctl in
+	// ~/.gantry/bin runs it in the machine, in the same folder.
+	Containerd bool `json:"containerd"`
+	Rosetta    bool `json:"rosetta"`
+	QEMU       bool `json:"qemu"`
 	// SSHAgent passes the Mac's ssh-agent to the machine (git clone and
 	// buildx --ssh with the user's keys, which never leave the Mac).
 	SSHAgent bool `json:"sshAgent"`
@@ -49,6 +52,19 @@ type Spec struct {
 	// IdleStopMin stops the machine after this many minutes with no
 	// container running (0: never).
 	IdleStopMin int `json:"idleStopMin,omitempty"`
+	// Shares are more folders of the Mac, at the same path (the home folder
+	// is always there).
+	Shares []Share `json:"shares,omitempty"`
+	// SnapDaily takes a snapshot of the data disk once a day, at start;
+	// SnapKeep is how many automatic ones stay.
+	SnapDaily bool `json:"snapDaily"`
+	SnapKeep  int  `json:"snapKeep,omitempty"`
+}
+
+// Share is a folder of the Mac in the machine, at the same path.
+type Share struct {
+	Path     string `json:"path"`
+	ReadOnly bool   `json:"readOnly,omitempty"`
 }
 
 var nameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
@@ -70,7 +86,8 @@ func Default(cpus int, mem int64) Spec {
 		}
 	}
 	return Spec{Name: DefaultName, CPUs: c, MemoryMiB: m, SystemGiB: 10, DataGiB: 128,
-		Docker: true, Podman: true, Rosetta: runtime.GOARCH == "arm64", SSHAgent: true, AutoStart: true, IdleStopMin: 0}
+		Docker: true, Podman: true, Rosetta: runtime.GOARCH == "arm64", SSHAgent: true, AutoStart: true, IdleStopMin: 0,
+		SnapDaily: true, SnapKeep: 7}
 }
 
 // Check reports what is wrong with a spec, for the creation form.
@@ -86,8 +103,13 @@ func (s Spec) Check() error {
 		return errors.New("o disco do sistema precisa de pelo menos 6 GiB")
 	case s.DataGiB < 8:
 		return errors.New("o disco de dados precisa de pelo menos 8 GiB")
-	case !s.Docker && !s.Podman:
-		return errors.New("escolha pelo menos um engine: Docker ou Podman")
+	case !s.Docker && !s.Podman && !s.Containerd:
+		return errors.New("escolha pelo menos um engine: Docker, Podman ou containerd")
+	}
+	for _, sh := range s.Shares {
+		if !filepath.IsAbs(sh.Path) || strings.ContainsAny(sh.Path, " ,\n") {
+			return fmt.Errorf("pasta compartilhada inválida (caminho absoluto, sem espaço nem vírgula): %s", sh.Path)
+		}
 	}
 	return nil
 }
@@ -205,6 +227,9 @@ func Args(s Spec, dir, home, arch string) []string {
 		"--device", "virtio-rng",
 		"--device", "virtio-serial,logFilePath=" + p(fConsole),
 		"--device", "virtio-fs,sharedDir=" + home + ",mountTag=home",
+	}
+	for i, sh := range s.Shares {
+		a = append(a, "--device", fmt.Sprintf("virtio-fs,sharedDir=%s,mountTag=share%d", sh.Path, i))
 	}
 	if s.Rosetta && arch == "arm64" {
 		a = append(a, "--device", "rosetta,mountTag=rosetta,ignoreIfMissing")

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Gantry: roda "{{.Inner}}" na Container VM {{.Name}}, na pasta atual (o Mac e
+# a máquina veem as pastas no mesmo caminho). Gerado pelo Gantry; não edite.
+dir='{{.Dir}}'
+q=""
+for a in "$@"; do q="$q '$(printf '%s' "$a" | sed "s/'/'\\\\''/g")'"; done
+cmd='{{.Inner}}'
+# DOCKER_HOST no socket do Podman da máquina: o mesmo comando vai para o Podman.
+case "${DOCKER_HOST:-}${CONTAINER_HOST:-}" in
+  *"$dir/podman.sock"*) [ "$cmd" = docker ] && cmd="sudo podman" ;;
+esac
+if [ -t 0 ] && [ -t 1 ]; then t=-t; else t=-T; fi
+exec ssh -q $t -i "$dir/id_ed25519" -o IdentitiesOnly=yes -o "ProxyCommand=/usr/bin/nc -U $dir/ssh.sock" \
+  -o "UserKnownHostsFile=$dir/known_hosts" -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
+  gantry@{{.Name}} -- "cd '$PWD' 2>/dev/null; $cmd$q"

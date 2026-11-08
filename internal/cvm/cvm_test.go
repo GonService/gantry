@@ -1,7 +1,10 @@
 package cvm
 
 import (
+	"context"
 	"encoding/base64"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -194,5 +197,76 @@ func TestParseNames(t *testing.T) {
 	n := parseNames("abcdefabcdefabcdef web-1 loja\n1234567890abcd db <no value>\n\n")
 	if n["abcdefabcdefabcdef"] != "web-1 · loja" || n["1234567890abcd"] != "db" {
 		t.Errorf("%v", n)
+	}
+}
+
+func TestSharesAndContainerd(t *testing.T) {
+	s := Default(12, 36<<30)
+	s.Containerd = true
+	s.Shares = []Share{{Path: "/Volumes/Dados/datasets", ReadOnly: true}}
+	if err := s.Check(); err != nil {
+		t.Fatal(err)
+	}
+	a := strings.Join(Args(s, "/d", "/Users/ana", "arm64"), " ")
+	if !strings.Contains(a, "virtio-fs,sharedDir=/Volumes/Dados/datasets,mountTag=share0") {
+		t.Errorf("pasta extra fora dos args: %s", a)
+	}
+	sc, _ := Script(s, "/Users/ana")
+	for _, want := range []string{"share0 /Volumes/Dados/datasets virtiofs ro,nofail", "nerdctl-full-2.4.2-linux-$arch.tar.gz", nerdctlSums["arm64"], "sha256sum -c -", "rm -f /usr/local/lib/systemd/system/containerd.service", "makestep 1 -1"} {
+		if !strings.Contains(sc, want) {
+			t.Errorf("o script não tem %q", want)
+		}
+	}
+	if !strings.Contains(syncScript(s), "share0 /Volumes/Dados/datasets virtiofs ro") {
+		t.Error("syncScript sem a pasta")
+	}
+	bad := s
+	bad.Shares = []Share{{Path: "relativo"}}
+	if bad.Check() == nil {
+		t.Error("aceitou caminho relativo")
+	}
+}
+
+func TestIntegrationFiles(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("SHELL", "/bin/zsh")
+	t.Setenv("DOCKER_CONFIG", "")
+	s := Default(8, 16<<30)
+	s.Containerd = true
+	if err := Save(s); err != nil {
+		t.Fatal(err)
+	}
+	yes := true
+	if err := Apply(context.Background(), s.Name, Wanted{DockerContext: &yes, Path: &yes, Use: &yes}); err != nil {
+		t.Fatal(err)
+	}
+	in := Inspect(s.Name)
+	if in.DockerContext != "gantry" || !in.Path || in.CurrentCtx != "gantry" {
+		t.Errorf("integração: %+v", in)
+	}
+	for _, bin := range []string{"docker", "podman", "nerdctl", "gantry-vm"} {
+		b, err := os.ReadFile(filepath.Join(home, ".gantry", "bin", bin))
+		if err != nil {
+			t.Fatalf("faltou %s: %v", bin, err)
+		}
+		if !strings.Contains(string(b), "gantry@gantry-vm") {
+			t.Errorf("%s:\n%s", bin, b)
+		}
+	}
+	rc, _ := os.ReadFile(filepath.Join(home, ".zshrc"))
+	if strings.Count(string(rc), rcStart) != 1 {
+		t.Errorf("zshrc:\n%s", rc)
+	}
+	no := false
+	if err := Apply(context.Background(), s.Name, Wanted{DockerContext: &no, Path: &no}); err != nil {
+		t.Fatal(err)
+	}
+	in = Inspect(s.Name)
+	if in.DockerContext != "" || in.Path {
+		t.Errorf("não desfez: %+v", in)
+	}
+	if rc, _ := os.ReadFile(filepath.Join(home, ".zshrc")); strings.Contains(string(rc), "gantry") {
+		t.Errorf("zshrc ficou com o bloco:\n%s", rc)
 	}
 }

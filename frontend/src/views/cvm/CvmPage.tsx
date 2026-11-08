@@ -10,7 +10,9 @@ import { confirm } from "@/components/dialog";
 import { CopyCommand, ErrorBox, Loading } from "@/components/ui";
 import { toast } from "@/shell/toasts";
 import { t } from "@/lib/i18n";
-import { cvmHref, fmtRate, power, STATE, type CvmList, type CvmView, type Proc, type Snapshot } from "./cvm";
+import { cvmHref, engineNames, fmtRate, power, recreateHref, STATE, type CvmList, type CvmView, type Proc, type Snapshot } from "./cvm";
+import { EnginesTab, PlatformsTab, StorageTab } from "./tabs";
+import { openTerminal } from "@/shell/dock";
 
 type Sys = { cpus?: number; cpuPct?: number; hasCpu?: boolean; memTotal?: number; memUsed?: number; disks?: { path: string; used: number; total: number }[]; uptime?: number; load?: string; kernel?: string; os?: string; arch?: string; ip?: string };
 
@@ -81,7 +83,10 @@ export function CvmPage({ name, tab }: { name: string; tab: string }) {
   const tabs: [string, string][] = [
     ["processos", t("Processos")],
     ["logs", t("Logs e terminal")],
+    ["engines", t("Engines e sockets")],
     ["recursos", t("Recursos")],
+    ["armazenamento", t("Armazenamento")],
+    ["plataformas", t("Multi-arch e credenciais")],
     ["script", t("Script")],
   ];
   const cur = tabs.some(([k]) => k === tab) ? tab : "processos";
@@ -101,7 +106,7 @@ export function CvmPage({ name, tab }: { name: string; tab: string }) {
             </span>
           </h1>
           <div className="sub">
-            vfkit · Apple Virtualization · {[v.spec.docker ? "Docker" : "", v.spec.podman ? "Podman" : ""].filter(Boolean).join(" · ")} · {v.dir}
+            vfkit · Apple Virtualization · {engineNames(v.spec)} · {v.dir}
           </div>
         </div>
         <div className="actions">
@@ -139,7 +144,10 @@ export function CvmPage({ name, tab }: { name: string; tab: string }) {
       </div>
       {cur === "processos" ? running ? <Procs name={v.name} /> : <Off v={v} load={load} /> : null}
       {cur === "logs" ? <Logs v={v} /> : null}
+      {cur === "engines" ? <EnginesTab v={v} /> : null}
       {cur === "recursos" ? <Resources v={v} reload={load} /> : null}
+      {cur === "armazenamento" ? <StorageTab v={v} reload={load} /> : null}
+      {cur === "plataformas" ? <PlatformsTab v={v} reload={load} /> : null}
       {cur === "script" ? <SavedScript name={v.name} /> : null}
     </div>
   );
@@ -543,10 +551,31 @@ function Logs({ v }: { v: CvmView }) {
         <p className="muted small" style={{ margin: "0 0 8px" }}>
           {t("Pela vsock, com a chave só desta máquina: sem senha e sem porta de rede.")}
         </p>
+        <div className="cvm-actions" style={{ marginBottom: 10 }}>
+          <button className="btn primary" type="button" disabled={v.state !== "running"} onClick={() => openShell(v.name, "")}>
+            {t("Abrir terminal")}
+          </button>
+          {["sistema", "docker", "podman"]
+            .filter((k) => (k !== "docker" || v.spec.docker) && (k !== "podman" || v.spec.podman))
+            .map((k) => (
+              <button key={k} className="btn" type="button" disabled={v.state !== "running"} onClick={() => openShell(v.name, k)}>
+                {t("Seguir o log: {src}", { src: k === "sistema" ? t("sistema") : k === "docker" ? "Docker" : "Podman" })}
+              </button>
+            ))}
+        </div>
+        <p className="muted small" style={{ margin: "0 0 6px" }}>
+          {t("Do terminal do Mac:")}
+        </p>
         <CopyCommand cmd={ssh} />
       </section>
     </div>
   );
+}
+
+// openShell opens a shell (or a followed log) of the machine in the dock.
+function openShell(name: string, logs: string) {
+  const label = logs ? name + " · log " + logs : name;
+  openTerminal("", { id: "cvm-" + name + (logs ? "-" + logs : ""), name: label, service: label, termURL: "/cvm/" + enc(name) + "/terminal" + (logs ? "?logs=" + logs : "") });
 }
 
 function Resources({ v, reload }: { v: CvmView; reload: () => void }) {
@@ -554,12 +583,13 @@ function Resources({ v, reload }: { v: CvmView; reload: () => void }) {
   const [mem, setMem] = useState(Math.round(v.spec.memoryMiB / 1024));
   const [disk, setDisk] = useState(v.spec.dataGiB);
   const [auto, setAuto] = useState(v.spec.autoStart);
+  const [idle, setIdle] = useState(v.spec.idleStopMin || 0);
   const [busy, setBusy] = useState(false);
-  const dirty = cpus !== v.spec.cpus || mem * 1024 !== v.spec.memoryMiB || disk !== v.spec.dataGiB || auto !== v.spec.autoStart;
+  const dirty = cpus !== v.spec.cpus || mem * 1024 !== v.spec.memoryMiB || disk !== v.spec.dataGiB || auto !== v.spec.autoStart || idle !== (v.spec.idleStopMin || 0);
   const save = async () => {
     setBusy(true);
     try {
-      await api("/cvm/" + enc(v.name), { method: "PUT", body: { cpus, memoryMiB: mem * 1024, dataGiB: disk, autoStart: auto } });
+      await api("/cvm/" + enc(v.name), { method: "PUT", body: { cpus, memoryMiB: mem * 1024, dataGiB: disk, autoStart: auto, idleStopMin: idle } });
       toast(v.state === "running" ? t("Salvo. CPU, memória e disco valem quando a máquina reiniciar.") : t("Salvo."), "ok");
       reload();
     } catch (e) {
@@ -650,10 +680,32 @@ function Resources({ v, reload }: { v: CvmView; reload: () => void }) {
               <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
               <span>{t("Ligar quando o Gantry abrir")}</span>
             </label>
+            <label className="cvm-check">
+              <input type="checkbox" checked={idle > 0} onChange={(e) => setIdle(e.target.checked ? 30 : 0)} />
+              <span>
+                {t("Desligar sem nenhum container rodando por")}{" "}
+                <select value={idle || 30} disabled={!idle} onChange={(e) => setIdle(+e.target.value)} aria-label={t("Minutos")}>
+                  <option value={15}>15 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={60}>1 h</option>
+                  <option value={120}>2 h</option>
+                </select>
+              </span>
+            </label>
             <p className="muted small" style={{ margin: 0 }}>
               {t("Fechar o Gantry não desliga a máquina. Ao suspender o Mac ela pausa junto e volta ao acordar.")}
             </p>
+            <span className="muted small">{t("Lembre de salvar.")}</span>
           </div>
+        </section>
+        <section className="panel panel-pad">
+          <h2 style={{ marginBottom: 6 }}>{t("Recriar mantendo os dados")}</h2>
+          <p className="muted small" style={{ margin: "0 0 10px" }}>
+            {t("Troca o sistema por um novo (outra versão do script, outros engines) e mantém o disco de dados. Tira um snapshot antes.")}
+          </p>
+          <a className="btn" href={recreateHref(v.name)}>
+            {t("Recriar…")}
+          </a>
         </section>
         <section className="panel panel-pad">
           <h2 style={{ marginBottom: 6 }}>{t("Apagar a máquina")}</h2>

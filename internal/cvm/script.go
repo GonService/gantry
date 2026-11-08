@@ -21,13 +21,22 @@ var (
 	userDataT  = template.Must(template.New("user-data").Parse(userDataTmpl))
 )
 
+// nerdctl-full, pinned with the sums of its SHA256SUMS.
+const nerdctlVersion = "2.4.2"
+
+var nerdctlSums = map[string]string{
+	"arm64": "fe0ef0e9840ee8932640e6058f84b7fa98050f9726e44af44883a5b804ae830e",
+	"amd64": "1f12c1a5840744fdf7029483c55a69813d44aa2ec1ef879d52d81ff6a3049ecd",
+}
+
 // Script is the provisioning script of a spec, exactly as it will run in the
 // machine, and its sha256.
 func Script(s Spec, home string) (string, string) {
 	var b bytes.Buffer
 	_ = provisionT.Execute(&b, map[string]any{
 		"Name": s.Name, "Home": home, "Rosetta": s.Rosetta, "QEMU": s.QEMU,
-		"Docker": s.Docker, "Podman": s.Podman, "SSHAgent": s.SSHAgent,
+		"Docker": s.Docker, "Podman": s.Podman, "SSHAgent": s.SSHAgent, "Shares": s.Shares,
+		"Containerd": s.Containerd, "Nerdctl": nerdctlVersion, "NerdctlArm64": nerdctlSums["arm64"], "NerdctlAmd64": nerdctlSums["amd64"],
 		"Extra":   strings.TrimSpace(strings.ReplaceAll(s.Extra, "\r\n", "\n")),
 		"PortSSH": portSSH, "PortDocker": portDocker, "PortPodman": portPodman,
 	})

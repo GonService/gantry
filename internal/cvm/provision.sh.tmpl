@@ -36,10 +36,18 @@ passo "2. Pastas do Mac no mesmo caminho (virtiofs)"
 mkdir -p {{.Home}}
 grep -q '^home ' /etc/fstab || echo 'home {{.Home}} virtiofs rw,nofail 0 0' >>/etc/fstab
 mountpoint -q {{.Home}} || mount {{.Home}}
+{{- range $i, $sh := .Shares}}
+mkdir -p {{$sh.Path}}
+grep -q '^share{{$i}} ' /etc/fstab || echo 'share{{$i}} {{$sh.Path}} virtiofs {{if $sh.ReadOnly}}ro{{else}}rw{{end}},nofail 0 0' >>/etc/fstab
+mountpoint -q {{$sh.Path}} || mount {{$sh.Path}} || true
+{{- end}}
 
 passo "3. Pacotes de base e acesso do Gantry por vsock"
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl gnupg socat
+apt-get install -y --no-install-recommends ca-certificates curl gnupg socat chrony
+# Relógio certo depois que o Mac acorda: o chrony corrige o salto na hora.
+echo 'makestep 1 -1' >/etc/chrony/conf.d/gantry.conf
+systemctl restart chrony || true
 mkdir -p /etc/gantry
 vsock() {
   cat >"/etc/systemd/system/gantry-vsock-$1.service" <<EOF
@@ -103,6 +111,31 @@ apt-get install -y podman
 vsock podman {{.PortPodman}} UNIX-CONNECT:/run/podman/podman.sock podman.socket
 systemctl daemon-reload
 systemctl enable --now podman.socket gantry-vsock-podman.service
+{{- end}}
+{{- if .Containerd}}
+
+passo "7b. containerd + nerdctl {{.Nerdctl}} com BuildKit (release oficial, sha256 conferido)"
+arch=$(dpkg --print-architecture)
+case "$arch" in
+  arm64) sum={{.NerdctlArm64}} ;;
+  amd64) sum={{.NerdctlAmd64}} ;;
+  *) echo "arquitetura sem nerdctl: $arch"; exit 1 ;;
+esac
+f=/tmp/nerdctl-full.tar.gz
+curl -fsSL -o "$f" "https://github.com/containerd/nerdctl/releases/download/v{{.Nerdctl}}/nerdctl-full-{{.Nerdctl}}-linux-$arch.tar.gz"
+echo "$sum  $f" | sha256sum -c -
+tar -C /usr/local -xzf "$f"
+rm -f "$f"
+systemctl daemon-reload
+{{- if .Docker}}
+# O containerd do Docker já roda: o nerdctl usa o mesmo (namespace default),
+# sem trocar o serviço dele pelo do pacote.
+rm -f /usr/local/lib/systemd/system/containerd.service
+systemctl daemon-reload
+systemctl enable --now buildkit.service
+{{- else}}
+systemctl enable --now containerd.service buildkit.service
+{{- end}}
 {{- end}}
 {{- if .SSHAgent}}
 

@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"gantry/internal/applog"
 	"gantry/internal/config"
 	"gantry/internal/cvm"
+	"gantry/internal/engine"
 	"gantry/internal/sysinfo"
 )
 
@@ -61,16 +64,17 @@ func cvmOf(ctx context.Context, name string) cvmView {
 	return v
 }
 
-// cvmRunning remembers the CPU and memory the machine started with.
-var cvmRunning sync.Map // name -> [2]int
+// cvmRunning remembers the spec the machine started with.
+var cvmRunning sync.Map // name -> string (the parts that need a restart)
+
+func restartKey(s cvm.Spec) string {
+	b, _ := json.Marshal([]any{s.CPUs, s.MemoryMiB, s.Shares, s.Rosetta})
+	return string(b)
+}
 
 func cvmPending(name string, s cvm.Spec) bool {
 	v, ok := cvmRunning.Load(name)
-	if !ok {
-		return false
-	}
-	r := v.([2]int)
-	return r[0] != s.CPUs || r[1] != s.MemoryMiB
+	return ok && v.(string) != restartKey(s)
 }
 
 func (s *Server) cvmList(w http.ResponseWriter, r *http.Request) {
@@ -120,8 +124,9 @@ func (s *Server) cvmScript(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) cvmCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Spec   cvm.Spec `json:"spec"`
-		SHA256 string   `json:"sha256"`
+		Spec     cvm.Spec `json:"spec"`
+		SHA256   string   `json:"sha256"`
+		Recreate bool     `json:"recreate"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -131,7 +136,11 @@ func (s *Server) cvmCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	jid, err := s.startJob("cvm:"+req.Spec.Name, "Criar a Container VM "+req.Spec.Name, func(ctx context.Context, out io.Writer) error {
+	label := "Criar a Container VM " + req.Spec.Name
+	if req.Recreate {
+		label = "Recriar a Container VM " + req.Spec.Name
+	}
+	jid, err := s.startJob("cvm:"+req.Spec.Name, label, func(ctx context.Context, out io.Writer) error {
 		j := jobOf(out)
 		prog := func(done, total int64) {
 			if j == nil {
@@ -145,7 +154,11 @@ func (s *Server) cvmCreate(w http.ResponseWriter, r *http.Request) {
 				j.setProgress("Baixando a imagem: " + humanBytes(done))
 			}
 		}
-		err := cvm.Create(ctx, req.Spec, req.SHA256, out, prog)
+		create := cvm.Create
+		if req.Recreate {
+			create = cvm.Recreate
+		}
+		err := create(ctx, req.Spec, req.SHA256, out, prog)
 		if err == nil {
 			s.cvmStarted(req.Spec.Name)
 		}
@@ -164,14 +177,19 @@ func (s *Server) cvmCreate(w http.ResponseWriter, r *http.Request) {
 // goes in.
 func (s *Server) cvmStarted(name string) {
 	sp, _ := cvm.Load(name)
-	cvmRunning.Store(name, [2]int{sp.CPUs, sp.MemoryMiB})
-	if sp.SSHAgent {
-		go func() {
-			defer applog.Recover("server/cvm.go:agent")
-			time.Sleep(3 * time.Second)
+	cvmRunning.Store(name, restartKey(sp))
+	_ = cvm.WriteShims(name)
+	go func() {
+		defer applog.Recover("server/cvm.go:sync")
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		if err := cvm.SyncGuest(ctx, name); err != nil {
+			slog.Warn("Container VM: ajustes depois de ligar", "máquina", name, "erro", err)
+		}
+		if sp.SSHAgent {
 			cvm.ForwardAgent(name)
-		}()
-	}
+		}
+	}()
 }
 
 func (s *Server) cvmPower(w http.ResponseWriter, r *http.Request) {
@@ -204,6 +222,7 @@ func (s *Server) cvmPower(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(out, "Máquina e discos apagados.")
 			return nil
 		case "ligar", "reiniciar":
+			cvm.DailySnapshot(ctx, name)
 			if err := cvm.Start(ctx, name, out); err != nil {
 				return err
 			}
@@ -228,11 +247,16 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		CPUs        *int  `json:"cpus"`
-		MemoryMiB   *int  `json:"memoryMiB"`
-		DataGiB     *int  `json:"dataGiB"`
-		AutoStart   *bool `json:"autoStart"`
-		IdleStopMin *int  `json:"idleStopMin"`
+		CPUs        *int         `json:"cpus"`
+		MemoryMiB   *int         `json:"memoryMiB"`
+		DataGiB     *int         `json:"dataGiB"`
+		AutoStart   *bool        `json:"autoStart"`
+		IdleStopMin *int         `json:"idleStopMin"`
+		Shares      *[]cvm.Share `json:"shares"`
+		Rosetta     *bool        `json:"rosetta"`
+		SSHAgent    *bool        `json:"sshAgent"`
+		SnapDaily   *bool        `json:"snapDaily"`
+		SnapKeep    *int         `json:"snapKeep"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -250,6 +274,26 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IdleStopMin != nil {
 		n.IdleStopMin = *req.IdleStopMin
+	}
+	if req.Shares != nil {
+		n.Shares = *req.Shares
+	}
+	if req.Rosetta != nil {
+		n.Rosetta = *req.Rosetta
+	}
+	if req.SSHAgent != nil {
+		n.SSHAgent = *req.SSHAgent
+		if !n.SSHAgent {
+			cvm.StopAgent(name)
+		} else if cvm.State(r.Context(), name) == cvm.StateRunning {
+			cvm.ForwardAgent(name)
+		}
+	}
+	if req.SnapDaily != nil {
+		n.SnapDaily = *req.SnapDaily
+	}
+	if req.SnapKeep != nil && *req.SnapKeep > 0 {
+		n.SnapKeep = *req.SnapKeep
 	}
 	if req.DataGiB != nil && *req.DataGiB != cur.DataGiB {
 		if *req.DataGiB < cur.DataGiB {
@@ -355,6 +399,11 @@ func (s *Server) cvmAutoStart() {
 	if !cvm.Supported() {
 		return
 	}
+	// The commands of ~/.gantry/bin (docker, podman, nerdctl in the machine)
+	// for the app too, after the Mac's own.
+	if !strings.Contains(os.Getenv("PATH"), cvm.BinDir()) {
+		_ = os.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+cvm.BinDir())
+	}
 	for _, name := range cvm.List() {
 		sp, err := cvm.Load(name)
 		if err != nil {
@@ -365,6 +414,7 @@ func (s *Server) cvmAutoStart() {
 		if st == cvm.StateRunning {
 			s.cvmStarted(name)
 		} else if sp.AutoStart && st == cvm.StateStopped {
+			cvm.DailySnapshot(ctx, name)
 			if err := cvm.Start(ctx, name, io.Discard); err == nil {
 				s.cvmStarted(name)
 				config.ForgetDetected()
@@ -375,4 +425,292 @@ func (s *Server) cvmAutoStart() {
 		}
 		cancel()
 	}
+}
+
+// The Engines tab: contexts, connection, PATH, the docker.sock link.
+
+func (s *Server) cvmIntegration(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !cvm.Exists(name) {
+		writeErr(w, http.StatusNotFound, errors.New("máquina não encontrada"))
+		return
+	}
+	if r.Method == http.MethodPut {
+		var want cvm.Wanted
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<12)).Decode(&want); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := cvm.Apply(r.Context(), name, want); err != nil {
+			writeErr(w, http.StatusBadGateway, err)
+			return
+		}
+		config.ForgetDetected()
+		s.reload()
+	}
+	writeJSON(w, cvm.Inspect(name))
+}
+
+func (s *Server) cvmLink(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		On bool `json:"on"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<10)).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	if err := cvm.LinkSocket(ctx, r.PathValue("name"), req.On); err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, cvm.Inspect(r.PathValue("name")))
+}
+
+// cvmTest pings each engine of the machine through its socket on the Mac.
+func (s *Server) cvmTest(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	sp, err := cvm.Load(name)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, errors.New("máquina não encontrada"))
+		return
+	}
+	type res struct {
+		Name string `json:"name"`
+		OK   bool   `json:"ok"`
+		Ms   int64  `json:"ms"`
+		Info string `json:"info"`
+	}
+	out := []res{}
+	ping := func(label, sock string) {
+		c := engine.New(func(ctx context.Context) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", sock)
+		})
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		t0 := time.Now()
+		err := c.Ping(ctx)
+		x := res{Name: label, OK: err == nil, Ms: time.Since(t0).Milliseconds()}
+		if err != nil {
+			x.Info = err.Error()
+		} else {
+			x.Info = sock
+		}
+		out = append(out, x)
+	}
+	if sp.Docker {
+		ping("Docker", cvm.DockerSocket(name))
+	}
+	if sp.Podman {
+		ping("Podman", cvm.PodmanSocket(name))
+	}
+	if sp.Containerd {
+		t0 := time.Now()
+		o, err := cvm.Run(r.Context(), name, "sudo nerdctl version --format '{{.Client.Version}}'")
+		x := res{Name: "nerdctl", OK: err == nil, Ms: time.Since(t0).Milliseconds(), Info: strings.TrimSpace(o)}
+		if err != nil {
+			x.Info = err.Error()
+		}
+		out = append(out, x)
+	}
+	writeJSON(w, out)
+}
+
+// Snapshots of the data disk.
+
+func (s *Server) cvmSnaps(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !cvm.Exists(name) {
+		writeErr(w, http.StatusNotFound, errors.New("máquina não encontrada"))
+		return
+	}
+	if r.Method == http.MethodPost {
+		var req struct {
+			Reason string `json:"reason"`
+		}
+		_ = json.NewDecoder(io.LimitReader(r.Body, 1<<12)).Decode(&req)
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+		defer cancel()
+		if _, err := cvm.TakeSnapshot(ctx, name, req.Reason, false, nil); err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	writeJSON(w, cvm.Snapshots(name))
+}
+
+func (s *Server) cvmSnapDelete(w http.ResponseWriter, r *http.Request) {
+	if err := cvm.DeleteSnapshot(r.PathValue("name"), r.PathValue("id")); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, cvm.Snapshots(r.PathValue("name")))
+}
+
+func (s *Server) cvmSnapRestore(w http.ResponseWriter, r *http.Request) {
+	name, id := r.PathValue("name"), r.PathValue("id")
+	jid, err := s.startJob("cvm:"+name, "Restaurar o snapshot "+id+" de "+name, func(ctx context.Context, out io.Writer) error {
+		defer func() { config.ForgetDetected(); s.reload() }()
+		wasOn := cvm.State(ctx, name) == cvm.StateRunning
+		cvm.StopAgent(name)
+		if err := cvm.Stop(ctx, name, out); err != nil {
+			return err
+		}
+		if err := cvm.RestoreSnapshot(ctx, name, id, out); err != nil {
+			return err
+		}
+		if wasOn {
+			if err := cvm.Start(ctx, name, out); err != nil {
+				return err
+			}
+			s.cvmStarted(name)
+		}
+		return nil
+	})
+	if err != nil {
+		writeErr(w, http.StatusConflict, err)
+		return
+	}
+	writeJSON(w, map[string]string{"id": jid})
+}
+
+// Platforms and credentials.
+
+func (s *Server) cvmPlatforms(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if cvm.State(r.Context(), name) != cvm.StateRunning {
+		writeErr(w, http.StatusConflict, errors.New("a máquina está desligada"))
+		return
+	}
+	ps, err := cvm.Platforms(r.Context(), name)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, ps)
+}
+
+func (s *Server) cvmQEMU(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	jid, err := s.startJob("cvm:"+name, "QEMU na Container VM "+name, func(ctx context.Context, out io.Writer) error {
+		fmt.Fprintf(out, "$ %s\n\n", cvm.QEMUScript)
+		o, err := cvm.Run(ctx, name, cvm.QEMUScript)
+		_, _ = out.Write([]byte(o))
+		if err == nil {
+			sp, _ := cvm.Load(name)
+			sp.QEMU = true
+			_ = cvm.Save(sp)
+		}
+		return err
+	})
+	if err != nil {
+		writeErr(w, http.StatusConflict, err)
+		return
+	}
+	writeJSON(w, map[string]string{"id": jid})
+}
+
+func (s *Server) cvmCreds(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	writeJSON(w, cvm.Credentials(ctx, r.PathValue("name")))
+}
+
+// cvmTerm opens a shell in the machine for the dock.
+func (s *Server) cvmTerm(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	cmd := ""
+	if src := r.URL.Query().Get("logs"); src != "" {
+		units := map[string]string{"sistema": "", "docker": " -u docker.service -u containerd.service", "podman": " -u podman.service -u podman.socket"}
+		u, ok := units[src]
+		if !ok {
+			writeErr(w, http.StatusBadRequest, errors.New("log desconhecido"))
+			return
+		}
+		cmd = "sudo journalctl -f -n 300 --no-pager" + u
+	}
+	t, err := cvm.Shell(ctx, r.PathValue("name"), cmd)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]string{"id": s.addTerm(t)})
+}
+
+// cvmIdleLoop stops the machines that asked to, after their minutes with no
+// container running. One look a minute at the engines' sockets.
+func (s *Server) cvmIdleLoop(ctx context.Context) {
+	idle := map[string]time.Time{}
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		for _, name := range cvm.List() {
+			sp, err := cvm.Load(name)
+			if err != nil || sp.IdleStopMin <= 0 || cvm.State(ctx, name) != cvm.StateRunning {
+				delete(idle, name)
+				continue
+			}
+			if cvmBusy(ctx, name, sp) {
+				delete(idle, name)
+				continue
+			}
+			if idle[name].IsZero() {
+				idle[name] = time.Now()
+				continue
+			}
+			if time.Since(idle[name]) >= time.Duration(sp.IdleStopMin)*time.Minute {
+				slog.Info("Container VM parada por falta de uso", "máquina", name, "minutos", sp.IdleStopMin)
+				cvm.StopAgent(name)
+				_ = cvm.Stop(ctx, name, io.Discard)
+				cvmRunning.Delete(name)
+				delete(idle, name)
+				config.ForgetDetected()
+				s.reload()
+			}
+		}
+	}
+}
+
+// cvmBusy tells whether any container runs in the machine (or it cannot
+// tell: then it counts as busy).
+func cvmBusy(ctx context.Context, name string, sp cvm.Spec) bool {
+	socks := []string{}
+	if sp.Docker {
+		socks = append(socks, cvm.DockerSocket(name))
+	}
+	if sp.Podman {
+		socks = append(socks, cvm.PodmanSocket(name))
+	}
+	for _, sock := range socks {
+		c := engine.New(func(ctx context.Context) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", sock)
+		})
+		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		list, err := c.Containers(cctx)
+		cancel()
+		if err != nil {
+			return true
+		}
+		for _, x := range list {
+			if x.State == "running" {
+				return true
+			}
+		}
+	}
+	if sp.Containerd {
+		out, err := cvm.Run(ctx, name, "sudo nerdctl ps -q | grep -c . || true")
+		if err != nil || strings.TrimSpace(out) != "0" {
+			return true
+		}
+	}
+	return false
 }

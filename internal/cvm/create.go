@@ -17,6 +17,17 @@ import (
 // sha256 of the script the user read: if the script of the spec is not that
 // one anymore, nothing is created.
 func Create(ctx context.Context, s Spec, approved string, log io.Writer, prog Progress) error {
+	return create(ctx, s, approved, false, log, prog)
+}
+
+// Recreate makes the machine again with a new spec and script, keeping the
+// data disk (images, volumes, containers) and its snapshots. A snapshot of
+// the data is taken first.
+func Recreate(ctx context.Context, s Spec, approved string, log io.Writer, prog Progress) error {
+	return create(ctx, s, approved, true, log, prog)
+}
+
+func create(ctx context.Context, s Spec, approved string, recreate bool, log io.Writer, prog Progress) error {
 	if !Supported() {
 		return errors.New("a Container VM só roda no macOS por enquanto")
 	}
@@ -31,10 +42,30 @@ func Create(ctx context.Context, s Spec, approved string, log io.Writer, prog Pr
 	if sum != approved {
 		return errors.New("o script mudou depois da revisão; revise de novo antes de criar")
 	}
-	if Exists(s.Name) {
+	dir := Dir(s.Name)
+	if recreate {
+		if !Exists(s.Name) {
+			return fmt.Errorf("a máquina %s não existe", s.Name)
+		}
+		old, _ := Load(s.Name)
+		if s.DataGiB < old.DataGiB {
+			s.DataGiB = old.DataGiB
+		}
+		StopAgent(s.Name)
+		if err := Stop(ctx, s.Name, log); err != nil {
+			return err
+		}
+		if _, err := TakeSnapshot(ctx, s.Name, "antes de recriar", true, log); err != nil {
+			return err
+		}
+		for _, f := range []string{fSystem, fEFI, fConsole} {
+			_ = os.Remove(filepath.Join(dir, f))
+		}
+		_ = os.RemoveAll(filepath.Join(dir, fSeed))
+		fmt.Fprintln(log, "Sistema antigo removido; o disco de dados fica.")
+	} else if Exists(s.Name) {
 		return fmt.Errorf("a máquina %s já existe", s.Name)
 	}
-	dir := Dir(s.Name)
 	if err := os.MkdirAll(filepath.Join(dir, fSeed), 0o700); err != nil {
 		return err
 	}
@@ -151,6 +182,7 @@ func Create(ctx context.Context, s Spec, approved string, log io.Writer, prog Pr
 		}
 		return fmt.Errorf("o provision.sh terminou com erro (código %d); o log completo fica em /var/log/gantry-provision.log na máquina", rc)
 	}
+	_ = WriteShims(s.Name)
 	fmt.Fprintln(log, "\nPronto: os engines da máquina aparecem em Este Mac.")
 	return nil
 }

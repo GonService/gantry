@@ -9,11 +9,11 @@ import { openJob } from "@/shell/dock";
 import { toast } from "@/shell/toasts";
 import { useStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
-import { cvmHref, refreshAfter, type CvmList, type Spec } from "./cvm";
+import { cvmHref, engineNames, refreshAfter, type CvmList, type Spec } from "./cvm";
 
 type Script = { script: string; sha256: string; userData: string; error?: string };
 
-export function CvmCreate() {
+export function CvmCreate({ from = "", engine = "" }: { from?: string; engine?: string }) {
   const [list, setList] = useState<CvmList | null>(null);
   const [err, setErr] = useState("");
   const [spec, setSpec] = useState<Spec | null>(null);
@@ -22,10 +22,19 @@ export function CvmCreate() {
     api<CvmList>("/cvm")
       .then((l) => {
         setList(l);
-        setSpec(l.default);
+        const m = from ? l.machines.find((x) => x.name === from) : undefined;
+        if (from && !m) setErr(t("A máquina {name} não existe.", { name: from }));
+        else if (m) {
+          const sp = { ...l.default, ...m.spec };
+          if (engine === "docker") sp.docker = true;
+          if (engine === "podman") sp.podman = true;
+          if (engine === "containerd") sp.containerd = true;
+          setSpec(sp);
+        } else setSpec(l.default);
       })
       .catch((e) => setErr((e as Error).message));
-  }, []);
+  }, [from, engine]);
+  const recreate = !!from;
   if (err) return <ErrorBox>{err}</ErrorBox>;
   if (!list || !spec) return <Loading />;
   if (!list.supported)
@@ -34,7 +43,7 @@ export function CvmCreate() {
         <p style={{ margin: 0 }}>{t("A Container VM só roda no macOS por enquanto. Neste computador, use um engine instalado ou um servidor por SSH.")}</p>
       </div>
     );
-  if (list.machines.some((m) => m.name === spec.name) && step === 1)
+  if (!recreate && list.machines.some((m) => m.name === spec.name) && step === 1)
     return (
       <div className="panel panel-pad">
         <p style={{ margin: "0 0 10px" }}>{t("A máquina {name} já existe.", { name: spec.name })}</p>
@@ -49,10 +58,14 @@ export function CvmCreate() {
         <div className="page-title">
           <nav className="crumbs" aria-label={t("Caminho")}>
             <a href="#/local">{t("Este Mac")}</a>
-            <span>{t("Nova Container VM")}</span>
+            <span>{recreate ? spec.name : t("Nova Container VM")}</span>
           </nav>
-          <h1>{t("Criar a Container VM")}</h1>
-          <div className="sub">{t("Uma VM Linux leve, só para rodar os containers deste Mac. Os projetos continuam nas suas pastas.")}</div>
+          <h1>{recreate ? t("Recriar {name}", { name: spec.name }) : t("Criar a Container VM")}</h1>
+          <div className="sub">
+            {recreate
+              ? t("Um sistema novo com estas escolhas; o disco de dados (imagens, volumes e containers) continua, e um snapshot dele é tirado antes.")
+              : t("Uma VM Linux leve, só para rodar os containers deste Mac. Os projetos continuam nas suas pastas.")}
+          </div>
         </div>
       </div>
       <ol className="cvm-steps" aria-label={t("Etapas")}>
@@ -75,7 +88,7 @@ export function CvmCreate() {
           </span>
         </li>
       </ol>
-      {step === 1 ? <Choices list={list} spec={spec} set={setSpec} next={() => setStep(2)} /> : <Review list={list} spec={spec} back={() => setStep(1)} />}
+      {step === 1 ? <Choices list={list} spec={spec} set={setSpec} next={() => setStep(2)} recreate={recreate} /> : <Review list={list} spec={spec} back={() => setStep(1)} recreate={recreate} />}
     </div>
   );
 }
@@ -89,10 +102,10 @@ function Check({ on, set, children }: { on: boolean; set: (v: boolean) => void; 
   );
 }
 
-function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s: Spec) => void; next: () => void }) {
+function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spec; set: (s: Spec) => void; next: () => void; recreate: boolean }) {
   const up = (p: Partial<Spec>) => set({ ...spec, ...p });
   const intel = list.arch !== "arm64";
-  const engines = [spec.docker ? "Docker" : "", spec.podman ? "Podman" : ""].filter(Boolean).join(" · ");
+  const engines = engineNames(spec);
   return (
     <div className="cvm-cols">
       <div className="cvm-main">
@@ -103,7 +116,7 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
           <div className="cvm-pb cvm-grid">
             <label className="cvm-field">
               <span>{t("Nome")}</span>
-              <input className="input" value={spec.name} onChange={(e) => up({ name: e.target.value.toLowerCase() })} spellCheck={false} />
+              <input className="input" value={spec.name} disabled={recreate} onChange={(e) => up({ name: e.target.value.toLowerCase() })} spellCheck={false} />
             </label>
             <div className="cvm-field">
               <span>{t("Hypervisor")}</span>
@@ -118,7 +131,7 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Engines de containers")}</h2>
-            <span className="muted small">{t("Pode marcar os dois: cada um tem seu socket")}</span>
+            <span className="muted small">{t("Pode marcar mais de um")}</span>
           </div>
           <div className="cvm-pb cvm-grid">
             <Check on={spec.docker} set={(v) => up({ docker: v })}>
@@ -130,6 +143,11 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
               <b>Podman</b>
               <br />
               <span className="muted small">{t("pacote do Debian, API compatível com Docker")}</span>
+            </Check>
+            <Check on={!!spec.containerd} set={(v) => up({ containerd: v })}>
+              <b>containerd + nerdctl</b>
+              <br />
+              <span className="muted small">{t("com BuildKit, release oficial conferida pelo sha256. Mais perto do que roda no Kubernetes.")}</span>
             </Check>
           </div>
         </section>
@@ -155,7 +173,7 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
               <span>
                 {t("Disco de dados")} <span className="mono muted">{t("até {n} GiB", { n: spec.dataGiB })}</span>
               </span>
-              <input type="range" min={16} max={1024} step={16} value={spec.dataGiB} onChange={(e) => up({ dataGiB: +e.target.value })} />
+              <input type="range" min={16} max={1024} step={16} value={spec.dataGiB} disabled={recreate} onChange={(e) => up({ dataGiB: +e.target.value })} />
               <span className="muted small">{t("Arquivo esparso: ocupa no Mac só o que for usado.")}</span>
             </label>
           </div>
@@ -236,10 +254,10 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
           </span>
           <p className="muted small">{t("Nada é instalado ainda. No próximo passo você lê o script completo que vai rodar e aprova.")}</p>
           <div className="cvm-actions">
-            <a className="btn" href="#/local/t/engines">
+            <a className="btn" href={recreate ? cvmHref(spec.name, "recursos") : "#/local/t/engines"}>
               {t("Cancelar")}
             </a>
-            <button className="btn primary" type="button" disabled={!spec.docker && !spec.podman} onClick={next}>
+            <button className="btn primary" type="button" disabled={!spec.docker && !spec.podman && !spec.containerd} onClick={next}>
               {t("Revisar o script →")}
             </button>
           </div>
@@ -249,7 +267,7 @@ function Choices({ list, spec, set, next }: { list: CvmList; spec: Spec; set: (s
   );
 }
 
-function Review({ list, spec, back }: { list: CvmList; spec: Spec; back: () => void }) {
+function Review({ list, spec, back, recreate }: { list: CvmList; spec: Spec; back: () => void; recreate: boolean }) {
   const [sc, setSc] = useState<Script | null>(null);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
@@ -265,13 +283,13 @@ function Review({ list, spec, back }: { list: CvmList; spec: Spec; back: () => v
     if (!sc) return;
     setBusy(true);
     try {
-      const r = await api<{ id: string }>("/cvm", { method: "POST", body: { spec: s, sha256: sc.sha256 } });
+      const r = await api<{ id: string }>("/cvm", { method: "POST", body: { spec: s, sha256: sc.sha256, recreate } });
       useStore.setState({ localBusy: true });
-      openJob(r.id, t("Criar a Container VM {name}", { name: s.name }), (end) => {
+      openJob(r.id, recreate ? t("Recriar {name}", { name: s.name }) : t("Criar a Container VM {name}", { name: s.name }), (end) => {
         refreshAfter();
         if (end.ok) location.hash = cvmHref(s.name);
       });
-      location.hash = "#/local/t/engines";
+      location.hash = recreate ? cvmHref(s.name, "logs") : "#/local/t/engines";
     } catch (e) {
       toast((e as Error).message, "err");
       setBusy(false);
@@ -328,13 +346,14 @@ function Review({ list, spec, back }: { list: CvmList; spec: Spec; back: () => v
           <div className="cvm-pb">
             <span className="cvm-group">{t("No Mac · seu usuário, sem sudo")}</span>
             <ol className="cvm-list">
+              {recreate ? <li>{t("Desligar a máquina, tirar um snapshot do disco de dados e remover só o disco do sistema")}</li> : null}
               {!list.vfkit ? <li><span className="mono">brew install vfkit</span></li> : null}
               <li>
                 {t("Baixar a imagem do sistema e conferir o SHA512")}
                 <br />
                 <span className="mono muted small">{list.image}</span>
               </li>
-              <li>{t("Criar sistema.raw e dados.raw (esparsos) e uma chave SSH só desta máquina")}</li>
+              <li>{recreate ? t("Criar um sistema.raw novo (o dados.raw fica) e uma chave SSH nova") : t("Criar sistema.raw e dados.raw (esparsos) e uma chave SSH só desta máquina")}</li>
               <li>{t("Ligar o vfkit; os sockets ficam em ~/.gantry/machines/{name}", { name: s.name })}</li>
             </ol>
             <span className="cvm-group">{t("Dentro da máquina · provision.sh")}</span>
@@ -357,7 +376,7 @@ function Review({ list, spec, back }: { list: CvmList; spec: Spec; back: () => v
                 {t("← Voltar")}
               </button>
               <button className="btn primary" type="button" disabled={!ok || busy || !!sc.error} onClick={() => void create()}>
-                {t("Aprovar e criar")}
+                {recreate ? t("Aprovar e recriar") : t("Aprovar e criar")}
               </button>
             </div>
             <span className="muted small">{t("O script fica salvo com a máquina, com o log de cada execução.")}</span>

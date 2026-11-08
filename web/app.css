@@ -1292,3 +1292,8 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-power { opacity: 1; color: var(--ok); }
 .cvm-power.on { color: var(--crit); }
 .tree-hint.cvm-new { padding: 6px 10px; color: var(--brand); font-weight: 600; }
+.cvm-row-check { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.cvm-row-check:last-of-type { border-bottom: 0; }
+.cvm-row-check.off { opacity: .6; cursor: default; }
+.cvm-tip { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.cvm-tip .badge { flex: none; }

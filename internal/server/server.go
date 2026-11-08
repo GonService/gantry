@@ -89,6 +89,7 @@ func New(cfg *config.Config, store *labs.Store, static fs.FS, loopback bool) *Se
 	go func() { defer applog.Recover("server/server.go:76"); s.autoApplyLoop(bctx) }()
 	go func() { defer applog.Recover("server/server.go:argo"); s.forgetArgoTokens() }()
 	go func() { defer applog.Recover("server/server.go:cvm"); s.cvmAutoStart() }()
+	go func() { defer applog.Recover("server/server.go:cvmidle"); s.cvmIdleLoop(bctx) }()
 	return s
 }
 
@@ -416,6 +417,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/cvm/{name}/logs", s.cvmLogs)
 	mux.HandleFunc("GET /api/cvm/{name}/script", s.cvmSavedScript)
 	mux.HandleFunc("POST /api/cvm/{name}/sinal", s.cvmSignal)
+	mux.HandleFunc("GET /api/cvm/{name}/integracao", s.cvmIntegration)
+	mux.HandleFunc("PUT /api/cvm/{name}/integracao", s.cvmIntegration)
+	mux.HandleFunc("POST /api/cvm/{name}/link", s.cvmLink)
+	mux.HandleFunc("GET /api/cvm/{name}/teste", s.cvmTest)
+	mux.HandleFunc("GET /api/cvm/{name}/snapshots", s.cvmSnaps)
+	mux.HandleFunc("POST /api/cvm/{name}/snapshots", s.cvmSnaps)
+	mux.HandleFunc("DELETE /api/cvm/{name}/snapshots/{id}", s.cvmSnapDelete)
+	mux.HandleFunc("POST /api/cvm/{name}/snapshots/{id}/restaurar", s.cvmSnapRestore)
+	mux.HandleFunc("GET /api/cvm/{name}/plataformas", s.cvmPlatforms)
+	mux.HandleFunc("POST /api/cvm/{name}/plataformas/qemu", s.cvmQEMU)
+	mux.HandleFunc("GET /api/cvm/{name}/credenciais", s.cvmCreds)
+	mux.HandleFunc("POST /api/cvm/{name}/terminal", s.cvmTerm)
 	mux.HandleFunc("GET /api/jobs/{id}/stream", s.jobStream)
 	mux.HandleFunc("GET /api/jobs", s.listJobs)
 	mux.HandleFunc("POST /api/escolher", s.pick)
