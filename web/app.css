@@ -1221,6 +1221,9 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
 .cvm-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
 .cvm-field input[type=range] { accent-color: var(--brand); width: 100%; }
+/* .input grows in rows (flex: 1 1 260px); in this column it would grow in height */
+.cvm-field .input { flex: none; width: 100%; max-width: 360px; }
+.cvm-field textarea.input { max-width: none; }
 .cvm-field textarea { font-family: var(--mono); font-size: 12.5px; resize: vertical; width: 100%; }
 .cvm-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; cursor: pointer; }
 .cvm-check input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand); flex: none; }
