@@ -1,0 +1,6 @@
+[
+  "docker ps --no-trunc --format '{{.ID}} {{.Names}} {{.Label \"com.docker.compose.project\"}}' 2>/dev/null\nsudo podman ps --no-trunc --format '{{.ID}} {{.Names}} {{index .Labels \"com.docker.compose.project\"}}' 2>/dev/null",
+  "sudo journalctl -b --no-pager -o short-iso -n %d",
+  "sudo journalctl -b --no-pager -o short-iso -n %d -u docker.service -u containerd.service",
+  "sudo journalctl -b --no-pager -o short-iso -n %d -u podman.service -u podman.socket"
+]

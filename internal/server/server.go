@@ -88,6 +88,7 @@ func New(cfg *config.Config, store *labs.Store, static fs.FS, loopback bool) *Se
 	go func() { defer applog.Recover("server/server.go:75"); s.backupLoop(bctx) }()
 	go func() { defer applog.Recover("server/server.go:76"); s.autoApplyLoop(bctx) }()
 	go func() { defer applog.Recover("server/server.go:argo"); s.forgetArgoTokens() }()
+	go func() { defer applog.Recover("server/server.go:cvm"); s.cvmAutoStart() }()
 	return s
 }
 
@@ -405,6 +406,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/hosts/{host}/ferramentas", s.withHost(s.hostTools))
 	mux.HandleFunc("GET /api/local/system", s.localSystem)
 	mux.HandleFunc("POST /api/local/{action}", s.localAction)
+	mux.HandleFunc("GET /api/cvm", s.cvmList)
+	mux.HandleFunc("POST /api/cvm", s.cvmCreate)
+	mux.HandleFunc("POST /api/cvm/script", s.cvmScript)
+	mux.HandleFunc("POST /api/cvm/{name}/{acao}", s.cvmPower)
+	mux.HandleFunc("PUT /api/cvm/{name}", s.cvmEdit)
+	mux.HandleFunc("GET /api/cvm/{name}/processos", s.cvmProcs)
+	mux.HandleFunc("GET /api/cvm/{name}/sistema", s.cvmSys)
+	mux.HandleFunc("GET /api/cvm/{name}/logs", s.cvmLogs)
+	mux.HandleFunc("GET /api/cvm/{name}/script", s.cvmSavedScript)
+	mux.HandleFunc("POST /api/cvm/{name}/sinal", s.cvmSignal)
 	mux.HandleFunc("GET /api/jobs/{id}/stream", s.jobStream)
 	mux.HandleFunc("GET /api/jobs", s.listJobs)
 	mux.HandleFunc("POST /api/escolher", s.pick)

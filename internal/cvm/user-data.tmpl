@@ -1,0 +1,22 @@
+#cloud-config
+hostname: {{.Name}}
+users:
+  - name: gantry
+    gecos: Gantry
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+      - {{.Key}}
+ssh_pwauth: false
+growpart:
+  mode: auto
+  devices: ["/"]
+write_files:
+  - path: /usr/local/sbin/gantry-provision.sh
+    permissions: "0755"
+    encoding: b64
+    content: {{.Script64}}
+runcmd:
+  - [/usr/local/sbin/gantry-provision.sh]

@@ -13,6 +13,7 @@ import { gantry } from "@/lib/gantry";
 import { appVersionDialog, checkAppVersion, useVersion } from "./version";
 import { t } from "@/lib/i18n";
 import { openPalette } from "./palette";
+import { cvmHref, cvmState, power, STATE as CVM_STATE } from "@/views/cvm/cvm";
 
 const kubeHref = (id: string) => "#/k/" + encodeURIComponent(id);
 const folderById = (g: Groups, id: string) => g.folders.find((f) => f.id === id);
@@ -61,6 +62,7 @@ function MachineRow({ m, cur, depth, sub, local }: { m: Machine; cur: Machine | 
   // Remote machines with a connection open can be disconnected from here.
   const live = !m.local && m.hosts.some((x) => x.ok || x.connecting);
   return (
+    <>
     <div className={"tree-row machine-row" + (cur === m ? " sel" : "")} style={{ ["--depth" as string]: depth }} onContextMenu={(e) => machineMenu(e, m, live)}>
       <a className="machine-a" href={machHref(m)} title={m.local ? "" : m.primary!.url}>
         <span className="local-ic" aria-hidden="true">
@@ -86,6 +88,63 @@ function MachineRow({ m, cur, depth, sub, local }: { m: Machine; cur: Machine | 
         </button>
       ) : null}
     </div>
+    {m.local && !sub ? <CvmRows depth={depth + 1} /> : null}
+    </>
+  );
+}
+
+// The Container VMs of this computer, nested under it, with their power
+// button.
+function CvmRows({ depth }: { depth: number }) {
+  const local = useStore((s) => s.local);
+  const route = useStore((s) => s.route);
+  const names: string[] = local?.machines || [];
+  if (!local?.cvm) return null;
+  if (!names.length) {
+    if ((local.engines || []).length) return null; // another engine is installed
+    return (
+      <a className="tree-row tree-hint cvm-new" style={{ ["--depth" as string]: depth }} href="#/cvm/criar">
+        {t("＋ Criar Container VM")}
+      </a>
+    );
+  }
+  return (
+    <>
+      {names.map((n) => {
+        const st = cvmState(local, n);
+        const [dot, label] = CVM_STATE[st] || ["", st];
+        const on = st === "running";
+        return (
+          <div key={n} className={"tree-row machine-row cvm-row" + (route.cvm === n ? " sel" : "")} style={{ ["--depth" as string]: depth }}>
+            <a className="machine-a" href={cvmHref(n)}>
+              <span className="local-ic" aria-hidden="true">
+                ▣
+              </span>
+              <span className="tree-link">
+                <span className={"dot " + dot} />
+                <span className="tree-text">
+                  <span className="tree-name">{n}</span>
+                  <span className="tree-sub">Container VM · {label}</span>
+                </span>
+              </span>
+            </a>
+            <button
+              className={"icon-btn tree-act cvm-power" + (on ? " on" : "")}
+              type="button"
+              disabled={st === "starting"}
+              title={on ? t("Desligar {name}", { name: n }) : t("Ligar {name}", { name: n })}
+              aria-label={on ? t("Desligar {name}", { name: n }) : t("Ligar {name}", { name: n })}
+              onClick={() => void power(n, on ? "desligar" : "ligar")}
+            >
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
+                <path d="M12 3v8" />
+                <path d="M6.3 7.3a8 8 0 1 0 11.4 0" />
+              </svg>
+            </button>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

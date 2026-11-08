@@ -9,6 +9,7 @@ import { openJob } from "./dock";
 import { openHostDialog } from "./hostDialog";
 import { toast } from "./toasts";
 import { t } from "@/lib/i18n";
+import { cvmHref, power } from "@/views/cvm/cvm";
 
 const ENGINE_STATE: Record<string, [string, string]> = {
   running: ["ok", t("rodando")],
@@ -23,6 +24,15 @@ const ENGINE_STATE: Record<string, [string, string]> = {
 type Action = { id: string; label: string; note?: string; primary?: boolean };
 
 async function runLocalAction(a: Action) {
+  if (a.id === "cvm-create") {
+    location.hash = "#/cvm/criar";
+    return;
+  }
+  const cv = /^cvm-(start|stop)\/(.+)$/.exec(a.id);
+  if (cv) {
+    void power(cv[2], cv[1] === "start" ? "ligar" : "desligar");
+    return;
+  }
   if (useStore.getState().localBusy) return;
   if (a.note && !(await confirm(a.label + "?", a.note, a.label))) return;
   useStore.setState({ localBusy: true });
@@ -85,7 +95,7 @@ export function LocalEngines() {
         </>
       ) : (
         <div className="cards">
-          {st.engines.map((e: { name: string; state: string; detail?: string; socket?: string; hint?: string; actions: Action[] }) => {
+          {st.engines.map((e: { id: string; name: string; state: string; detail?: string; socket?: string; hint?: string; actions: Action[] }) => {
             const [kind, label] = ENGINE_STATE[e.state] || ["", e.state];
             const host = hostForSocket(e.socket);
             return (
@@ -102,8 +112,13 @@ export function LocalEngines() {
                       {t("Ver containers")}
                     </a>
                   ) : null}
+                  {e.id.startsWith("cvm:") ? (
+                    <a className="btn" href={cvmHref(e.id.slice(4))}>
+                      {t("Abrir a máquina")}
+                    </a>
+                  ) : null}
                   {e.actions.map((a) => (
-                    <button key={a.id} className={"btn" + (a.primary ? " primary" : "")} disabled={busy} title={a.note} onClick={() => runLocalAction(a)}>
+                    <button key={a.id} className={"btn" + (a.primary ? " primary" : "")} disabled={busy && !a.id.startsWith("cvm-")} title={a.note} onClick={() => runLocalAction(a)}>
                       {a.label}
                     </button>
                   ))}

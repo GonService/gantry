@@ -53,6 +53,9 @@ export type Route = {
   ctr?: string;
   ctrRt?: string;
   ctrMode?: string;
+  cvm?: string;
+  cvmTab?: string;
+  cvmNew?: boolean;
 };
 
 export function parseRoute(hash: string): Route {
@@ -82,6 +85,13 @@ export function parseRoute(hash: string): Route {
     r.local = true;
     if (p[1] === "novo") r.newProj = true;
     else machineTab(1);
+  }
+  if (p[0] === "cvm") {
+    if (p[1] === "criar" || !p[1]) r.cvmNew = true;
+    else {
+      r.cvm = p[1];
+      r.cvmTab = p[2] || "processos";
+    }
   }
   if (p[0] === "modelos") {
     r.tpl = true;

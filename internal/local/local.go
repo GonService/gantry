@@ -5,6 +5,7 @@ package local
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gantry/internal/cvm"
 )
 
 // Action is something the user can do with an engine from the UI.
@@ -38,6 +41,10 @@ type Status struct {
 	OS      string   `json:"os"`
 	Brew    bool     `json:"brew"`
 	Engines []Engine `json:"engines"`
+	// CVM: this computer can run the Container VM; Machines are the ones
+	// created (their engines are in Engines).
+	CVM      bool     `json:"cvm"`
+	Machines []string `json:"machines"`
 	// Install lists installers offered when no engine is installed.
 	Install []Action `json:"install"`
 }
@@ -234,6 +241,34 @@ func dockerLinux() Engine {
 	return e
 }
 
+// containerVMs are the engines of the Container VMs of this Mac.
+func containerVMs(ctx context.Context) []Engine {
+	var out []Engine
+	for _, name := range cvm.List() {
+		e := Engine{ID: "cvm:" + name, Name: "Container VM " + name, Installed: true, Actions: []Action{}}
+		st := cvm.State(ctx, name)
+		spec, _ := cvm.Load(name)
+		switch st {
+		case cvm.StateRunning:
+			e.State = "running"
+			if spec.Docker {
+				e.Socket = cvm.DockerSocket(name)
+			} else {
+				e.Socket = cvm.PodmanSocket(name)
+			}
+			e.Detail = fmt.Sprintf("%d CPU · %d GiB", spec.CPUs, spec.MemoryMiB/1024)
+			e.Actions = []Action{{ID: "cvm-stop/" + name, Label: "Desligar"}}
+		case cvm.StateStarting, cvm.StateStopping:
+			e.State = "starting"
+		default:
+			e.State = "stopped"
+			e.Actions = []Action{{ID: "cvm-start/" + name, Label: "Ligar", Primary: true}}
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // Inspect reports every known engine on this machine.
 // containerd is containerd driven by nerdctl, on Linux.
 func containerd(ctx context.Context) Engine {
@@ -261,7 +296,9 @@ func Inspect(ctx context.Context) Status {
 	st := Status{OS: runtime.GOOS, Brew: has("brew"), Install: []Action{}}
 	var all []Engine
 	if runtime.GOOS == "darwin" {
-		all = []Engine{podman(ctx), orbstack(ctx), dockerDesktop(), colima(ctx)}
+		all = append(containerVMs(ctx), podman(ctx), orbstack(ctx), dockerDesktop(), colima(ctx))
+		st.CVM = cvm.Supported()
+		st.Machines = cvm.List()
 	} else {
 		all = []Engine{podman(ctx), dockerLinux(), containerd(ctx)}
 	}
@@ -275,9 +312,14 @@ func Inspect(ctx context.Context) Status {
 	if st.Engines == nil {
 		st.Engines = []Engine{}
 	}
+	if st.Machines == nil {
+		st.Machines = []string{}
+	}
 	if !any && runtime.GOOS == "darwin" && st.Brew {
 		st.Install = []Action{
-			{ID: "install-podman", Label: "Instalar o Podman", Primary: true,
+			{ID: "cvm-create", Label: "Criar a Container VM", Primary: true,
+				Note: "uma VM Linux leve, só para os containers deste Mac, gerenciada pelo Gantry; você revisa o script antes"},
+			{ID: "install-podman", Label: "Instalar o Podman",
 				Note: "brew install podman docker-compose, depois cria e inicia a máquina (cerca de 1 GB)"},
 			{ID: "install-orbstack", Label: "Instalar o OrbStack",
 				Note: "brew install --cask orbstack (gratuito para uso pessoal)"},

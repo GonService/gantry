@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"gantry/internal/cvm"
 	"gantry/internal/local"
 	"gantry/internal/shim"
 )
@@ -415,6 +417,14 @@ func Detect() []Host {
 			cands = append(cands, cand{"podman machine", m})
 		}
 	}
+	// The Container VMs of Gantry: their engines are engines of this Mac.
+	for _, name := range cvm.List() {
+		vc := []cand{{"gantry-vm docker", cvm.DockerSocket(name)}, {"gantry-vm podman", cvm.PodmanSocket(name)}}
+		if name != cvm.DefaultName {
+			vc = []cand{{name + " docker", cvm.DockerSocket(name)}, {name + " podman", cvm.PodmanSocket(name)}}
+		}
+		cands = append(vc, cands...)
+	}
 	for _, sock := range local.PodmanMachineSockets(context.Background()) {
 		cands = append([]cand{{"podman", sock}}, cands...)
 	}
@@ -422,6 +432,14 @@ func Detect() []Host {
 		h := Host{Name: c.name, URL: "unix://" + c.path, Source: "detected"}
 		if strings.HasPrefix(c.name, "podman") {
 			h.Compose = []string{"podman", "compose"}
+		}
+		if strings.HasPrefix(c.path, cvm.Base()) {
+			// The CLI on the Mac drives the machine's engines (Docker's
+			// API in both); docker-compose from Homebrew when it is there.
+			h.Compose = nil
+			if _, err := exec.LookPath("docker-compose"); err == nil {
+				h.Compose = []string{"docker-compose"}
+			}
 		}
 		add(h)
 	}

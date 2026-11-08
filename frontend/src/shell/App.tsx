@@ -46,6 +46,8 @@ import { NeedEngine } from "@/views/newproject/NeedEngine";
 import { Loading } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { Palette } from "./palette";
+import { CvmCreate } from "@/views/cvm/CreatePage";
+import { CvmPage } from "@/views/cvm/CvmPage";
 
 // An engine event of a host: the page of its machine reads the containers
 // and the overview again (once per burst).
@@ -69,6 +71,8 @@ function crumb(r: Route): string {
     const kc = clusterById(r.kube);
     c = "Cluster  /  " + (kc ? kc.name : r.kube);
   }
+  if (r.cvmNew) c = LOCAL_NAME + "  /  " + t("nova Container VM");
+  if (r.cvm) c = LOCAL_NAME + "  /  " + r.cvm;
   if (r.local) c = LOCAL_NAME + (r.newProj ? "  /  " + t("criar projeto") : "");
   if (r.tpl) c = t("Modelos") + (r.tplDeploy ? "  /  " + t("gerar projeto") : r.tplEdit === "novo" ? "  /  " + t("novo") : r.tplEdit ? "  /  " + t("editar") : "");
   if (r.host) {
@@ -129,6 +133,8 @@ function Page() {
   const s = useStore();
   const r = s.route;
   if (!s.hostsLoaded) return <Loading>{t("Conectando aos hosts…")}</Loading>;
+  if (r.cvmNew) return <CvmCreate key={"cc" + s.visit} />;
+  if (r.cvm) return <CvmPage key={"cv" + r.cvm} name={r.cvm} tab={r.cvmTab || "processos"} />;
   if (r.kube) return <KubePage cluster={clusterById(r.kube) || null} loaded={!!s.clusters} kind={r.kkind || ""} kinds={s.kinds || []} />;
   if (r.welcome) {
     const lm = machines(s.hosts).find((x) => x.local);
