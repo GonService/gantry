@@ -95,6 +95,20 @@ export function LocalEngines() {
         </>
       ) : (
         <div className="cards">
+          {st.cvm && !(st.machines || []).length ? (
+            <div className="panel card cvm-card">
+              <span className="card-top">
+                <span className="card-name">Container VM</span>
+                <span className="badge accent">{t("do Gantry")}</span>
+              </span>
+              <span className="muted small">{t("Uma VM Linux leve, só para os containers deste Mac, com Docker e Podman. Você revisa o script antes de qualquer coisa rodar.")}</span>
+              <div className="actions" style={{ marginTop: 8 }}>
+                <a className="btn primary" href="#/cvm/criar">
+                  {t("Criar a Container VM")}
+                </a>
+              </div>
+            </div>
+          ) : null}
           {st.engines.map((e: { id: string; name: string; state: string; detail?: string; socket?: string; hint?: string; actions: Action[] }) => {
             const [kind, label] = ENGINE_STATE[e.state] || ["", e.state];
             const host = hostForSocket(e.socket);

@@ -101,7 +101,7 @@ function CvmRows({ depth }: { depth: number }) {
   const names: string[] = local?.machines || [];
   if (!local?.cvm) return null;
   if (!names.length) {
-    if ((local.engines || []).length) return null; // another engine is installed
+    if ((local.engines || []).some((e: { state: string }) => e.state === "running")) return null; // another engine is running
     return (
       <a className="tree-row tree-hint cvm-new" style={{ ["--depth" as string]: depth }} href="#/cvm/criar">
         {t("＋ Criar Container VM")}
