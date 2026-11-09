@@ -195,6 +195,9 @@ func (s *Server) cvmStarted(name string) {
 		if err := cvm.StartWatch(name); err != nil {
 			slog.Info("Container VM: sem avisos de alteração", "máquina", name, "erro", err)
 		}
+		if err := cvm.SyncFinder(ctx, name); err != nil {
+			slog.Warn("Container VM: volumes no Finder", "máquina", name, "erro", err)
+		}
 	}()
 }
 
@@ -736,4 +739,97 @@ func cvmBusy(ctx context.Context, name string, sp cvm.Spec) bool {
 		}
 	}
 	return false
+}
+
+// Volumes in the Finder.
+
+type cvmVolume struct {
+	Engine     string `json:"engine"`
+	Name       string `json:"name"`
+	Mountpoint string `json:"mountpoint"`
+	Project    string `json:"project,omitempty"`
+}
+
+func (s *Server) cvmVolumes(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	sp, err := cvm.Load(name)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, errors.New("máquina não encontrada"))
+		return
+	}
+	out := struct {
+		Finder   bool              `json:"finder"`
+		FinderRW bool              `json:"finderRW"`
+		Mounts   []cvm.FinderMount `json:"mounts"`
+		Volumes  []cvmVolume       `json:"volumes"`
+	}{Finder: sp.Finder, FinderRW: sp.FinderRW, Mounts: cvm.FinderMounts(name), Volumes: []cvmVolume{}}
+	if out.Mounts == nil {
+		out.Mounts = []cvm.FinderMount{}
+	}
+	if cvm.State(r.Context(), name) == cvm.StateRunning {
+		for _, e := range []struct {
+			on   bool
+			eng  string
+			sock string
+		}{{sp.Docker, "docker", cvm.DockerSocket(name)}, {sp.Podman, "podman", cvm.PodmanSocket(name)}} {
+			if !e.on {
+				continue
+			}
+			sock := e.sock
+			c := engine.New(func(ctx context.Context) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "unix", sock)
+			})
+			ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+			vs, err := c.Volumes(ctx)
+			cancel()
+			if err != nil {
+				continue
+			}
+			for _, v := range vs {
+				out.Volumes = append(out.Volumes, cvmVolume{Engine: e.eng, Name: v.Name, Mountpoint: v.Mountpoint, Project: v.Labels["com.docker.compose.project"]})
+			}
+		}
+	}
+	writeJSON(w, out)
+}
+
+func (s *Server) cvmFinder(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var req struct {
+		On bool `json:"on"`
+		RW bool `json:"rw"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<10)).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	label := "Volumes de " + name + " no Finder"
+	jid, err := s.startJob("cvm:"+name, label, func(ctx context.Context, out io.Writer) error {
+		return cvm.SetFinder(ctx, name, req.On, req.RW, out)
+	})
+	if err != nil {
+		writeErr(w, http.StatusConflict, err)
+		return
+	}
+	writeJSON(w, map[string]string{"id": jid})
+}
+
+func (s *Server) cvmOpenVolume(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Engine     string `json:"engine"`
+		Volume     string `json:"volume"`
+		Mountpoint string `json:"mountpoint"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<12)).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+	defer cancel()
+	if err := cvm.OpenVolume(ctx, r.PathValue("name"), req.Engine, req.Volume, req.Mountpoint); err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
 }

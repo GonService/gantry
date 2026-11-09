@@ -161,6 +161,8 @@ func Stop(ctx context.Context, name string, log io.Writer) error {
 	if p == 0 {
 		return nil
 	}
+	StopWatch(name)
+	UnmountFinder(name)
 	if _, err := rest(ctx, name, http.MethodPost, `{"state":"Stop"}`); err != nil {
 		fmt.Fprintf(log, "pedido de desligar: %v\n", err)
 	} else {

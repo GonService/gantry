@@ -58,6 +58,10 @@ type Spec struct {
 	// Watch forwards the Mac's file changes into the machine, so watchers
 	// in containers (hot reload) see them.
 	Watch bool `json:"watch"`
+	// Finder shows the engines' volumes in the Finder (NFS from the
+	// machine to this Mac only); FinderRW lets the Mac write in them.
+	Finder   bool `json:"finder"`
+	FinderRW bool `json:"finderRW"`
 	// SnapDaily takes a snapshot of the data disk once a day, at start;
 	// SnapKeep is how many automatic ones stay.
 	SnapDaily bool `json:"snapDaily"`

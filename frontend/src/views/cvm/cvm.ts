@@ -48,6 +48,9 @@ export type Integration = {
   commands: string[];
 };
 
+export type FinderMount = { engine: string; path: string; export: string; mounted: boolean };
+export type Volumes = { finder: boolean; finderRW: boolean; mounts: FinderMount[]; volumes: { engine: string; name: string; mountpoint: string; project?: string }[] };
+
 export type Snap = { id: string; at: number; reason: string; auto: boolean; extra: number };
 export type Platform = { name: string; how: string; active: boolean };
 export type Creds = { agent: boolean; agentKeys: number; agentSock: string; registries: string[]; store: string; folders: string[] };

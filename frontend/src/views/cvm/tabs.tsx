@@ -8,7 +8,7 @@ import { CopyCommand, ErrorBox, Loading } from "@/components/ui";
 import { openJob } from "@/shell/dock";
 import { toast } from "@/shell/toasts";
 import { t } from "@/lib/i18n";
-import { recreateHref, refreshAfter, type Creds, type CvmView, type Integration, type Platform, type Share, type Snap } from "./cvm";
+import { recreateHref, refreshAfter, type Creds, type CvmView, type Integration, type Platform, type Share, type Snap, type Volumes } from "./cvm";
 
 function Toggle({ on, label, sub, disabled, set }: { on: boolean; label: React.ReactNode; sub?: React.ReactNode; disabled?: boolean; set: (v: boolean) => void }) {
   return (
@@ -357,6 +357,7 @@ export function StorageTab({ v, reload }: { v: CvmView; reload: () => void }) {
             </div>
           </div>
         </section>
+        <FinderPanel v={v} />
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Snapshots do disco de dados")}</h2>
@@ -436,6 +437,103 @@ export function StorageTab({ v, reload }: { v: CvmView; reload: () => void }) {
         </section>
       </aside>
     </div>
+  );
+}
+
+function FinderPanel({ v }: { v: CvmView }) {
+  const [d, setD] = useState<Volumes | null>(null);
+  const [q, setQ] = useState("");
+  const base = "/cvm/" + enc(v.name);
+  const load = () => void api<Volumes>(base + "/volumes").then(setD).catch(() => undefined);
+  useEffect(load, [base, v.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = async (on: boolean, rw: boolean) => {
+    try {
+      const r = await api<{ id: string }>(base + "/finder", { method: "POST", body: { on, rw } });
+      openJob(r.id, t("Volumes de {name} no Finder", { name: v.name }), load);
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+  const open = async (x: Volumes["volumes"][number]) => {
+    try {
+      await api(base + "/finder/abrir", { method: "POST", body: { engine: x.engine, volume: x.name, mountpoint: x.mountpoint } });
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+  if (!d) return null;
+  const ql = q.trim().toLowerCase();
+  const vols = d.volumes.filter((x) => !ql || x.name.toLowerCase().includes(ql) || (x.project || "").toLowerCase().includes(ql));
+  const running = v.state === "running";
+  return (
+    <section className="panel">
+      <div className="cvm-ph">
+        <h2>{t("Volumes no Finder")}</h2>
+        {d.finder ? <input className="input cvm-filter" type="search" placeholder={t("Filtrar volumes…")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Filtrar volumes")} /> : null}
+      </div>
+      <div className="cvm-pb">
+        <label className="cvm-check">
+          <input type="checkbox" checked={d.finder} onChange={(e) => void set(e.target.checked, d.finderRW)} />
+          <span>
+            <b>{t("Mostrar os volumes no Finder")}</b>
+            <br />
+            <span className="muted small">{t("Por NFS, só da máquina para este Mac. Os containers continuam no disco nativo; só o acesso do Finder passa pela rede. Não precisa de senha de administrador.")}</span>
+          </span>
+        </label>
+        {d.finder ? (
+          <label className="cvm-check">
+            <input type="checkbox" checked={d.finderRW} onChange={(e) => void set(true, e.target.checked)} />
+            <span>
+              {t("Permitir escrita")}
+              <br />
+              <span className="muted small">{t("Desligado, o Finder só lê. Mexer nos arquivos de um banco rodando pode corromper os dados.")}</span>
+            </span>
+          </label>
+        ) : null}
+        {d.finder
+          ? d.mounts.map((m) => (
+              <span key={m.engine} className="cvm-kv">
+                <span>{m.engine === "docker" ? "Docker" : "Podman"}</span>
+                {m.mounted ? <span className="mono">{m.path}</span> : <span className="badge">{running ? t("não montado") : t("monta quando a máquina ligar")}</span>}
+              </span>
+            ))
+          : null}
+      </div>
+      {d.finder && running ? (
+        vols.length ? (
+          <div className="table-wrap">
+            <table className="grid" style={{ minWidth: 560 }}>
+              <thead>
+                <tr>
+                  <th>{t("Volume")}</th>
+                  <th>{t("Engine")}</th>
+                  <th>{t("Projeto")}</th>
+                  <th className="act" />
+                </tr>
+              </thead>
+              <tbody>
+                {vols.slice(0, 200).map((x) => (
+                  <tr key={x.engine + x.name}>
+                    <td className="mono">{x.name.length > 48 ? x.name.slice(0, 12) + "…" : x.name}</td>
+                    <td>{x.engine === "docker" ? "Docker" : "Podman"}</td>
+                    <td>{x.project || <span className="muted">—</span>}</td>
+                    <td className="act">
+                      <button className="btn small" type="button" onClick={() => void open(x)}>
+                        {t("Abrir no Finder")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="cvm-pb muted" style={{ margin: 0 }}>
+            {q ? t("Nenhum volume com esse nome.") : t("Nenhum volume ainda.")}
+          </p>
+        )
+      ) : null}
+    </section>
   );
 }
 

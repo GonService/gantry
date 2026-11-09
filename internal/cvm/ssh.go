@@ -32,9 +32,14 @@ func SSHArgs(name string) []string {
 
 // Run runs a shell line in the machine.
 func Run(ctx context.Context, name, line string) (string, error) {
+	return RunFor(ctx, name, line, 30*time.Second)
+}
+
+// RunFor is Run with another time limit (installs take longer).
+func RunFor(ctx context.Context, name, line string, limit time.Duration) (string, error) {
 	args := append([]string{"-o", "BatchMode=yes"}, SSHArgs(name)...)
 	args = append(args, "--", line)
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	out, err := exec.CommandContext(cctx, "ssh", args...).CombinedOutput()
 	if err != nil {

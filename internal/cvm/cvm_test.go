@@ -306,3 +306,26 @@ func TestWatchPieces(t *testing.T) {
 		t.Error("watchPaths sem caminhos deveria falhar")
 	}
 }
+
+func TestFinderScript(t *testing.T) {
+	s := Default(8, 16<<30)
+	on := FinderScript(s, true)
+	for _, want := range []string{"nfs-kernel-server", "/srv/gantry/gantry-vm-docker", "/srv/gantry/gantry-vm-podman", "mount --bind /var/lib/docker/volumes /srv/gantry/gantry-vm-docker", "(ro,sync,no_subtree_check,insecure,all_squash,anonuid=0,anongid=0,fsid=1)", "fsid=2", "exportfs -ra", "ip=$("} {
+		if !strings.Contains(on, want) {
+			t.Errorf("faltou %q:\n%s", want, on)
+		}
+	}
+	s.FinderRW = true
+	if !strings.Contains(FinderScript(s, true), "(rw,") {
+		t.Error("escrita pedida e export ro")
+	}
+	off := FinderScript(s, false)
+	if !strings.Contains(off, "rm -f /etc/exports.d/gantry.exports") || strings.Contains(off, "apt-get") {
+		t.Errorf("off:\n%s", off)
+	}
+	for _, sc := range []string{on, off} {
+		if out, err := exec.Command("bash", "-n", "-c", sc).CombinedOutput(); err != nil {
+			t.Errorf("sintaxe: %v %s", err, out)
+		}
+	}
+}
