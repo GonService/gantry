@@ -52,6 +52,7 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 			s.DataGiB = old.DataGiB
 		}
 		StopAgent(s.Name)
+		StopWatch(s.Name)
 		if err := Stop(ctx, s.Name, log); err != nil {
 			return err
 		}

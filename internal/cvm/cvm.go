@@ -55,6 +55,9 @@ type Spec struct {
 	// Shares are more folders of the Mac, at the same path (the home folder
 	// is always there).
 	Shares []Share `json:"shares,omitempty"`
+	// Watch forwards the Mac's file changes into the machine, so watchers
+	// in containers (hot reload) see them.
+	Watch bool `json:"watch"`
 	// SnapDaily takes a snapshot of the data disk once a day, at start;
 	// SnapKeep is how many automatic ones stay.
 	SnapDaily bool `json:"snapDaily"`
@@ -87,7 +90,7 @@ func Default(cpus int, mem int64) Spec {
 	}
 	return Spec{Name: DefaultName, CPUs: c, MemoryMiB: m, SystemGiB: 10, DataGiB: 128,
 		Docker: true, Podman: true, Rosetta: runtime.GOARCH == "arm64", SSHAgent: true, AutoStart: true, IdleStopMin: 0,
-		SnapDaily: true, SnapKeep: 7}
+		SnapDaily: true, SnapKeep: 7, Watch: true}
 }
 
 // Check reports what is wrong with a spec, for the creation form.

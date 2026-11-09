@@ -46,6 +46,8 @@ type cvmView struct {
 	Dir     string        `json:"dir"`
 	Script  string        `json:"scriptSum,omitempty"`
 	Pending bool          `json:"pending,omitempty"` // CPU or memory changed: applies on restart
+	// Watching: the Mac's file changes are going in (hot reload).
+	Watching bool `json:"watching"`
 }
 
 func cvmOf(ctx context.Context, name string) cvmView {
@@ -61,6 +63,7 @@ func cvmOf(ctx context.Context, name string) cvmView {
 		v.Script = cvm.Sum(sc)
 	}
 	v.Pending = cvmPending(name, s)
+	v.Watching = cvm.Watching(name)
 	return v
 }
 
@@ -189,6 +192,9 @@ func (s *Server) cvmStarted(name string) {
 		if sp.SSHAgent {
 			cvm.ForwardAgent(name)
 		}
+		if err := cvm.StartWatch(name); err != nil {
+			slog.Info("Container VM: sem avisos de alteração", "máquina", name, "erro", err)
+		}
 	}()
 }
 
@@ -207,6 +213,7 @@ func (s *Server) cvmPower(w http.ResponseWriter, r *http.Request) {
 		defer func() { config.ForgetDetected(); s.reload() }()
 		if act != "ligar" {
 			cvm.StopAgent(name)
+			cvm.StopWatch(name)
 			if err := cvm.Stop(ctx, name, out); err != nil {
 				return err
 			}
@@ -257,6 +264,7 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 		SSHAgent    *bool        `json:"sshAgent"`
 		SnapDaily   *bool        `json:"snapDaily"`
 		SnapKeep    *int         `json:"snapKeep"`
+		Watch       *bool        `json:"watch"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -295,6 +303,9 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 	if req.SnapKeep != nil && *req.SnapKeep > 0 {
 		n.SnapKeep = *req.SnapKeep
 	}
+	if req.Watch != nil {
+		n.Watch = *req.Watch
+	}
 	if req.DataGiB != nil && *req.DataGiB != cur.DataGiB {
 		if *req.DataGiB < cur.DataGiB {
 			writeErr(w, http.StatusBadRequest, errors.New("o disco de dados só aumenta"))
@@ -313,6 +324,16 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 	if err := cvm.Save(n); err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
+	}
+	if req.Watch != nil {
+		if n.Watch && cvm.State(r.Context(), name) == cvm.StateRunning {
+			if err := cvm.StartWatch(name); err != nil {
+				writeErr(w, http.StatusBadGateway, err)
+				return
+			}
+		} else if !n.Watch {
+			cvm.StopWatch(name)
+		}
 	}
 	writeJSON(w, cvmOf(r.Context(), name))
 }
@@ -555,6 +576,7 @@ func (s *Server) cvmSnapRestore(w http.ResponseWriter, r *http.Request) {
 		defer func() { config.ForgetDetected(); s.reload() }()
 		wasOn := cvm.State(ctx, name) == cvm.StateRunning
 		cvm.StopAgent(name)
+		cvm.StopWatch(name)
 		if err := cvm.Stop(ctx, name, out); err != nil {
 			return err
 		}
@@ -669,6 +691,7 @@ func (s *Server) cvmIdleLoop(ctx context.Context) {
 			if time.Since(idle[name]) >= time.Duration(sp.IdleStopMin)*time.Minute {
 				slog.Info("Container VM parada por falta de uso", "máquina", name, "minutos", sp.IdleStopMin)
 				cvm.StopAgent(name)
+				cvm.StopWatch(name)
 				_ = cvm.Stop(ctx, name, io.Discard)
 				cvmRunning.Delete(name)
 				delete(idle, name)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -268,5 +269,40 @@ func TestIntegrationFiles(t *testing.T) {
 	}
 	if rc, _ := os.ReadFile(filepath.Join(home, ".zshrc")); strings.Contains(string(rc), "gantry") {
 		t.Errorf("zshrc ficou com o bloco:\n%s", rc)
+	}
+}
+
+func TestWatchPieces(t *testing.T) {
+	for p, skip := range map[string]bool{
+		"/Users/ana/Projects/web/src/App.tsx":        false,
+		"/Users/ana/Library/Caches/x":                true,
+		"/Users/ana/Projects/web/.git/index":         true,
+		"/Users/ana/.gantry/machines/vm/console.log": true,
+		"/Users/ana/Projects/.DS_Store":              true,
+	} {
+		if skipPath(p) != skip {
+			t.Errorf("skipPath(%s) = %v", p, !skip)
+		}
+	}
+	if q := shQuote("it's"); q != `'it'\''s'` {
+		t.Errorf("shQuote: %s", q)
+	}
+	// The touch loop parses path<TAB>mtime, paths with spaces included.
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a b.txt")
+	if err := os.WriteFile(f, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "-c", touchLoop)
+	cmd.Stdin = strings.NewReader(f + "\t1700000000.250000000\n")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	fi, _ := os.Stat(f)
+	if fi.ModTime().Unix() != 1700000000 {
+		t.Errorf("mtime: %v", fi.ModTime())
+	}
+	if _, err := watchPaths(nil, nil); err == nil {
+		t.Error("watchPaths sem caminhos deveria falhar")
 	}
 }

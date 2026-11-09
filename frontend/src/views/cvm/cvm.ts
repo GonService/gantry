@@ -25,6 +25,7 @@ export type Spec = {
   shares?: Share[];
   snapDaily?: boolean;
   snapKeep?: number;
+  watch?: boolean;
 };
 
 export type Share = { path: string; readOnly?: boolean };
@@ -65,6 +66,7 @@ export type CvmView = {
   dir: string;
   scriptSum?: string;
   pending?: boolean;
+  watching?: boolean;
 };
 
 export type CvmList = { supported: boolean; vfkit: string; home: string; arch: string; default: Spec; machines: CvmView[]; image: string };

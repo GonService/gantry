@@ -340,6 +340,15 @@ export function StorageTab({ v, reload }: { v: CvmView; reload: () => void }) {
             </table>
           </div>
           <div className="cvm-pb">
+            <label className="cvm-check">
+              <input type="checkbox" checked={!!v.spec.watch} onChange={(e) => void saveSpec({ watch: e.target.checked }, e.target.checked ? t("Avisos de alteração ligados.") : t("Avisos de alteração desligados."))} />
+              <span>
+                <b>{t("Repassar avisos de alteração (hot reload)")}</b>{" "}
+                {v.spec.watch ? v.watching ? <span className="badge ok">{t("ativo")}</span> : v.state === "running" ? <span className="badge warn">{t("parado")}</span> : null : null}
+                <br />
+                <span className="muted small">{t("Quando você salva um arquivo no Mac, a máquina recebe o aviso, e vite, nodemon e air dentro dos containers recarregam. Sem isso, a pasta compartilhada não avisa nada.")}</span>
+              </span>
+            </label>
             <div className="cvm-actions">
               <input className="input mono" style={{ maxWidth: 420 }} placeholder="/Volumes/Dados/projetos" value={newPath} onChange={(e) => setNewPath(e.target.value)} aria-label={t("Caminho da pasta no Mac")} spellCheck={false} />
               <button className="btn" type="button" disabled={!newPath.trim().startsWith("/")} onClick={addShare}>

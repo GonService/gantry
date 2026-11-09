@@ -8,5 +8,6 @@
   "sudo journalctl -b --no-pager -o short-iso -n %d",
   "sudo journalctl -b --no-pager -o short-iso -n %d -u docker.service -u containerd.service",
   "sudo journalctl -b --no-pager -o short-iso -n %d -u podman.service -u podman.socket",
-  "sudo journalctl -f -n 300 --no-pager"
+  "sudo journalctl -f -n 300 --no-pager",
+  "t=$(printf '\\t'); while IFS= read -r l; do p=${l%\"$t\"*}; m=${l##*\"$t\"}; touch -c -m -d \"@$m\" -- \"$p\" 2>/dev/null; done"
 ]
