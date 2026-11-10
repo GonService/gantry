@@ -106,6 +106,7 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
   const up = (p: Partial<Spec>) => set({ ...spec, ...p });
   const intel = list.arch !== "arm64";
   const engines = engineNames(spec);
+  const nameOK = /^[a-z][a-z0-9-]{0,30}$/.test(spec.name);
   return (
     <div className="cvm-cols">
       <div className="cvm-main">
@@ -116,7 +117,16 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
           <div className="cvm-pb cvm-grid">
             <label className="cvm-field">
               <span>{t("Nome")}</span>
-              <input className="input" value={spec.name} disabled={recreate} onChange={(e) => up({ name: e.target.value.toLowerCase() })} spellCheck={false} />
+              <input
+                className="input"
+                value={spec.name}
+                disabled={recreate}
+                autoCapitalize="off"
+                autoCorrect="off"
+                onChange={(e) => up({ name: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })}
+                spellCheck={false}
+              />
+              {nameOK ? null : <span className="small" style={{ color: "var(--crit)" }}>{t("Use letras minúsculas, números e hífen, começando por uma letra.")}</span>}
             </label>
             <div className="cvm-field">
               <span>{t("Hypervisor")}</span>
@@ -257,7 +267,7 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
             <a className="btn" href={recreate ? cvmHref(spec.name, "recursos") : "#/local/t/engines"}>
               {t("Cancelar")}
             </a>
-            <button className="btn primary" type="button" disabled={!spec.docker && !spec.podman && !spec.containerd} onClick={next}>
+            <button className="btn primary" type="button" disabled={!nameOK || (!spec.docker && !spec.podman && !spec.containerd)} onClick={next}>
               {t("Revisar o script →")}
             </button>
           </div>
