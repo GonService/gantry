@@ -8,7 +8,9 @@ package cvm
 #include <stdint.h>
 #include <CoreServices/CoreServices.h>
 #include <dispatch/dispatch.h>
-#include "_cgo_export.h"
+// Exported from fsevents_export_darwin.go. The _cgo_export.h header only
+// exists for .c files, so it is declared here.
+extern void gantryFSEvent(uintptr_t id, char *p, unsigned int flags);
 
 static void gantryCallback(ConstFSEventStreamRef ref, void *info, size_t n, void *paths,
 		const FSEventStreamEventFlags flags[], const FSEventStreamEventId ids[]) {
