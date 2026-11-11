@@ -12,8 +12,8 @@ name: meu-lab
 
 # As redes do lab: cada uma é um switch.
 x-redes:
-  lan-a: {subnet: 10.0.1.0/24, gateway: 10.0.1.1}
-  lan-b: {subnet: 10.0.2.0/24, gateway: 10.0.2.1}
+  lan-a: {subnet: 10.0.1.0/24, gateway: 10.0.1.1, pos: [180, 300]}
+  lan-b: {subnet: 10.0.2.0/24, gateway: 10.0.2.1, pos: [700, 300]}
 
 x-vms:
   # Roteadores (Dynamips)
@@ -21,16 +21,19 @@ x-vms:
     image: cisco-c7200
     interfaces: [r1-r2, lan-a]          # Fa0/0 no cabo, Fa1/0 na lan-a
     config: equipamentos/R1.cfg
+    pos: [180, 100]                     # lugar no desenho da Topologia
   R2:
     image: cisco-c7200
     interfaces: [r1-r2, lan-b]          # Fa0/0 no cabo, Fa1/0 na lan-b
     config: equipamentos/R2.cfg
+    pos: [700, 100]
 
   # Computador de lab
   PC1:
     image: vpcs                         # vem com o Gantry
     interfaces: [lan-a]
     config: equipamentos/PC1.vpc
+    pos: [180, 480]
 
   # VM Debian com Nginx, na lan-b
   web:
@@ -41,6 +44,7 @@ x-vms:
     ports: ["8081:80"]
     packages: [nginx]
     interfaces: [{rede: lan-b, ip: 10.0.2.20/24}]   # segunda placa, na lan-b
+    pos: [860, 480]
     run:
       - echo "Olá da VM" > /var/www/html/index.html
       # a volta para a lan-a passa pelo R2, também depois de reiniciar
@@ -62,3 +66,4 @@ services:
         exec httpd -f -p 80 -h /www
     x-interfaces: [{rede: lan-b, ip: 10.0.2.10/24}] # vira a eth1 do container
     x-icon: server
+    x-pos: [540, 480]

@@ -94,7 +94,7 @@ Starting from scratch? The [tutorial](docs/from-scratch.md) builds a container, 
 
 | | |
 |---|---|
-| [From scratch to a lab](docs/from-scratch.md) | Tutorial: the folders on your computer, then a container, a VM, routers and all of them in one lab |
+| [From scratch to a lab](docs/from-scratch.md) | Tutorial: the Container VM on the Mac, the folders on your computer, then a container, a VM, routers and all of them in one lab, with screenshots |
 | [Step-by-step guide](docs/guide/README.md) | Features with screenshots and practical cases |
 | [Reference](docs/reference.md) | Everything the app does, compose extensions, remote hosts, agent, configuration, security model |
 | [Network equipment](docs/network-labs.md) | IOL, Dynamips and VPCS: cards, NPE, memory, images, imports |

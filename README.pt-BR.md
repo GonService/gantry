@@ -94,7 +94,7 @@ Começando do zero? O [tutorial](docs/do-zero-ao-lab.md) monta, passo a passo, u
 
 | | |
 |---|---|
-| [Do zero a um lab](docs/do-zero-ao-lab.md) | Tutorial: as pastas no seu computador, depois um container, uma VM, roteadores e todos juntos num lab |
+| [Do zero a um lab](docs/do-zero-ao-lab.md) | Tutorial: a Container VM no Mac, as pastas no seu computador, depois um container, uma VM, roteadores e todos juntos num lab, com telas |
 | [Guia passo a passo](docs/guia/README.md) | As funções com telas e casos práticos |
 | [Referência](docs/referencia.md) | Tudo o que o app faz, extensões do compose, hosts remotos, agente, configuração, segurança |
 | [Equipamentos de rede](docs/equipamentos-de-rede.md) | IOL, Dynamips e VPCS: placas, NPE, memória, imagens, importação |

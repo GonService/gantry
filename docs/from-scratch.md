@@ -2,7 +2,7 @@
 
 **English** · [Português](do-zero-ao-lab.md) · [Guide](guide/README.md) · [Reference](reference.md) · [Back to the start](../README.md)
 
-This tutorial shows, step by step, how to build in Gantry everything a lab can have: a **container**, a **virtual machine** and a **router**. At the end, it puts the three in one lab, with a lab computer and cables between them. It starts in the terminal, creating the folders on your computer, and ends with everything configured and tested inside Gantry.
+This tutorial shows, step by step, how to build in Gantry everything a lab can have: a **container**, a **virtual machine** and a **router**. On the Mac, it starts with the **Container VM**, the machine that runs the containers (Docker, Podman or nerdctl). At the end, it puts the three in one lab, with a lab computer and cables between them. It starts in the terminal, creating the folders on your computer, and ends with everything configured and tested inside Gantry.
 
 Each case builds on the previous one, but each works on its own. If you only want a container, you can stop at case 1.
 
@@ -10,16 +10,17 @@ Each case builds on the previous one, but each works on its own. If you only wan
 
 0. [Before you start: Gantry's words](#0-before-you-start-gantrys-words)
 1. [Prepare the computer](#1-prepare-the-computer)
-2. [Create the folders on the computer](#2-create-the-folders-on-the-computer)
-3. [Two ways to create: the wizard or the file](#3-two-ways-to-create-the-wizard-or-the-file)
-4. [Case 1: a container](#4-case-1-a-container)
-5. [Case 2: a virtual machine](#5-case-2-a-virtual-machine)
-6. [Case 3: routers](#6-case-3-routers)
-7. [Case 4: everything in one lab](#7-case-4-everything-in-one-lab)
-8. [Changing the lab later](#8-changing-the-lab-later)
-9. [Organize, keep and take it elsewhere](#9-organize-keep-and-take-it-elsewhere)
-10. [When something does not work](#10-when-something-does-not-work)
-11. [Summary: the files of each case](#11-summary-the-files-of-each-case)
+2. [The Container VM: containers on the Mac](#2-the-container-vm-containers-on-the-mac)
+3. [Create the folders on the computer](#3-create-the-folders-on-the-computer)
+4. [Two ways to create: the wizard or the file](#4-two-ways-to-create-the-wizard-or-the-file)
+5. [Case 1: a container](#5-case-1-a-container)
+6. [Case 2: a virtual machine](#6-case-2-a-virtual-machine)
+7. [Case 3: routers](#7-case-3-routers)
+8. [Case 4: everything in one lab](#8-case-4-everything-in-one-lab)
+9. [Changing the lab later](#9-changing-the-lab-later)
+10. [Organize, keep and take it elsewhere](#10-organize-keep-and-take-it-elsewhere)
+11. [When something does not work](#11-when-something-does-not-work)
+12. [Summary: the files of each case](#12-summary-the-files-of-each-case)
 
 The UI labels below are those of the English interface. Comments inside the example files are in Portuguese, like the rest of the examples.
 
@@ -61,25 +62,15 @@ Open Gantry. The sidebar shows **This machine**.
 
 Containers need an engine (Docker, Podman or containerd).
 
-**On the Mac**, the lightest way is Gantry's own **Container VM**: a small Linux VM just for the containers, which gives back to the Mac the memory it does not use.
+- **On the Mac:** create Gantry's **Container VM**, explained step by step in [section 2](#2-the-container-vm-containers-on-the-mac). If you already use Docker Desktop, OrbStack or `podman machine`, Gantry finds those engines on its own, and the Container VM is optional.
+- **On Linux**, the engine runs right on the system:
 
-1. Click **This machine** › **Engines** tab › **Create the Container VM**.
-2. **Configure:** keep the name `gantry-vm`, tick the engines you want (Docker, Podman, both) and adjust CPUs, memory and disk if you like. You can change them later.
-3. **Review the script:** this is the script that prepares the VM. Read it if you want, and approve it.
-4. **Create and start:** Gantry downloads Debian, prepares the VM and starts it. It takes a few minutes the first time.
-
-When it finishes, the VM's engines show up as engines of this Mac, and `docker` and `podman` in the terminal already talk to it.
-
-If you already use Docker Desktop, OrbStack or `podman machine`, you can skip this step: Gantry finds those engines on its own.
-
-**On Linux**, install the engine from the system:
-
-```sh
-# Fedora
-sudo dnf install podman podman-compose
-# Debian or Ubuntu
-sudo apt install podman podman-compose
-```
+  ```sh
+  # Fedora
+  sudo dnf install podman podman-compose
+  # Debian or Ubuntu
+  sudo apt install podman podman-compose
+  ```
 
 ### 1.3 What VMs and routers use
 
@@ -90,11 +81,84 @@ sudo apt install podman podman-compose
 
 No need to memorize: the machine's **Tools** tab lists what is missing and shows the right command for your system. On the Mac, what comes from Homebrew installs with one button.
 
-![Tools](images/en/tools.png)
+![Tools: what is installed and what is missing](images/en/tut-tools.png)
 
 > **Where each thing runs.** Containers, VMs and Dynamips routers run on the Mac and on Linux. **IOL** devices and **VPCS** (the lab computer of case 4) need Linux x86_64: this computer, if it runs Linux, or a server over SSH (see [Add a server over SSH](guide/README.md#3-add-a-server-over-ssh)). The steps are the same either way; only the machine you pick changes.
 
-## 2. Create the folders on the computer
+## 2. The Container VM: containers on the Mac
+
+The Mac does not run Linux containers directly: they need a Linux underneath. The **Container VM** is that Linux, created and looked after by Gantry itself. It is a small Debian VM, on Apple Virtualization, just for the engines: **Docker**, **Podman** and **containerd** (with `nerdctl`), one, two or all three. Its containers show up as containers of this Mac, and it keeps running with Gantry closed.
+
+What it brings:
+
+- **Dynamic memory:** the machine keeps only the memory the containers use, plus some room; the rest goes back to the Mac. When it needs more, it takes it at once, up to the maximum memory.
+- **Your folders at the same path:** your home folder shows up inside the machine at the same place, so `./folder:/data` in a compose works as on Linux.
+- **Data apart from the system:** images, volumes and containers live on a data disk that is never recreated, with an automatic snapshot a day. The system can be replaced without losing anything.
+- **amd64 through Rosetta**, to run and build Intel images on an Apple Silicon Mac, and the **Mac's ssh-agent** forwarded, for `git clone` and `buildx --ssh` with your keys.
+- **A script you read first:** everything that runs inside the machine is in a script you approve. If the script changes, Gantry does not run it.
+
+### 2.1 Create the machine
+
+1. Open **This machine** › **Engines** tab › **Create the Container VM**. On a Mac with no engine at all, the sidebar also shows **＋ Create Container VM**.
+2. **Configure:**
+   - **Name:** keep `gantry-vm` (lowercase letters, numbers and hyphens).
+   - **Container engines:** tick the ones you want. You can pick more than one.
+   - **Resources:** CPUs, maximum memory and the maximum size of the data disk. The disk is a sparse file: it takes on the Mac only what is used. You can change all of this later.
+   - **Architectures and credentials:** amd64 through Rosetta, other architectures through QEMU (slower) and the Mac's ssh-agent.
+   - **Start and stop:** **Start when Gantry opens**.
+   - **Your own steps** (optional): an extra script that runs last as root (`apt-get install -y htop`, for example).
+
+   ![Create the Container VM: configure](images/en/tut-cvm-config.png)
+
+3. **Review the script:** the full `provision.sh`, with its sha256, and the cloud-init in a tab next to it. **Copy sha256** and **Download .sh** let you keep or check it elsewhere. The **What will happen** panel sums up the steps, on the Mac and inside the machine.
+
+   ![Create the Container VM: review the script](images/en/tut-cvm-script.png)
+
+4. **Create and start:** Gantry downloads the Debian 13 image (checked by SHA512), creates the disks, starts the machine and shows the provisioning line by line. The first time it takes a few minutes, because it installs the engines.
+
+When it finishes, the machine shows up in the sidebar, under **This machine**, with its power button next to it.
+
+### 2.2 Use it from the Mac's terminal
+
+The machine's **Engines and sockets** tab shows everything you need to use the engines outside Gantry:
+
+- **Sockets on the Mac:** the machine's `docker.sock` and `podman.sock` live in `~/.gantry/machines/gantry-vm/`. containerd is used through the `nerdctl` command, in `~/.gantry/bin`.
+- **Point the Mac's terminal:** `docker context use gantry` (recommended), or the `export DOCKER_HOST=…` and `export CONTAINER_HOST=…` lines for one session only. **Make it docker's default** switches the context for you.
+- **Integration with the Mac:** each option is a box you turn on or off:
+  - the `gantry` context in Docker;
+  - a Docker context that talks to the machine's Podman;
+  - **The machine's commands on the PATH**, which puts `docker`, `podman` and `nerdctl` from `~/.gantry/bin` in your terminal, after the ones the Mac already has;
+  - **Link at /var/run/docker.sock**, for tools that only look there (asks for the administrator password).
+
+![The Container VM: engines and sockets](images/en/tut-cvm-engines.png)
+
+To test, in a Mac terminal:
+
+```sh
+docker context use gantry
+docker run --rm hello-world
+podman run --rm docker.io/library/alpine echo "hello from podman"     # with the machine's commands on the PATH
+nerdctl run --rm docker.io/library/alpine echo "hello from nerdctl"   # same
+```
+
+Gantry projects (the cases below) use the machine on their own: just pick its engine when creating the project.
+
+### 2.3 Start, stop and adjust
+
+- **Start and stop:** with the button next to the machine in the sidebar, or **Turn on** and **Turn off** on its page. When the Mac sleeps, the machine pauses with it and comes back when it wakes.
+- **Resources:** CPUs and **Maximum memory** (they apply on the next boot), **Dynamic memory** (on by default; applies right away), **Turn off with no container running for** a while, and the data disk, which only grows. With the machine on, the panel shows how much it holds now and how much went back to the Mac.
+
+  ![The Container VM: resources and dynamic memory](images/en/tut-cvm-resources.png)
+
+- **Processes:** what runs in the machine now, live, as in `htop`, grouped by container.
+- **Logs and terminal:** the logs of the system, the engines and the provisioning, and a terminal inside the machine.
+- **Storage:** the Mac folders the machine sees, the data disk snapshots (and going back to one) and the volumes in the Finder.
+- **Multi-arch and credentials:** the platforms the machine runs and builds (`docker buildx build --platform linux/amd64,linux/arm64`) and the Mac credentials it uses.
+- **Script:** the approved script. **Recreate…** (in the Resources tab) replaces the system with a new one, with other choices, and keeps the data disk.
+
+> On Linux, the Container VM is not needed: the engine runs right on the system. On Windows, Gantry uses WSL2.
+
+## 3. Create the folders on the computer
 
 Two folders are enough:
 
@@ -132,7 +196,7 @@ Gantry also creates a `.gantry/` folder inside the project, with files it genera
 
 **On a server over SSH**, the folders are created on the server, not on your computer. Create them from its terminal (`ssh homelab mkdir -p ~/gantry/imagens`) or leave it to Gantry: when you choose a project folder on a server, Gantry's picker lists the server's folders and creates new ones.
 
-## 3. Two ways to create: the wizard or the file
+## 4. Two ways to create: the wizard or the file
 
 Every project ends up as a `compose.yaml`. You can get there in two ways, and mix them whenever you like:
 
@@ -144,7 +208,7 @@ Every project ends up as a `compose.yaml`. You can get there in two ways, and mi
 
 The cases below show both paths. Once created, the project is the same, wherever it came from.
 
-## 4. Case 1: a container
+## 5. Case 1: a container
 
 A static site on Nginx, opened in the browser.
 
@@ -160,7 +224,9 @@ A static site on Nginx, opened in the browser.
    - If a template port is already in use on the machine, its field already comes with the next free one, with the reason below it.
    - Leave **Bring up after generating** ticked and click **Generate project**.
 
-![Create project](images/en/create.png)
+![Create project: the container templates](images/en/tut-template.png)
+
+![Create project: review and generate](images/en/tut-review.png)
 
 Gantry writes `compose.yaml` and `.env` to the folder, brings the container up and opens the project page.
 
@@ -185,23 +251,27 @@ Gantry writes `compose.yaml` and `.env` to the folder, brings the container up a
 
 3. In Gantry: **This machine** › **Projects** › **Other ways** › **Open folder with compose**. Choose `~/gantry/meu-site` and click **Bring up**.
 
+   ![Open folder with compose](images/en/tut-open.png)
+
 ### Use and check
 
 - The **Open** strip, at the top of the project, has the site link (`http://localhost:8080`). **Copy link** gives the address through the machine's IP, to open it on your phone.
 - In the container list, **Logs** shows the requests live and **Shell** opens a terminal inside the container.
 - Click the container name to see its ports, volumes, variables, CPU, memory and files.
 
-![A project and its containers](images/en/project.png)
+![The meu-site project running](images/en/tut-site.png)
 
 ### Change something
 
-To change the port, open the **File** tab, create or edit `.env` with `WEB_PORTA=8081` and click **Save and apply**. Only `web` is recreated.
+To change the port, open the **File** tab, pick `.env` and change the port variable: `PORTA=8081` in the project made from the template, or `WEB_PORTA=8081` in the hand-written compose. Click **Save and apply**. Only `web` is recreated.
+
+![.env in the File tab](images/en/tut-env.png)
 
 If you prefer your own editor (Nvim, VS Code), edit the file right in the folder. Gantry reads the folder again every 3 s and shows **The project files changed**, with the **Apply now** button.
 
 > **A container outside a project.** For a quick test, **Other ways** › **Standalone container** opens the full form (image, ports, volumes, network, variables, limits), as in Portainer. The container does not live in a folder; to keep it and repeat it, use a project.
 
-## 5. Case 2: a virtual machine
+## 6. Case 2: a virtual machine
 
 A Debian VM with Nginx, which your computer's browser opens at `http://localhost:8081`.
 
@@ -216,6 +286,8 @@ A Debian VM with Nginx, which your computer's browser opens at `http://localhost
    - **Packages:** `nginx`.
    - **Startup script:** commands that run once, as root, on the first boot. The **Examples** include Docker, Podman, Nginx, k3s, time zone and a user with a password.
 3. **Review and generate:** name `minha-vm`, folder `~/gantry/minha-vm`, **Generate project**.
+
+![Create project: a VM with your own setup](images/en/tut-vm.png)
 
 ### With the file
 
@@ -267,7 +339,7 @@ Open `http://localhost:8081`: the page says "Olá da VM".
 
 > **Installing from an ISO.** For a system without a cloud image (Windows, your own installer), use the **from an ISO** template: the VM starts with an empty disk and boots the installer. Use **Screen** to install. **Import disk…**, in Create project, turns an OVA, VMDK, VDI or VHD(X) from another hypervisor into a VM.
 
-## 6. Case 3: routers
+## 7. Case 3: routers
 
 Two Cisco 7200 routers (Dynamips) linked by a cable, each with its startup configuration in a file. Dynamips runs on the Mac and on Linux.
 
@@ -276,7 +348,7 @@ R1 Fa0/0 ──── r1-r2 ──── Fa0/0 R2
 10.0.12.1/30            10.0.12.2/30
 ```
 
-### 6.1 The router image
+### 7.1 The router image
 
 Cisco images do not come with Gantry (the license does not allow it). Use your own 7200 IOS file, a `c7200-….image` or `.bin`.
 
@@ -290,7 +362,9 @@ Cisco images do not come with Gantry (the license does not allow it). Use your o
 
 The Images block also lets you add other folders (**+ Folder**), if your images already live elsewhere.
 
-### 6.2 The startup configuration
+![The Images block, with the 7200 image](images/en/tut-images.png)
+
+### 7.2 The startup configuration
 
 Create `~/gantry/meu-lab/equipamentos/R1.cfg`:
 
@@ -314,7 +388,7 @@ end
 
 The startup configuration only goes in on the **first boot**. After that, what the router saved (`write memory`) is what counts.
 
-### 6.3 The compose
+### 7.3 The compose
 
 Create `~/gantry/meu-lab/compose.yaml`:
 
@@ -337,7 +411,7 @@ How the cables work:
 - On the 7200, the order is `Fa0/0`, then `Fa1/0`, `Fa1/1`, and so on. Gantry only puts in the router the cards the cables use.
 - `none` leaves a port without a cable, to skip a port and wire the next one.
 
-### 6.4 Bring it up and get into the router
+### 7.4 Bring it up and get into the router
 
 1. **Other ways** › **Open folder with compose** › `~/gantry/meu-lab` › **Bring up**.
 2. Open the **Topology** tab: the lab is drawn, with R1 and R2 linked by the cable. The light at each end turns green with the interface up.
@@ -349,16 +423,15 @@ How the cables work:
    R1# ping 10.0.12.2
    ```
 
-![The lab drawing](images/en/topology.png)
 
-### 6.5 The idle-PC (so the router does not use a whole core)
+### 7.5 The idle-PC (so the router does not use a whole core)
 
 Without an idle-PC, Dynamips uses a whole processor thread, even with the router idle at the prompt. The VM list shows **no idle-PC** next to the router.
 
 1. With the router on and at the prompt (`R1>`), click **no idle-PC** (or **Manage…** › **Compute idle-PC**).
 2. The value is kept for the image and applies to every router using it: you only do it once.
 
-### 6.6 Keep what you configured
+### 7.6 Keep what you configured
 
 - `write memory` on the router writes its NVRAM. The project's `R1.cfg` does not change.
 - **Devices** › **Lab states** › **Save state…** keeps the configuration of every device at once. **Restore** takes them all back to that point. Use it before trying something risky.
@@ -385,7 +458,7 @@ x-vms:
 
 Cards, NPE, memory and more models are in [Network equipment](network-labs.md).
 
-## 7. Case 4: everything in one lab
+## 8. Case 4: everything in one lab
 
 Now `meu-lab` grows: two LANs, a lab computer (VPCS) on LAN A, and a container and a VM on LAN B. A ping from the PC crosses both routers to the server.
 
@@ -397,9 +470,9 @@ Now `meu-lab` grows: two LANs, a lab computer (VPCS) on LAN A, and a container a
          PC1 .10              srv .10 (container)   web .20 (VM)
 ```
 
-This case uses VPCS, so run the lab on **Linux x86_64** (this computer or a server). On a server, create the folders and copy the images there (section 2), and pick the server when opening the folder.
+This case uses VPCS, so run the lab on **Linux x86_64** (this computer or a server). On a server, create the folders and copy the images there (section 3), and pick the server when opening the folder.
 
-### 7.1 The files
+### 8.1 The files
 
 `equipamentos/R1.cfg`, now with LAN A and the route to LAN B:
 
@@ -502,15 +575,19 @@ What each new part is:
 - On containers, `x-interfaces:` adds ports (`eth1`, `eth2`…) on the lab's cables and networks.
 - The container and the VM already have a way out (through their main NIC). That is why each one gets a route to LAN A through R2; without it, the ping arrives but the reply never comes back.
 
-### 7.2 Bring it up
+### 8.2 Bring it up
 
-If `meu-lab` from case 3 is already open, save the files: the project page shows **The project files changed**. Click **Apply now**. If you have not opened it yet, use **Open folder with compose** as before.
+If `meu-lab` from case 3 is already open, save the files: the project page shows **The project files changed**, with what changes in each service and VM. Click **Apply now**. If you have not opened it yet, use **Open folder with compose** as before.
+
+![The changed-files notice](images/en/tut-drift.png)
 
 The routers created before keep the NVRAM from case 3, so the new configuration in the files does not go in on its own. Use **Devices** › **Lab states** › **Start from scratch…** and bring the lab up again, or type the new lines in the console.
 
-The **Topology** tab shows the whole lab: the routers, the PC, the container, the VM, the two network clouds and the cables.
+The **Topology** tab shows the whole lab: the routers, the PC, the container, the VM, the two network clouds and the cables. Each device's light turns green when it is on; the example in `examples/primeiro-lab` also brings the drawing positions (`pos:` and `x-pos:`).
 
-### 7.3 Test
+![The full lab drawing](images/en/tut-topology.png)
+
+### 8.3 Test
 
 1. Right-click **PC1** › **Console**:
 
@@ -530,7 +607,7 @@ The **Topology** tab shows the whole lab: the routers, the PC, the container, th
 
 3. In your computer's browser, `http://<machine>:8081` opens the VM's Nginx, through the published port.
 
-### 7.4 See the traffic
+### 8.4 See the traffic
 
 Click a cable (or right-click a network cloud) › **Watch live here**. The capture opens in the bottom panel, decoded line by line. Run the ping again and watch the packets go by. **Save .pcap…** keeps the capture to open in Wireshark.
 
@@ -538,7 +615,7 @@ Click a cable (or right-click a network cloud) › **Watch live here**. The capt
 
 Nothing needs to be installed on the devices: the capture runs on the lab's machine.
 
-## 8. Changing the lab later
+## 9. Changing the lab later
 
 You can change the lab from the interface or from the file. The result goes to the same `compose.yaml`:
 
@@ -555,7 +632,7 @@ You can change the lab from the interface or from the file. The result goes to t
 
 To add another device, copy the block of a similar one, change the name and the cables, and apply. For another router, create its `.cfg` in `equipamentos/` too.
 
-## 9. Organize, keep and take it elsewhere
+## 10. Organize, keep and take it elsewhere
 
 - **Folders in the sidebar:** gear › **Folders** creates folders (per client, course, environment) and **Machines** puts each machine in its folder. They are sidebar folders, not disk folders.
 - **Save as template:** on the project page. The project shows up first in **Create project**, marked "yours", to generate it again the same way.
@@ -564,7 +641,7 @@ To add another device, copy the block of a similar one, change the name and the 
 - **Backup:** the **Backup** tab keeps volumes, databases and the project folder in one file, in the folder you choose, and can run on its own.
 - **git:** since the project is just a folder of text files, you can version it with `git init` and bring it back with **Other ways** › **Project from a git repository**. Keep `.gantry/` and `.env` out of the repository (`.gitignore`).
 
-## 10. When something does not work
+## 11. When something does not work
 
 | What shows up | What to do |
 |---|---|
@@ -574,14 +651,14 @@ To add another device, copy the block of a similar one, change the name and the 
 | The VM does not answer in Shell | Open **Console**: cloud-init may still be installing packages, or show an error. Wait for the boot to finish. |
 | The `.cfg` configuration did not go in | It only applies on the first boot. Use **Start from scratch…** in Lab states, or configure it from the console. |
 | The router shows **N lines refused** | Click it: each line IOS rejected appears with its message. |
-| The processor stays at 100% with the router idle | The idle-PC is missing: **Manage…** › **Compute idle-PC** (section 6.5). |
+| The processor stays at 100% with the router idle | The idle-PC is missing: **Manage…** › **Compute idle-PC** (section 7.5). |
 | The 7200 refuses the memory | The 7200 goes up to 256 MB on Dynamips; above that it does not start. |
-| The ping goes out but no reply comes back | A return route is missing: check the routes on the routers, the container and the VM (section 7.1). |
+| The ping goes out but no reply comes back | A return route is missing: check the routes on the routers, the container and the VM (section 8.1). |
 | IOL or VPCS do not start on the Mac | They need Linux x86_64. Use a server over SSH, or Dynamips instead of IOL. |
 
 To ask for help, gear › **General** › **View diagnostics** gathers versions, the state of the machines and the end of the log, without addresses, users or passwords.
 
-## 11. Summary: the files of each case
+## 12. Summary: the files of each case
 
 ```
 ~/gantry/
