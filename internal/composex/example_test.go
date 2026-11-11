@@ -24,3 +24,21 @@ func TestExampleLab(t *testing.T) {
 		}
 	}
 }
+
+// The lab of the tutorial (docs/passo-a-passo) must keep loading as written.
+func TestExamplePrimeiroLab(t *testing.T) {
+	b, err := os.ReadFile("../../examples/primeiro-lab/compose.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := Parse(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.VMs) != 4 || len(p.Redes) != 2 {
+		t.Fatalf("esperava 4 equipamentos/VMs e 2 redes: %d, %d", len(p.VMs), len(p.Redes))
+	}
+	if sv := p.Services["srv"]; sv == nil || len(sv.Interfaces) != 1 || sv.Interfaces[0].Net != "lan-b" {
+		t.Fatalf("srv fora da lan-b: %+v", sv)
+	}
+}

@@ -4,6 +4,8 @@
 
 A walk through Gantry with real cases, from the first launch to a network lab with routers. Each part stands on its own: jump to the one you need.
 
+Starting from scratch? The [tutorial](../walkthrough/README.md) builds a container, a VM and routers step by step, from creating the folders on your computer.
+
 The screenshots come from a demo setup: this computer with Docker, Podman and containerd, a server called `homelab` reached over SSH, a small web project (`webshop`) and an OSPF lab (`campus-ospf`).
 
 **Contents**

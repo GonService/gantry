@@ -11,6 +11,7 @@
 <p align="center">
   <a href="README.md">English</a> · <b>Português</b> ·
   <a href="https://gonservice.github.io/gantry/?lang=pt">Site</a> ·
+  <a href="docs/passo-a-passo/README.md">Tutorial</a> ·
   <a href="docs/guia/README.md">Guia</a> ·
   <a href="docs/referencia.md">Referência</a>
 </p>
@@ -94,6 +95,7 @@ O [guia](docs/guia/README.md) mostra estes e outros casos reais: um lab de rede 
 
 | | |
 |---|---|
+| [Do zero a um lab](docs/passo-a-passo/README.md) | Tutorial: as pastas no seu computador, depois um container, uma VM, roteadores e todos juntos num lab |
 | [Guia passo a passo](docs/guia/README.md) | As funções com telas e casos práticos |
 | [Referência](docs/referencia.md) | Tudo o que o app faz, extensões do compose, hosts remotos, agente, configuração, segurança |
 | [Equipamentos de rede](docs/equipamentos-de-rede.md) | IOL, Dynamips e VPCS: placas, NPE, memória, imagens, importação |

@@ -1,0 +1,64 @@
+# Primeiro lab: o caso 4 do tutorial (docs/passo-a-passo/README.md).
+# Dois roteadores Cisco 7200 (Dynamips), um computador de lab (VPCS) na
+# lan-a, e um container e uma VM Debian na lan-b. Roda num Linux x86_64
+# (o VPCS precisa); a imagem do 7200 vai em ~/gantry/imagens.
+#
+#            r1-r2 (10.0.12.0/30)
+#   R1 Fa0/0 ─────────────── Fa0/0 R2
+#   Fa1/0 │                     │ Fa1/0
+#         │ lan-a 10.0.1.0/24   │ lan-b 10.0.2.0/24
+#       PC1 .10          srv .10 (container)  web .20 (VM)
+name: meu-lab
+
+# As redes do lab: cada uma é um switch.
+x-redes:
+  lan-a: {subnet: 10.0.1.0/24, gateway: 10.0.1.1}
+  lan-b: {subnet: 10.0.2.0/24, gateway: 10.0.2.1}
+
+x-vms:
+  # Roteadores (Dynamips)
+  R1:
+    image: cisco-c7200
+    interfaces: [r1-r2, lan-a]          # Fa0/0 no cabo, Fa1/0 na lan-a
+    config: equipamentos/R1.cfg
+  R2:
+    image: cisco-c7200
+    interfaces: [r1-r2, lan-b]          # Fa0/0 no cabo, Fa1/0 na lan-b
+    config: equipamentos/R2.cfg
+
+  # Computador de lab
+  PC1:
+    image: vpcs                         # vem com o Gantry
+    interfaces: [lan-a]
+    config: equipamentos/PC1.vpc
+
+  # VM Debian com Nginx, na lan-b
+  web:
+    image: debian-12
+    cpus: 1
+    memory: 1g
+    disk: 8G
+    ports: ["8081:80"]
+    packages: [nginx]
+    interfaces: [{rede: lan-b, ip: 10.0.2.20/24}]   # segunda placa, na lan-b
+    run:
+      - echo "Olá da VM" > /var/www/html/index.html
+      # a volta para a lan-a passa pelo R2, também depois de reiniciar
+      - printf '[Unit]\nAfter=network-online.target\nWants=network-online.target\n[Service]\nType=oneshot\nExecStart=/sbin/ip route replace 10.0.1.0/24 via 10.0.2.1\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/rota-lab.service
+      - systemctl enable --now rota-lab.service
+
+services:
+  # Container com um servidor web, na lan-b
+  srv:
+    image: busybox:1.36
+    cap_add: [NET_ADMIN]                # para criar a rota até a lan-a
+    command:
+      - sh
+      - -c
+      - |
+        until ip link show eth1 >/dev/null 2>&1; do sleep 1; done
+        ip route replace 10.0.1.0/24 via 10.0.2.1
+        mkdir -p /www && echo "Olá do container" > /www/index.html
+        exec httpd -f -p 80 -h /www
+    x-interfaces: [{rede: lan-b, ip: 10.0.2.10/24}] # vira a eth1 do container
+    x-icon: server
