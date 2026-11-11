@@ -1,6 +1,6 @@
 # Do zero a um lab completo
 
-[English](../walkthrough/README.md) · **Português** · [Guia](../guia/README.md) · [Referência](../referencia.md) · [Voltar ao início](../../README.pt-BR.md)
+[English](from-scratch.md) · **Português** · [Guia](guia/README.md) · [Referência](referencia.md) · [Voltar ao início](../README.pt-BR.md)
 
 Este tutorial mostra, passo a passo, como montar no Gantry tudo o que um lab pode ter: um **container**, uma **máquina virtual** e um **roteador**. No fim, junta os três num lab só, com um computador de lab e cabos entre eles. Começa no terminal, criando as pastas no seu computador, e termina com tudo configurado e testado dentro do Gantry.
 
@@ -41,7 +41,7 @@ O Gantry não tem um formato próprio escondido: o projeto é o seu `compose.yam
 
 ### 1.1 Instalar o Gantry
 
-Veja [Baixar](../../README.pt-BR.md#baixar). No Mac, o mais simples é o Homebrew:
+Veja [Baixar](../README.pt-BR.md#baixar). No Mac, o mais simples é o Homebrew:
 
 ```sh
 brew install --cask gonservice/tap/gantry
@@ -88,9 +88,9 @@ sudo apt install podman podman-compose
 
 Nem precisa decorar: a aba **Ferramentas** da máquina lista o que falta e mostra o comando certo para o seu sistema. No Mac, o que vem do Homebrew instala com um botão.
 
-![Ferramentas](../images/pt/tools.png)
+![Ferramentas](images/pt/tools.png)
 
-> **Onde roda cada coisa.** Containers, VMs e roteadores Dynamips rodam no Mac e no Linux. Os equipamentos **IOL** e **VPCS** (o computador de lab do caso 4) precisam de um Linux x86_64: este computador, se for Linux, ou um servidor por SSH (veja [Adicionar um servidor via SSH](../guia/README.md#3-adicionar-um-servidor-via-ssh)). Os passos são os mesmos nos dois casos; só muda a máquina que você escolhe.
+> **Onde roda cada coisa.** Containers, VMs e roteadores Dynamips rodam no Mac e no Linux. Os equipamentos **IOL** e **VPCS** (o computador de lab do caso 4) precisam de um Linux x86_64: este computador, se for Linux, ou um servidor por SSH (veja [Adicionar um servidor via SSH](guia/README.md#3-adicionar-um-servidor-via-ssh)). Os passos são os mesmos nos dois casos; só muda a máquina que você escolhe.
 
 ## 2. Criar as pastas no computador
 
@@ -158,7 +158,7 @@ Um site estático no Nginx, aberto no navegador.
    - Se uma porta do modelo já estiver em uso na máquina, o campo dela já vem com a próxima livre, e o motivo aparece embaixo.
    - Deixe marcado **Subir depois de gerar** e clique em **Gerar projeto**.
 
-![Criar projeto](../images/pt/create.png)
+![Criar projeto](images/pt/create.png)
 
 O Gantry grava o `compose.yaml` e o `.env` na pasta, sobe o container e abre a página do projeto.
 
@@ -189,7 +189,7 @@ O Gantry grava o `compose.yaml` e o `.env` na pasta, sobe o container e abre a p
 - Na lista de containers, **Logs** mostra os acessos ao vivo e **Shell** abre um terminal dentro do container.
 - Clique no nome do container para ver portas, volumes, variáveis, CPU, memória e os arquivos dele.
 
-![Um projeto e os containers dele](../images/pt/project.png)
+![Um projeto e os containers dele](images/pt/project.png)
 
 ### Mudar alguma coisa
 
@@ -347,7 +347,7 @@ Como funcionam os cabos:
    R1# ping 10.0.12.2
    ```
 
-![O desenho do lab](../images/pt/topology.png)
+![O desenho do lab](images/pt/topology.png)
 
 ### 6.5 O idle-PC (para o roteador não gastar um núcleo inteiro)
 
@@ -362,7 +362,7 @@ Sem idle-PC, o Dynamips usa uma thread inteira do processador, mesmo com o rotea
 - **Dispositivos** › **Estados do lab** › **Salvar estado…** guarda de uma vez a configuração de todos os equipamentos. **Restaurar** volta todos para aquele ponto. Use antes de tentar algo arriscado.
 - **Recomeçar do zero…** apaga o que os roteadores salvaram, e eles voltam a iniciar com os arquivos `config:`.
 
-![Estados do lab](../images/pt/states.png)
+![Estados do lab](images/pt/states.png)
 
 ### Variação: IOL (num Linux x86_64)
 
@@ -381,7 +381,7 @@ x-vms:
 - No `R1.cfg`, a interface passa a se chamar `Ethernet0/0`.
 - O IOL não precisa de idle-PC.
 
-Placas, NPE, memória e mais modelos estão em [Equipamentos de rede](../equipamentos-de-rede.md).
+Placas, NPE, memória e mais modelos estão em [Equipamentos de rede](equipamentos-de-rede.md).
 
 ## 7. Caso 4: tudo junto num lab
 
@@ -532,7 +532,7 @@ A aba **Topologia** mostra o lab inteiro: os roteadores, o PC, o container, a VM
 
 Clique num cabo (ou botão direito numa nuvem de rede) › **Ver ao vivo aqui**. A captura abre no painel de baixo, decodificada linha a linha. Rode o ping de novo e veja os pacotes passando. **Salvar .pcap…** guarda a captura para abrir no Wireshark.
 
-![Captura ao vivo](../images/pt/capture.png)
+![Captura ao vivo](images/pt/capture.png)
 
 Nada precisa ser instalado nos equipamentos: a captura roda na máquina do lab.
 
@@ -598,6 +598,6 @@ Para pedir ajuda, engrenagem › **Geral** › **Ver diagnóstico** junta versõ
         └── PC1.vpc
 ```
 
-Os arquivos do caso 4 também estão em [`examples/primeiro-lab`](../../examples/primeiro-lab), prontos para abrir com **Abrir pasta com compose** (falta só a sua imagem do 7200 na pasta de imagens).
+Os arquivos do caso 4 também estão em [`examples/primeiro-lab`](../examples/primeiro-lab), prontos para abrir com **Abrir pasta com compose** (falta só a sua imagem do 7200 na pasta de imagens).
 
-Próximos passos: o [guia](../guia/README.md) mostra as outras funções com telas (métricas, serviços compartilhados, Kubernetes, assistentes de IA), e [Equipamentos de rede](../equipamentos-de-rede.md) aprofunda IOL, Dynamips, VPCS e a importação de labs do PNETLab e do EVE-NG.
+Próximos passos: o [guia](guia/README.md) mostra as outras funções com telas (métricas, serviços compartilhados, Kubernetes, assistentes de IA), e [Equipamentos de rede](equipamentos-de-rede.md) aprofunda IOL, Dynamips, VPCS e a importação de labs do PNETLab e do EVE-NG.

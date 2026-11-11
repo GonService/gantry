@@ -4,7 +4,7 @@
 
 Um passeio pelo Gantry com casos reais, da primeira abertura a um lab de rede com roteadores. Cada parte se sustenta sozinha: vá direto à que você precisa.
 
-Começando do zero? O [tutorial](../passo-a-passo/README.md) monta, passo a passo, um container, uma VM e roteadores, desde a criação das pastas no seu computador.
+Começando do zero? O [tutorial](../do-zero-ao-lab.md) monta, passo a passo, um container, uma VM e roteadores, desde a criação das pastas no seu computador.
 
 As telas vêm de um ambiente de demonstração: este computador com Docker, Podman e containerd, um servidor chamado `homelab` acessado por SSH, um projeto web pequeno (`webshop`) e um lab de OSPF (`campus-ospf`).
 

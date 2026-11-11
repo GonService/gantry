@@ -1,6 +1,6 @@
 # Gantry: referência
 
-[English](reference.md) · **Português** · [Guia passo a passo](guia/README.md) · [Voltar ao início](../README.pt-BR.md)
+[English](reference.md) · **Português** · [Tutorial](do-zero-ao-lab.md) · [Guia passo a passo](guia/README.md) · [Voltar ao início](../README.pt-BR.md)
 
 App desktop para gerenciar máquinas locais e remotas e o que roda nelas: containers (Docker, Podman, containerd), VMs QEMU e os projetos que juntam os dois. É um binário só.
 

@@ -6,7 +6,7 @@ Cada pasta é um projeto: abra no Gantry (Projetos › Outras formas › Abrir p
 
 | Folder / Pasta | What it shows | O que mostra |
 |---|---|---|
-| [primeiro-lab](primeiro-lab) | The lab of the [tutorial](../docs/walkthrough/README.md): two Cisco 7200 routers (Dynamips), a VPCS, a container and a Debian VM on two LANs (Linux x86_64) | O lab do [tutorial](../docs/passo-a-passo/README.md): dois roteadores Cisco 7200 (Dynamips), um VPCS, um container e uma VM Debian em duas LANs (Linux x86_64) |
+| [primeiro-lab](primeiro-lab) | The lab of the [tutorial](../docs/from-scratch.md): two Cisco 7200 routers (Dynamips), a VPCS, a container and a Debian VM on two LANs (Linux x86_64) | O lab do [tutorial](../docs/do-zero-ao-lab.md): dois roteadores Cisco 7200 (Dynamips), um VPCS, um container e uma VM Debian em duas LANs (Linux x86_64) |
 | [vm-nginx](vm-nginx) | A Debian VM with Nginx on `http://localhost:8081`, no containers (`x-vms`) | Uma VM Debian com Nginx em `http://localhost:8081`, sem containers (`x-vms`) |
 | [observabilidade](observabilidade) | A mixed lab: Prometheus and Loki on Podman, Grafana on Docker (`x-gantry`) | Um lab misto: Prometheus e Loki no Podman, Grafana no Docker (`x-gantry`) |
 | [monitoramento](monitoramento) | Prometheus, cAdvisor, Loki, Alloy and Grafana for the containers of a machine; Gantry finds them and uses them for metrics and logs | Prometheus, cAdvisor, Loki, Alloy e Grafana para os containers de uma máquina; o Gantry os encontra e usa nas métricas e nos logs |

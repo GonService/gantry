@@ -25,7 +25,7 @@ func TestExampleLab(t *testing.T) {
 	}
 }
 
-// The lab of the tutorial (docs/passo-a-passo) must keep loading as written.
+// The lab of the tutorial (docs/do-zero-ao-lab.md) must keep loading as written.
 func TestExamplePrimeiroLab(t *testing.T) {
 	b, err := os.ReadFile("../../examples/primeiro-lab/compose.yaml")
 	if err != nil {

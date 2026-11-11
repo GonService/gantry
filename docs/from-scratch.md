@@ -1,6 +1,6 @@
 # From scratch to a complete lab
 
-**English** · [Português](../passo-a-passo/README.md) · [Guide](../guide/README.md) · [Reference](../reference.md) · [Back to the start](../../README.md)
+**English** · [Português](do-zero-ao-lab.md) · [Guide](guide/README.md) · [Reference](reference.md) · [Back to the start](../README.md)
 
 This tutorial shows, step by step, how to build in Gantry everything a lab can have: a **container**, a **virtual machine** and a **router**. At the end, it puts the three in one lab, with a lab computer and cables between them. It starts in the terminal, creating the folders on your computer, and ends with everything configured and tested inside Gantry.
 
@@ -43,7 +43,7 @@ Gantry has no hidden format of its own: the project is your `compose.yaml`, plus
 
 ### 1.1 Install Gantry
 
-See [Download](../../README.md#download). On the Mac, Homebrew is the simplest:
+See [Download](../README.md#download). On the Mac, Homebrew is the simplest:
 
 ```sh
 brew install --cask gonservice/tap/gantry
@@ -90,9 +90,9 @@ sudo apt install podman podman-compose
 
 No need to memorize: the machine's **Tools** tab lists what is missing and shows the right command for your system. On the Mac, what comes from Homebrew installs with one button.
 
-![Tools](../images/en/tools.png)
+![Tools](images/en/tools.png)
 
-> **Where each thing runs.** Containers, VMs and Dynamips routers run on the Mac and on Linux. **IOL** devices and **VPCS** (the lab computer of case 4) need Linux x86_64: this computer, if it runs Linux, or a server over SSH (see [Add a server over SSH](../guide/README.md#3-add-a-server-over-ssh)). The steps are the same either way; only the machine you pick changes.
+> **Where each thing runs.** Containers, VMs and Dynamips routers run on the Mac and on Linux. **IOL** devices and **VPCS** (the lab computer of case 4) need Linux x86_64: this computer, if it runs Linux, or a server over SSH (see [Add a server over SSH](guide/README.md#3-add-a-server-over-ssh)). The steps are the same either way; only the machine you pick changes.
 
 ## 2. Create the folders on the computer
 
@@ -160,7 +160,7 @@ A static site on Nginx, opened in the browser.
    - If a template port is already in use on the machine, its field already comes with the next free one, with the reason below it.
    - Leave **Bring up after generating** ticked and click **Generate project**.
 
-![Create project](../images/en/create.png)
+![Create project](images/en/create.png)
 
 Gantry writes `compose.yaml` and `.env` to the folder, brings the container up and opens the project page.
 
@@ -191,7 +191,7 @@ Gantry writes `compose.yaml` and `.env` to the folder, brings the container up a
 - In the container list, **Logs** shows the requests live and **Shell** opens a terminal inside the container.
 - Click the container name to see its ports, volumes, variables, CPU, memory and files.
 
-![A project and its containers](../images/en/project.png)
+![A project and its containers](images/en/project.png)
 
 ### Change something
 
@@ -349,7 +349,7 @@ How the cables work:
    R1# ping 10.0.12.2
    ```
 
-![The lab drawing](../images/en/topology.png)
+![The lab drawing](images/en/topology.png)
 
 ### 6.5 The idle-PC (so the router does not use a whole core)
 
@@ -364,7 +364,7 @@ Without an idle-PC, Dynamips uses a whole processor thread, even with the router
 - **Devices** › **Lab states** › **Save state…** keeps the configuration of every device at once. **Restore** takes them all back to that point. Use it before trying something risky.
 - **Start from scratch…** deletes what the routers saved, and they boot from the `config:` files again.
 
-![Lab states](../images/en/states.png)
+![Lab states](images/en/states.png)
 
 ### Variation: IOL (on Linux x86_64)
 
@@ -383,7 +383,7 @@ x-vms:
 - In `R1.cfg`, the interface is now called `Ethernet0/0`.
 - IOL does not need an idle-PC.
 
-Cards, NPE, memory and more models are in [Network equipment](../network-labs.md).
+Cards, NPE, memory and more models are in [Network equipment](network-labs.md).
 
 ## 7. Case 4: everything in one lab
 
@@ -534,7 +534,7 @@ The **Topology** tab shows the whole lab: the routers, the PC, the container, th
 
 Click a cable (or right-click a network cloud) › **Watch live here**. The capture opens in the bottom panel, decoded line by line. Run the ping again and watch the packets go by. **Save .pcap…** keeps the capture to open in Wireshark.
 
-![Live capture](../images/en/capture.png)
+![Live capture](images/en/capture.png)
 
 Nothing needs to be installed on the devices: the capture runs on the lab's machine.
 
@@ -600,6 +600,6 @@ To ask for help, gear › **General** › **View diagnostics** gathers versions,
         └── PC1.vpc
 ```
 
-The files of case 4 are also in [`examples/primeiro-lab`](../../examples/primeiro-lab), ready to open with **Open folder with compose** (only your 7200 image in the image folder is missing).
+The files of case 4 are also in [`examples/primeiro-lab`](../examples/primeiro-lab), ready to open with **Open folder with compose** (only your 7200 image in the image folder is missing).
 
-Next steps: the [guide](../guide/README.md) shows the other features with screenshots (metrics, shared services, Kubernetes, AI assistants), and [Network equipment](../network-labs.md) goes deeper into IOL, Dynamips, VPCS and importing PNETLab and EVE-NG labs.
+Next steps: the [guide](guide/README.md) shows the other features with screenshots (metrics, shared services, Kubernetes, AI assistants), and [Network equipment](network-labs.md) goes deeper into IOL, Dynamips, VPCS and importing PNETLab and EVE-NG labs.

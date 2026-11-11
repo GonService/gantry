@@ -11,7 +11,6 @@
 <p align="center">
   <b>English</b> · <a href="README.pt-BR.md">Português</a> ·
   <a href="https://gonservice.github.io/gantry/">Website</a> ·
-  <a href="docs/walkthrough/README.md">Tutorial</a> ·
   <a href="docs/guide/README.md">Guide</a> ·
   <a href="docs/reference.md">Reference</a>
 </p>
@@ -95,7 +94,7 @@ The [guide](docs/guide/README.md) walks through these and other real cases: a ne
 
 | | |
 |---|---|
-| [From scratch to a lab](docs/walkthrough/README.md) | Tutorial: the folders on your computer, then a container, a VM, routers and all of them in one lab |
+| [From scratch to a lab](docs/from-scratch.md) | Tutorial: the folders on your computer, then a container, a VM, routers and all of them in one lab |
 | [Step-by-step guide](docs/guide/README.md) | Features with screenshots and practical cases |
 | [Reference](docs/reference.md) | Everything the app does, compose extensions, remote hosts, agent, configuration, security model |
 | [Network equipment](docs/network-labs.md) | IOL, Dynamips and VPCS: cards, NPE, memory, images, imports |

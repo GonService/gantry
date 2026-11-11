@@ -1,4 +1,4 @@
-# Primeiro lab: o caso 4 do tutorial (docs/passo-a-passo/README.md).
+# Primeiro lab: o caso 4 do tutorial (docs/do-zero-ao-lab.md).
 # Dois roteadores Cisco 7200 (Dynamips), um computador de lab (VPCS) na
 # lan-a, e um container e uma VM Debian na lan-b. Roda num Linux x86_64
 # (o VPCS precisa); a imagem do 7200 vai em ~/gantry/imagens.
