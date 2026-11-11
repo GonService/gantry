@@ -53,7 +53,7 @@ vsock() {
   cat >"/etc/systemd/system/gantry-vsock-$1.service" <<EOF
 [Unit]
 Description=Gantry: vsock $2 para $3
-After=network.target $4
+After=network.target ${4:-}
 [Service]
 ExecStart=/usr/bin/socat VSOCK-LISTEN:$2,reuseaddr,fork $3
 Restart=always

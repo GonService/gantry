@@ -319,3 +319,12 @@ func TestFinderScript(t *testing.T) {
 		}
 	}
 }
+
+// The script runs with set -u: the vsock helper must not need its 4th
+// argument (the meminfo bridge has no unit to wait for).
+func TestVsockHelperOptionalUnit(t *testing.T) {
+	sc, _ := Script(Default(8, 16<<30), "/Users/ana")
+	if !strings.Contains(sc, "After=network.target ${4:-}") {
+		t.Fatal("vsock() usa $4 sem valor padrão; com set -u o script para")
+	}
+}
