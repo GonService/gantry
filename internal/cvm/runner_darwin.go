@@ -43,7 +43,7 @@ func RunMachine(name string) error {
 	lg := log.New(lf, "", log.LstdFlags)
 	lg.Printf("--- %s: %d CPU, %d MiB, Gantry", name, s.CPUs, s.MemoryMiB)
 
-	vm, cfgErr := build(s, dir, lg)
+	vm, cfgErr := vmConfig(s, dir, lg)
 	if cfgErr != nil {
 		lg.Printf("configuração: %v", cfgErr)
 		return cfgErr
@@ -92,8 +92,8 @@ func RunMachine(name string) error {
 	return nil
 }
 
-// build makes the machine's configuration from the spec.
-func build(s Spec, dir string, lg *log.Logger) (*vz.VirtualMachine, error) {
+// vmConfig makes the machine's configuration from the spec.
+func vmConfig(s Spec, dir string, lg *log.Logger) (*vz.VirtualMachine, error) {
 	p := func(f string) string { return filepath.Join(dir, f) }
 	efi := p(fEFI)
 	var vs *vz.EFIVariableStore
