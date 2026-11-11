@@ -97,8 +97,36 @@ func State(ctx context.Context, name string) string {
 	return StateStarting
 }
 
-// Start boots the machine. It runs in a process of its own (this same
-// binary, "cvm-run"), on its own session, so it stays up when the app closes.
+// RunnerName is the helper that runs the machines: a binary of its own,
+// next to the app's (Gantry.app/Contents/MacOS), because Apple's
+// Virtualization binding and the window's toolkit cannot share one binary
+// (both define an AppDelegate), and only it needs the virtualization
+// entitlement.
+const RunnerName = "gantry-vm"
+
+// Runner finds the helper ("" if this build has none).
+func Runner() string {
+	if exe, err := os.Executable(); err == nil {
+		if p, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = p
+		}
+		if p := filepath.Join(filepath.Dir(exe), RunnerName); isFile(p) {
+			return p
+		}
+	}
+	if p, err := exec.LookPath(RunnerName); err == nil {
+		return p
+	}
+	return ""
+}
+
+func isFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.Mode().IsRegular()
+}
+
+// Start boots the machine. It runs in a process of its own (the helper),
+// on its own session, so it stays up when the app closes.
 func Start(ctx context.Context, name string, log io.Writer) error {
 	s, err := Load(name)
 	if err != nil {
@@ -107,12 +135,9 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 	if pid(name) != 0 {
 		return nil
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	if p, err := filepath.EvalSymlinks(exe); err == nil {
-		exe = p
+	exe := Runner()
+	if exe == "" {
+		return errNoRunner
 	}
 	dir := Dir(name)
 	home, _ := os.UserHomeDir()
@@ -130,7 +155,7 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 		return err
 	}
 	defer lf.Close()
-	cmd := exec.Command(exe, "cvm-run", name)
+	cmd := exec.Command(exe, name)
 	cmd.Stdout, cmd.Stderr = lf, lf
 	cmd.Dir = dir
 	detach(cmd)
@@ -158,6 +183,8 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 	}
 	return errors.New("a máquina não respondeu em 45 s: " + tail(filepath.Join(dir, fVMLog), 6))
 }
+
+var errNoRunner = errors.New("falta o gantry-vm ao lado do app (Gantry.app/Contents/MacOS); use o app do Mac completo, ou make desktop")
 
 // Memory is the state of the machine's dynamic memory (nil when it is off).
 func Memory(ctx context.Context, name string) (*MemoryState, error) {

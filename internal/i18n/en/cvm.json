@@ -21,8 +21,8 @@
   "Rosetta não está instalado no Mac (softwareupdate --install-rosetta)": "Rosetta is not installed on the Mac (softwareupdate --install-rosetta)",
   "Sistema antigo removido; o disco de dados fica.": "Old system removed; the data disk stays.",
   "Volumes de ": "Volumes of ",
-  "a Container VM só roda no macOS (Apple Virtualization)": "the Container VM only runs on macOS (Apple Virtualization)",
   "a Container VM só roda no macOS por enquanto": "the Container VM only runs on macOS for now",
+  "a Container VM só roda no macOS, pelo gantry-vm (Apple Virtualization)": "the Container VM only runs on macOS, through gantry-vm (Apple Virtualization)",
   "a imagem não tem disk.raw": "the image has no disk.raw",
   "a máquina %s já existe": "machine %s already exists",
   "a máquina %s não existe": "machine %s does not exist",
@@ -52,7 +52,7 @@
   "escolha pelo menos um engine: Docker, Podman ou containerd": "pick at least one engine: Docker, Podman or containerd",
   "esse processo não pode receber sinal": "this process cannot receive signals",
   "esse volume fica fora da pasta de volumes do engine": "this volume is outside the engine's volume folder",
-  "esta versão do Gantry foi montada sem o Apple Virtualization (cgo); use a versão do app para Mac": "this build of Gantry has no Apple Virtualization (cgo); use the Mac app",
+  "falta o gantry-vm ao lado do app (Gantry.app/Contents/MacOS); use o app do Mac completo, ou make desktop": "gantry-vm is missing next to the app (Gantry.app/Contents/MacOS); use the full Mac app, or make desktop",
   "hdiutil (disco do cloud-init): %s %v": "hdiutil (cloud-init disk): %s %v",
   "memória dinâmica desligada: a máquina fica com toda a memória": "dynamic memory off: the machine keeps all of its memory",
   "memória: sem resposta da máquina; devolvendo toda a memória a ela": "memory: no answer from the machine; giving all the memory back to it",
@@ -84,5 +84,6 @@
   "snapshot não encontrado": "snapshot not found",
   "ssh na máquina: ": "ssh into the machine: ",
   "uma VM Linux leve, só para os containers deste Mac, gerenciada pelo Gantry; você revisa o script antes": "a light Linux VM just for this Mac's containers, managed by Gantry; you review the script first",
+  "uso: gantry-vm <máquina>": "usage: gantry-vm <machine>",
   "volume inválido": "invalid volume"
 }

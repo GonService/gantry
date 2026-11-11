@@ -1,4 +1,4 @@
-//go:build darwin && cgo
+//go:build darwin && cgo && cvmrunner
 
 package cvm
 
@@ -21,8 +21,6 @@ import (
 
 	"github.com/Code-Hex/vz/v3"
 )
-
-const hasRunner = true
 
 // RunMachine runs the machine in this process until it stops: Apple's
 // Virtualization framework through Code-Hex/vz (the same binding Lima

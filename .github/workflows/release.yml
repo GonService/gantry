@@ -135,6 +135,13 @@ jobs:
           jq --arg v "$V" '.info.productVersion = $v' wails.json > wails.tmp && mv wails.tmp wails.json
           "$(go env GOPATH)/bin/wails" build -clean -skipbindings -tags desktop \
             -ldflags "-X main.version=$V" -platform darwin/universal
+      - name: gantry-vm (a Container VM, Apple Silicon e Intel)
+        run: |
+          for a in arm64 amd64; do
+            CGO_ENABLED=1 GOARCH=$a go build -tags cvmrunner -ldflags '-s -w' -o "out-vm-$a" ./cmd/gantry-vm
+          done
+          lipo -create -output build/bin/Gantry.app/Contents/MacOS/gantry-vm out-vm-arm64 out-vm-amd64
+          rm -f out-vm-arm64 out-vm-amd64
       - name: Assinatura e notarização (Developer ID)
         env:
           APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}

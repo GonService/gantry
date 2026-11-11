@@ -11,8 +11,8 @@
 #   APPLE_TEAM_ID        o Team ID (developer.apple.com › Membership)
 #
 # Sem eles, sai com assinatura ad-hoc (com aviso) e o resto da release segue
-# igual. Nos dois casos o app leva scripts/gantry.entitlements (a permissão
-# de virtualização da Container VM).
+# igual. Nos dois casos o gantry-vm (Contents/MacOS) leva
+# scripts/gantry.entitlements, a permissão de virtualização da Container VM.
 # Com eles, qualquer falha (assinatura, notarização, conferência) para o job,
 # e a release não é publicada.
 set -euo pipefail
@@ -21,7 +21,8 @@ ENT="$(cd "$(dirname "$0")" && pwd)/gantry.entitlements"
 
 if [ -z "${APPLE_CERT_P12:-}" ] || [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_TEAM_ID:-}" ] || [ -z "${APPLE_APP_PASSWORD:-}" ]; then
   echo "::warning::Sem os segredos da Apple (APPLE_CERT_P12, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD): o app sai só com assinatura ad-hoc."
-  codesign --force --sign - --entitlements "$ENT" "$APP"
+  codesign --force --sign - --entitlements "$ENT" "$APP/Contents/MacOS/gantry-vm"
+  codesign --force --sign - "$APP"
   echo "assinado=nao" >>"${GITHUB_OUTPUT:-/dev/null}"
   exit 0
 fi
@@ -47,7 +48,9 @@ echo "Assinando com: $ID"
 find "$APP/Contents" -type f -perm -u+x ! -path "*/MacOS/*" -print0 | while IFS= read -r -d '' f; do
   codesign --force --options runtime --timestamp --keychain "$KC" -s "$ID" "$f"
 done
-codesign --force --options runtime --timestamp --entitlements "$ENT" --keychain "$KC" -s "$ID" "$APP"
+# O gantry-vm (a Container VM) leva a permissão de virtualização.
+codesign --force --options runtime --timestamp --entitlements "$ENT" --keychain "$KC" -s "$ID" "$APP/Contents/MacOS/gantry-vm"
+codesign --force --options runtime --timestamp --keychain "$KC" -s "$ID" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 # Notarização: o zip vai para a Apple; o carimbo volta grampeado no app.

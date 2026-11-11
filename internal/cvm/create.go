@@ -79,8 +79,8 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 	}()
 
 	fmt.Fprintln(log, "No Mac (seu usuário, sem sudo)")
-	if !hasRunner {
-		return errors.New("esta versão do Gantry foi montada sem o Apple Virtualization (cgo); use a versão do app para Mac")
+	if Runner() == "" {
+		return errNoRunner
 	}
 	fmt.Fprintln(log, "a. Apple Virtualization, pelo próprio Gantry (sem programas a instalar)")
 

@@ -68,8 +68,11 @@ run: linux
 else
 desktop: deps agents ui
 	$(WAILS) build -clean -skipbindings -tags desktop -ldflags '-X main.version=$(VERSION)' -platform darwin/$(ARCH)
-	@# Assinatura local (ad-hoc) com a permissão de virtualização da Container VM.
-	codesign --force --sign - --entitlements scripts/gantry.entitlements build/bin/$(APP).app
+	@# A Container VM roda num binário à parte, ao lado do app.
+	CGO_ENABLED=1 go build -tags cvmrunner -ldflags '-s -w' -o build/bin/$(APP).app/Contents/MacOS/gantry-vm ./cmd/gantry-vm
+	@# Assinatura local (ad-hoc): o gantry-vm com a permissão de virtualização, depois o app.
+	codesign --force --sign - --entitlements scripts/gantry.entitlements build/bin/$(APP).app/Contents/MacOS/gantry-vm
+	codesign --force --sign - build/bin/$(APP).app
 	@echo
 	@echo "Pronto: build/bin/$(APP).app"
 
