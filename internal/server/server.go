@@ -1278,9 +1278,15 @@ func (s *Server) openFolder(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 		writeErr(w, http.StatusBadRequest, errors.New("este host não executa compose; conecte via ssh://"))
 		return
 	}
-	dir := strings.TrimRight(strings.TrimSpace(req.Dir), "/")
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Minute)
 	defer cancel()
+	// ~/projetos/x is the home folder of the host's machine (here or the
+	// server), as in the other folder fields.
+	dir, err := expandDir(ctx, h, req.Dir)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
 	if !h.Exists(ctx, dir) {
 		writeErr(w, http.StatusBadRequest, errors.New("pasta não encontrada no host"))
 		return
@@ -1288,7 +1294,6 @@ func (s *Server) openFolder(w http.ResponseWriter, r *http.Request, h *hosts.Hos
 	project := composex.ProjectName(dir)
 	files := s.findComposeFiles(ctx, h, dir)
 	var out, cmd string
-	var err error
 	if len(files) > 0 {
 		if p, _, perr := s.loadProject(ctx, h, files); perr == nil && p.Name != "" {
 			project = p.Name
