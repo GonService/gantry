@@ -17,11 +17,18 @@ import (
 	"time"
 )
 
+// ImageBuild is the Debian cloud build the machines are made from. A dated
+// build never changes (latest is replaced every few days, and its
+// SHA512SUMS may not list the image while that happens), so a machine made
+// today and one made next month start from the same system. Debian keeps
+// the dated builds for months; a newer Gantry moves this forward.
+const ImageBuild = "20261103-2651"
+
 // ImageURL is the system image for the architecture: Debian 13 (trixie),
 // the "generic" cloud image (full kernel, with virtiofs and vsock), as a
-// tar.xz with disk.raw, next to its SHA512SUMS.
+// tar.xz with disk.raw, next to the SHA512SUMS of its build.
 func ImageURL(arch string) string {
-	return "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-" + arch + ".tar.xz"
+	return "https://cloud.debian.org/images/cloud/trixie/" + ImageBuild + "/debian-13-generic-" + arch + "-" + ImageBuild + ".tar.xz"
 }
 
 func cacheDir() string {
@@ -33,11 +40,9 @@ func cacheDir() string {
 type Progress func(done, total int64)
 
 // fetchImage downloads the image (once; it stays in the cache) and checks
-// it against the SHA512SUMS published next to it. Debian's "latest" folder
-// is replaced now and then, and while a new build is being published its
-// SHA512SUMS may not list the image yet: then an image already checked
-// before (its sum is kept beside it) is used, and only with no such image
-// the creation stops.
+// it against the SHA512SUMS published next to it. If Debian cannot be
+// reached at that moment, an image already checked before (its sum is kept
+// beside it) is used; only with no such image the creation stops.
 func fetchImage(ctx context.Context, url string, log io.Writer, prog Progress) (string, error) {
 	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
 		return "", err

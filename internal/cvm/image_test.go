@@ -60,3 +60,11 @@ func TestFetchImageWhileDebianPublishes(t *testing.T) {
 		t.Fatalf("sem imagem guardada devia falhar pedindo para tentar de novo: %v", err)
 	}
 }
+
+// The image comes from a dated build, never from latest.
+func TestImageURLPinned(t *testing.T) {
+	u := ImageURL("arm64")
+	if strings.Contains(u, "/latest/") || !strings.HasSuffix(u, "/trixie/"+ImageBuild+"/debian-13-generic-arm64-"+ImageBuild+".tar.xz") {
+		t.Fatalf("imagem fora de um build datado: %s", u)
+	}
+}
