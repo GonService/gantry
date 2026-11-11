@@ -80,7 +80,7 @@ The files are on the [releases page](https://github.com/GonService/gantry/releas
 3. **Create project** › **Containers** › pick a template (try **Postgres + Adminer**) › **Generate project**. The project folder, the `compose.yaml` and the `.env` are created and it goes up.
 4. Add a server: the gear › **Machines** › **Add**, with an address like `ssh://homelab` or `ssh://ana@192.0.2.10`. It connects only when you open it.
 
-The [guide](docs/guide/README.md) walks through these and other real cases: a network lab with routers, importing a PNETLab lab, VMs, backups, Kubernetes.
+Starting from scratch? The [tutorial](docs/from-scratch.md) builds a container, a VM and routers step by step, from creating the folders. The [guide](docs/guide/README.md) walks through these and other real cases: a network lab with routers, importing a PNETLab lab, VMs, backups, Kubernetes.
 
 ## How it differs
 

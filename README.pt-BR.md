@@ -80,7 +80,7 @@ Os arquivos estão na [página de versões](https://github.com/GonService/gantry
 3. **Criar projeto** › **Containers** › escolha um modelo (experimente **Postgres + Adminer**) › **Gerar projeto**. A pasta do projeto, o `compose.yaml` e o `.env` são criados e ele sobe.
 4. Adicione um servidor: engrenagem › **Máquinas** › **Adicionar**, com um endereço como `ssh://homelab` ou `ssh://ana@192.0.2.10`. Ele só conecta quando você abre.
 
-O [guia](docs/guia/README.md) mostra estes e outros casos reais: um lab de rede com roteadores, importar um lab do PNETLab, VMs, backup, Kubernetes.
+Começando do zero? O [tutorial](docs/do-zero-ao-lab.md) monta, passo a passo, um container, uma VM e roteadores, desde a criação das pastas. O [guia](docs/guia/README.md) mostra estes e outros casos reais: um lab de rede com roteadores, importar um lab do PNETLab, VMs, backup, Kubernetes.
 
 ## O que muda em relação a outras ferramentas
 
