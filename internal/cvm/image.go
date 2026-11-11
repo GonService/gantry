@@ -33,18 +33,29 @@ func cacheDir() string {
 type Progress func(done, total int64)
 
 // fetchImage downloads the image (once; it stays in the cache) and checks
-// it against the SHA512SUMS published next to it.
+// it against the SHA512SUMS published next to it. Debian's "latest" folder
+// is replaced now and then, and while a new build is being published its
+// SHA512SUMS may not list the image yet: then an image already checked
+// before (its sum is kept beside it) is used, and only with no such image
+// the creation stops.
 func fetchImage(ctx context.Context, url string, log io.Writer, prog Progress) (string, error) {
 	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
 		return "", err
 	}
+	dst := filepath.Join(cacheDir(), path.Base(url))
 	want, err := publishedSum(ctx, url)
 	if err != nil {
-		return "", err
+		if kept := keptSum(dst); kept != "" {
+			if got, ferr := fileSHA512(dst); ferr == nil && got == kept {
+				fmt.Fprintf(log, "Não consegui conferir no Debian agora (%v); uso a imagem já conferida antes: %s\n", err, dst)
+				return dst, nil
+			}
+		}
+		return "", fmt.Errorf("%v. O Debian pode estar publicando uma versão nova da imagem; tente de novo em alguns minutos", err)
 	}
-	dst := filepath.Join(cacheDir(), path.Base(url))
 	if got, err := fileSHA512(dst); err == nil && got == want {
 		fmt.Fprintf(log, "Imagem já baixada: %s (sha512 confere)\n", dst)
+		keepSum(dst, want)
 		return dst, nil
 	}
 	fmt.Fprintf(log, "Baixando %s\n", url)
@@ -62,8 +73,25 @@ func fetchImage(ctx context.Context, url string, log io.Writer, prog Progress) (
 	if err := os.Rename(dst+".parcial", dst); err != nil {
 		return "", err
 	}
+	keepSum(dst, want)
 	fmt.Fprintf(log, "sha512 confere: %s…\n", want[:32])
 	return dst, nil
+}
+
+// keepSum and keptSum: the sum checked against Debian's SHA512SUMS, kept
+// next to the image (file.sha512).
+func keepSum(img, sum string) { _ = os.WriteFile(img+".sha512", []byte(sum+"\n"), 0o644) }
+
+func keptSum(img string) string {
+	b, err := os.ReadFile(img + ".sha512")
+	if err != nil {
+		return ""
+	}
+	s := strings.TrimSpace(string(b))
+	if len(s) != 128 {
+		return ""
+	}
+	return s
 }
 
 // publishedSum reads the image's line in the SHA512SUMS of its folder.
