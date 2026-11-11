@@ -38,7 +38,7 @@ func Script(s Spec, home string) (string, string) {
 		"Docker": s.Docker, "Podman": s.Podman, "SSHAgent": s.SSHAgent, "Shares": s.Shares,
 		"Containerd": s.Containerd, "Nerdctl": nerdctlVersion, "NerdctlArm64": nerdctlSums["arm64"], "NerdctlAmd64": nerdctlSums["amd64"],
 		"Extra":   strings.TrimSpace(strings.ReplaceAll(s.Extra, "\r\n", "\n")),
-		"PortSSH": portSSH, "PortDocker": portDocker, "PortPodman": portPodman,
+		"PortSSH": portSSH, "PortMem": portMem, "PortDocker": portDocker, "PortPodman": portPodman,
 	})
 	return b.String(), Sum(b.String())
 }

@@ -85,13 +85,12 @@ func (s *Server) cvmList(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	out := struct {
 		Supported bool      `json:"supported"`
-		Vfkit     string    `json:"vfkit"`
 		Home      string    `json:"home"`
 		Arch      string    `json:"arch"`
 		Default   cvm.Spec  `json:"default"`
 		Machines  []cvmView `json:"machines"`
 		Image     string    `json:"image"`
-	}{Supported: cvm.Supported(), Vfkit: cvm.Vfkit(), Arch: runtime.GOARCH, Image: cvm.ImageURL(runtime.GOARCH), Machines: []cvmView{}}
+	}{Supported: cvm.Supported(), Arch: runtime.GOARCH, Image: cvm.ImageURL(runtime.GOARCH), Machines: []cvmView{}}
 	out.Home, _ = os.UserHomeDir()
 	info := s.localInfo(ctx)
 	out.Default = cvm.Default(info.CPUs, info.MemTotal)
@@ -268,6 +267,7 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 		SnapDaily   *bool        `json:"snapDaily"`
 		SnapKeep    *int         `json:"snapKeep"`
 		Watch       *bool        `json:"watch"`
+		NoBalloon   *bool        `json:"noBalloon"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -308,6 +308,9 @@ func (s *Server) cvmEdit(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Watch != nil {
 		n.Watch = *req.Watch
+	}
+	if req.NoBalloon != nil {
+		n.NoBalloon = *req.NoBalloon
 	}
 	if req.DataGiB != nil && *req.DataGiB != cur.DataGiB {
 		if *req.DataGiB < cur.DataGiB {
@@ -382,6 +385,17 @@ func (s *Server) cvmSys(w http.ResponseWriter, r *http.Request) {
 	}{time.Now(), info}
 	cvmInfoMu.Unlock()
 	writeJSON(w, info)
+}
+
+// cvmMemory is the dynamic memory of a running machine: how much is with
+// the machine now and how much went back to the Mac.
+func (s *Server) cvmMemory(w http.ResponseWriter, r *http.Request) {
+	m, err := cvm.Memory(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, m)
 }
 
 func (s *Server) cvmLogs(w http.ResponseWriter, r *http.Request) {

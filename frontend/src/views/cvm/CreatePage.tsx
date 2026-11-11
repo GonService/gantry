@@ -130,7 +130,7 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
             </label>
             <div className="cvm-field">
               <span>{t("Hypervisor")}</span>
-              <span className="muted small">{t("vfkit · Apple Virtualization, o mesmo da podman machine. {state}", { state: list.vfkit ? t("Já instalado.") : t("O Gantry instala pelo Homebrew.") })}</span>
+              <span className="muted small">{t("Apple Virtualization, rodado pelo próprio Gantry: nada a instalar. A memória que a máquina não usa volta ao Mac.")}</span>
             </div>
             <div className="cvm-field">
               <span>{t("Sistema")}</span>
@@ -357,14 +357,13 @@ function Review({ list, spec, back, recreate }: { list: CvmList; spec: Spec; bac
             <span className="cvm-group">{t("No Mac · seu usuário, sem sudo")}</span>
             <ol className="cvm-list">
               {recreate ? <li>{t("Desligar a máquina, tirar um snapshot do disco de dados e remover só o disco do sistema")}</li> : null}
-              {!list.vfkit ? <li><span className="mono">brew install vfkit</span></li> : null}
               <li>
                 {t("Baixar a imagem do sistema e conferir o SHA512")}
                 <br />
                 <span className="mono muted small">{list.image}</span>
               </li>
               <li>{recreate ? t("Criar um sistema.raw novo (o dados.raw fica) e uma chave SSH nova") : t("Criar sistema.raw e dados.raw (esparsos) e uma chave SSH só desta máquina")}</li>
-              <li>{t("Ligar o vfkit; os sockets ficam em ~/.gantry/machines/{name}", { name: s.name })}</li>
+              <li>{t("Ligar a máquina; os sockets ficam em ~/.gantry/machines/{name}", { name: s.name })}</li>
             </ol>
             <span className="cvm-group">{t("Dentro da máquina · provision.sh")}</span>
             <ol className="cvm-list">

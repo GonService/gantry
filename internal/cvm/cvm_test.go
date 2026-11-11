@@ -60,25 +60,19 @@ func TestUserDataCarriesTheScript(t *testing.T) {
 	}
 }
 
-func TestArgs(t *testing.T) {
+func TestLeanSystem(t *testing.T) {
 	s := Default(12, 36<<30)
-	s.Podman, s.Rosetta = false, true
-	a := strings.Join(Args(s, "/Users/ana/.gantry/machines/gantry-vm", "/Users/ana", "arm64"), " ")
+	sc, _ := Script(s, "/Users/ana")
 	for _, want := range []string{
-		"--cpus 6", "--memory 8192", "virtio-blk,path=/Users/ana/.gantry/machines/gantry-vm/sistema.raw",
-		"virtio-blk,path=/Users/ana/.gantry/machines/gantry-vm/dados.raw", "virtio-fs,sharedDir=/Users/ana,mountTag=home",
-		"rosetta,mountTag=rosetta", "virtio-vsock,port=2375,socketURL=/Users/ana/.gantry/machines/gantry-vm/docker.sock,connect",
-		"--restful-uri unix:///Users/ana/.gantry/machines/gantry-vm/rest.sock", "virtio-net,nat,mac=52:54:00:",
+		"vsock mem 2379 OPEN:/proc/meminfo,rdonly", "gantry-vsock-mem.service",
+		"apt-daily.timer", "SystemMaxUse=64M", "OnCalendar=hourly", "touch /etc/cloud/cloud-init.disabled",
 	} {
-		if !strings.Contains(a, want) {
-			t.Errorf("faltou %q em %s", want, a)
+		if !strings.Contains(sc, want) {
+			t.Errorf("o script não tem %q", want)
 		}
 	}
-	if strings.Contains(a, "port=2376") {
-		t.Error("socket do Podman sem Podman")
-	}
-	if strings.Contains(strings.Join(Args(s, "/d", "/h", "amd64"), " "), "rosetta") {
-		t.Error("Rosetta num Mac Intel")
+	if !strings.Contains(syncScript(s), "VSOCK-LISTEN:2379") {
+		t.Error("syncScript sem a ponte da memória")
 	}
 	if mac("a") != mac("a") || mac("a") == mac("b") {
 		t.Error("MAC deve ser estável e diferente por máquina")
@@ -207,10 +201,6 @@ func TestSharesAndContainerd(t *testing.T) {
 	s.Shares = []Share{{Path: "/Volumes/Dados/datasets", ReadOnly: true}}
 	if err := s.Check(); err != nil {
 		t.Fatal(err)
-	}
-	a := strings.Join(Args(s, "/d", "/Users/ana", "arm64"), " ")
-	if !strings.Contains(a, "virtio-fs,sharedDir=/Volumes/Dados/datasets,mountTag=share0") {
-		t.Errorf("pasta extra fora dos args: %s", a)
 	}
 	sc, _ := Script(s, "/Users/ana")
 	for _, want := range []string{"share0 /Volumes/Dados/datasets virtiofs ro,nofail", "nerdctl-full-2.4.2-linux-$arch.tar.gz", nerdctlSums["arm64"], "sha256sum -c -", "rm -f /usr/local/lib/systemd/system/containerd.service", "makestep 1 -1"} {

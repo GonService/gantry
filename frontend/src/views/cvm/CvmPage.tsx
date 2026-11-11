@@ -10,7 +10,7 @@ import { confirm } from "@/components/dialog";
 import { CopyCommand, ErrorBox, Loading } from "@/components/ui";
 import { toast } from "@/shell/toasts";
 import { t } from "@/lib/i18n";
-import { cvmHref, engineNames, fmtRate, power, recreateHref, STATE, type CvmList, type CvmView, type Proc, type Snapshot } from "./cvm";
+import { cvmHref, engineNames, fmtRate, power, recreateHref, STATE, type CvmList, type CvmView, type MemoryState, type Proc, type Snapshot } from "./cvm";
 import { EnginesTab, PlatformsTab, StorageTab } from "./tabs";
 import { openTerminal } from "@/shell/dock";
 
@@ -106,7 +106,7 @@ export function CvmPage({ name, tab }: { name: string; tab: string }) {
             </span>
           </h1>
           <div className="sub">
-            vfkit · Apple Virtualization · {engineNames(v.spec)} · {v.dir}
+            Apple Virtualization · {engineNames(v.spec)} · {v.dir}
           </div>
         </div>
         <div className="actions">
@@ -186,7 +186,10 @@ function Meter({ label, used, total, text, sub }: { label: string; used: number;
 function SysBlock({ v }: { v: CvmView }) {
   const [s, setS] = useState<Sys | null>(null);
   const running = v.state === "running";
+  const [m, setM] = useState<MemoryState | null>(null);
   usePoll(async () => setS(await api<Sys>("/cvm/" + enc(v.name) + "/sistema")), 5000, running, [v.name]);
+  usePoll(async () => setM(await api<MemoryState | null>("/cvm/" + enc(v.name) + "/memoria")), 5000, running, [v.name]);
+  const back = running && m?.balloon && m.returned > 0 ? m.returned : 0;
   const data = v.disks.find((d) => d.name === "dados.raw");
   const sysd = v.disks.find((d) => d.name === "sistema.raw");
   const dataFs = s?.disks?.find((d) => d.path === "/var/lib/gantry");
@@ -200,11 +203,14 @@ function SysBlock({ v }: { v: CvmView }) {
         <span>{s?.arch || "arm64"}{v.spec.rosetta ? " + amd64 (Rosetta)" : ""}</span>
         {running && s?.uptime ? <span>{t("ligada há {uptime}", { uptime: fmtUptime(s.uptime) })}</span> : null}
         {running && s?.load ? <span>{t("carga {load}", { load: s.load })}</span> : null}
+        {back ? <span className="cvm-back">{t("devolvendo {n} ao Mac", { n: fmtBytes(back) })}</span> : null}
       </div>
       {running ? (
         <div className="meters">
           <Meter label="CPU" used={s?.cpuPct || 0} total={100} text={s?.hasCpu ? t("{pct}% de {n} núcleos", { pct: (s.cpuPct || 0).toFixed(0), n: v.spec.cpus }) : t("{n} núcleos", { n: v.spec.cpus })} />
-          <Meter label={t("Memória")} used={s?.memUsed || 0} total={s?.memTotal || v.spec.memoryMiB * 1048576} text={s?.memUsed ? t("{used} de {total}", { used: fmtBytes(s.memUsed), total: fmtBytes(s.memTotal) }) : fmtBytes(v.spec.memoryMiB * 1048576)} />
+          <Meter label={t("Memória")} used={s?.memUsed || 0} total={s?.memTotal || v.spec.memoryMiB * 1048576} text={s?.memUsed ? t("{used} de {total}", { used: fmtBytes(s.memUsed), total: fmtBytes(s.memTotal) }) : fmtBytes(v.spec.memoryMiB * 1048576)}
+            sub={m?.balloon ? t("com a máquina agora: {n} de {max}", { n: fmtBytes(m.target), max: fmtBytes(m.max) }) : undefined}
+          />
           <Meter
             label={t("Disco de dados")}
             used={dataFs?.used || 0}
@@ -483,7 +489,7 @@ const SOURCES: [string, string][] = [
   ["podman", "Podman"],
   ["provisionamento", t("Provisionamento")],
   ["console", t("Console")],
-  ["vfkit", "vfkit"],
+  ["vm", t("Máquina")],
 ];
 
 function Logs({ v }: { v: CvmView }) {
@@ -492,7 +498,7 @@ function Logs({ v }: { v: CvmView }) {
   const [err, setErr] = useState("");
   const [follow, setFollow] = useState(true);
   const pre = useRef<HTMLPreElement>(null);
-  const local = src === "console" || src === "vfkit";
+  const local = src === "console" || src === "vm";
   const can = local || v.state === "running";
   usePoll(
     async () => {
@@ -533,7 +539,7 @@ function Logs({ v }: { v: CvmView }) {
           </label>
         </div>
         {!can ? (
-          <p className="cvm-pb muted">{t("A máquina está desligada; Console e vfkit funcionam mesmo assim.")}</p>
+          <p className="cvm-pb muted">{t("A máquina está desligada; Console e Máquina funcionam mesmo assim.")}</p>
         ) : err && text == null ? (
           <div className="cvm-pb">
             <ErrorBox>{err}</ErrorBox>
@@ -585,6 +591,18 @@ function Resources({ v, reload }: { v: CvmView; reload: () => void }) {
   const [auto, setAuto] = useState(v.spec.autoStart);
   const [idle, setIdle] = useState(v.spec.idleStopMin || 0);
   const [busy, setBusy] = useState(false);
+  const [balloonBusy, setBalloonBusy] = useState(false);
+  const setBalloon = async (on: boolean) => {
+    setBalloonBusy(true);
+    try {
+      await api("/cvm/" + enc(v.name), { method: "PUT", body: { noBalloon: !on } });
+      toast(on ? t("Memória dinâmica ligada: o que sobrar volta ao Mac.") : t("Memória dinâmica desligada: a máquina fica com toda a memória."), "ok");
+      reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+    setBalloonBusy(false);
+  };
   const dirty = cpus !== v.spec.cpus || mem * 1024 !== v.spec.memoryMiB || disk !== v.spec.dataGiB || auto !== v.spec.autoStart || idle !== (v.spec.idleStopMin || 0);
   const save = async () => {
     setBusy(true);
@@ -621,6 +639,14 @@ function Resources({ v, reload }: { v: CvmView; reload: () => void }) {
                 {t("Memória máxima")} <span className="mono muted">{mem} GiB</span>
               </span>
               <input type="range" min={2} max={64} value={mem} onChange={(e) => setMem(+e.target.value)} />
+            </label>
+            <label className="cvm-check cvm-wide">
+              <input type="checkbox" checked={!v.spec.noBalloon} disabled={balloonBusy} onChange={(e) => void setBalloon(e.target.checked)} />
+              <span>
+                <b>{t("Memória dinâmica")}</b>
+                <br />
+                <small className="muted">{t("A máquina fica só com o que os containers usam, mais uma folga; o resto volta ao Mac. Quando precisa, ela pega de volta na hora, até a memória máxima. Vale na hora.")}</small>
+              </span>
             </label>
           </div>
         </section>

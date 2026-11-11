@@ -63,6 +63,7 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 			_ = os.Remove(filepath.Join(dir, f))
 		}
 		_ = os.RemoveAll(filepath.Join(dir, fSeed))
+		_ = os.Remove(filepath.Join(dir, fSeedISO))
 		fmt.Fprintln(log, "Sistema antigo removido; o disco de dados fica.")
 	} else if Exists(s.Name) {
 		return fmt.Errorf("a máquina %s já existe", s.Name)
@@ -78,28 +79,10 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 	}()
 
 	fmt.Fprintln(log, "No Mac (seu usuário, sem sudo)")
-	if Vfkit() == "" {
-		brew, err := exec.LookPath("brew")
-		if err != nil {
-			for _, p := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
-				if _, e := os.Stat(p); e == nil {
-					brew, err = p, nil
-				}
-			}
-		}
-		if err != nil {
-			return errors.New("o vfkit não está instalado e o Homebrew não foi encontrado: instale o vfkit (brew install vfkit) e tente de novo")
-		}
-		fmt.Fprintln(log, "a. brew install vfkit")
-		cmd := exec.CommandContext(ctx, brew, "install", "vfkit")
-		cmd.Env = append(os.Environ(), "HOMEBREW_NO_AUTO_UPDATE=1", "HOMEBREW_NO_ENV_HINTS=1", "NONINTERACTIVE=1")
-		cmd.Stdout, cmd.Stderr = log, log
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("brew install vfkit: %v", err)
-		}
-	} else {
-		fmt.Fprintf(log, "a. vfkit: %s\n", Vfkit())
+	if !hasRunner {
+		return errors.New("esta versão do Gantry foi montada sem o Apple Virtualization (cgo); use a versão do app para Mac")
 	}
+	fmt.Fprintln(log, "a. Apple Virtualization, pelo próprio Gantry (sem programas a instalar)")
 
 	url := s.Image
 	if url == "" {
@@ -159,6 +142,9 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 	if err := os.WriteFile(filepath.Join(dir, fSeed, "meta-data"), []byte(MetaData(s, instance)), 0o600); err != nil {
 		return err
 	}
+	if err := seedISO(ctx, dir); err != nil {
+		return err
+	}
 	if err := Save(s); err != nil {
 		return err
 	}
@@ -185,6 +171,19 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 	}
 	_ = WriteShims(s.Name)
 	fmt.Fprintln(log, "\nPronto: os engines da máquina aparecem em Este Mac.")
+	return nil
+}
+
+// seedISO packs the cloud-init folder as the NoCloud disk (volume "cidata")
+// the guest reads on the first boot.
+func seedISO(ctx context.Context, dir string) error {
+	iso := filepath.Join(dir, fSeedISO)
+	_ = os.Remove(iso)
+	out, err := exec.CommandContext(ctx, "hdiutil", "makehybrid", "-quiet", "-iso", "-joliet",
+		"-default-volume-name", "cidata", "-o", iso, filepath.Join(dir, fSeed)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("hdiutil (disco do cloud-init): %s %v", strings.TrimSpace(string(out)), err)
+	}
 	return nil
 }
 

@@ -63,8 +63,21 @@ WantedBy=multi-user.target
 EOF
 }
 vsock ssh {{.PortSSH}} TCP:127.0.0.1:22 ssh.service
+# O Mac lê o /proc/meminfo por aqui para devolver a memória livre (balão).
+vsock mem {{.PortMem}} OPEN:/proc/meminfo,rdonly
 systemctl daemon-reload
-systemctl enable --now gantry-vsock-ssh.service gantry-dados-cresce.service
+systemctl enable --now gantry-vsock-ssh.service gantry-vsock-mem.service gantry-dados-cresce.service
+
+# Sistema enxuto: nada rodando em segundo plano que não sirva aos containers.
+systemctl disable --now apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer 2>/dev/null || true
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=64M\nRuntimeMaxUse=32M\n' >/etc/systemd/journald.conf.d/gantry.conf
+systemctl restart systemd-journald || true
+# O espaço que os containers liberam volta ao Mac (os discos são esparsos).
+mkdir -p /etc/systemd/system/fstrim.timer.d
+printf '[Timer]\nOnCalendar=\nOnCalendar=hourly\nPersistent=true\n' >/etc/systemd/system/fstrim.timer.d/gantry.conf
+systemctl daemon-reload
+systemctl enable --now fstrim.timer || true
 {{- if .Rosetta}}
 
 passo "4. Rosetta para binários amd64"
@@ -154,3 +167,5 @@ passo "9. Passos seus"
 {{- end}}
 
 passo "Pronto"
+# O cloud-init só serve na primeira vez; não roda mais nos boots.
+touch /etc/cloud/cloud-init.disabled

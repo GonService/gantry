@@ -1,5 +1,5 @@
-// Package cvm runs the Container VM: a small Linux VM, under vfkit (Apple
-// Virtualization), that holds the container engines of this Mac. Its Docker
+// Package cvm runs the Container VM: a small Linux VM, run by Gantry itself
+// on Apple's Virtualization framework (Code-Hex/vz), that holds the container engines of this Mac. Its Docker
 // and Podman sockets come out through vsock as unix sockets in the
 // machine's folder, so they show up as engines of this computer; the
 // projects stay in the Mac's folders, shared at the same path.
@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -55,6 +54,8 @@ type Spec struct {
 	// Shares are more folders of the Mac, at the same path (the home folder
 	// is always there).
 	Shares []Share `json:"shares,omitempty"`
+	// NoBalloon turns off the dynamic memory: the machine keeps all of it.
+	NoBalloon bool `json:"noBalloon,omitempty"`
 	// Watch forwards the Mac's file changes into the machine, so watchers
 	// in containers (hot reload) see them.
 	Watch bool `json:"watch"`
@@ -132,21 +133,22 @@ func Dir(name string) string { return filepath.Join(Base(), name) }
 
 // The files of a machine.
 const (
-	fSpec     = "spec.json"
-	fSystem   = "sistema.raw"
-	fData     = "dados.raw"
-	fEFI      = "efi.vars"
-	fKey      = "id_ed25519"
-	fKnown    = "known_hosts"
-	fScript   = "provision.sh"
-	fSeed     = "cloud-init"
-	fConsole  = "console.log"
-	fVfkitLog = "vfkit.log"
-	fPID      = "vfkit.pid"
-	fREST     = "rest.sock"
-	fSSH      = "ssh.sock"
-	fDocker   = "docker.sock"
-	fPodman   = "podman.sock"
+	fSpec    = "spec.json"
+	fSystem  = "sistema.raw"
+	fData    = "dados.raw"
+	fEFI     = "efi.vars"
+	fKey     = "id_ed25519"
+	fKnown   = "known_hosts"
+	fScript  = "provision.sh"
+	fSeed    = "cloud-init"
+	fConsole = "console.log"
+	fVMLog   = "vm.log"
+	fSeedISO = "seed.iso"
+	fPID     = "vm.pid"
+	fREST    = "rest.sock"
+	fSSH     = "ssh.sock"
+	fDocker  = "docker.sock"
+	fPodman  = "podman.sock"
 )
 
 // The vsock ports the guest listens on (socat to sshd and the engines).
@@ -204,62 +206,13 @@ func mac(name string) string {
 	return fmt.Sprintf("52:54:00:%02x:%02x:%02x", h[0], h[1], h[2])
 }
 
-// Vfkit finds the vfkit binary ("" if missing). The app may have started
-// with a short PATH, so Homebrew's folders are tried too.
-func Vfkit() string {
-	if p, err := exec.LookPath("vfkit"); err == nil {
-		return p
-	}
-	for _, p := range []string{"/opt/homebrew/bin/vfkit", "/usr/local/bin/vfkit"} {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
 // Supported tells whether this computer can run the Container VM.
 func Supported() bool { return runtime.GOOS == "darwin" }
 
-// Args are vfkit's arguments for the machine.
-func Args(s Spec, dir, home, arch string) []string {
-	p := func(f string) string { return filepath.Join(dir, f) }
-	a := []string{
-		"--cpus", fmt.Sprint(s.CPUs),
-		"--memory", fmt.Sprint(s.MemoryMiB),
-		"--bootloader", "efi,variable-store=" + p(fEFI) + ",create",
-		"--device", "virtio-blk,path=" + p(fSystem),
-		"--device", "virtio-blk,path=" + p(fData),
-		"--device", "virtio-net,nat,mac=" + mac(s.Name),
-		"--device", "virtio-rng",
-		"--device", "virtio-serial,logFilePath=" + p(fConsole),
-		"--device", "virtio-fs,sharedDir=" + home + ",mountTag=home",
-	}
-	for i, sh := range s.Shares {
-		a = append(a, "--device", fmt.Sprintf("virtio-fs,sharedDir=%s,mountTag=share%d", sh.Path, i))
-	}
-	if s.Rosetta && arch == "arm64" {
-		a = append(a, "--device", "rosetta,mountTag=rosetta,ignoreIfMissing")
-	}
-	a = append(a, "--device", fmt.Sprintf("virtio-vsock,port=%d,socketURL=%s,connect", portSSH, p(fSSH)))
-	if s.Docker {
-		a = append(a, "--device", fmt.Sprintf("virtio-vsock,port=%d,socketURL=%s,connect", portDocker, p(fDocker)))
-	}
-	if s.Podman {
-		a = append(a, "--device", fmt.Sprintf("virtio-vsock,port=%d,socketURL=%s,connect", portPodman, p(fPodman)))
-	}
-	a = append(a,
-		"--cloud-init", p(filepath.Join(fSeed, "user-data"))+","+p(filepath.Join(fSeed, "meta-data")),
-		"--restful-uri", "unix://"+p(fREST),
-		"--log-level", "info",
-	)
-	return a
-}
-
-// sanitize keeps a path usable inside vfkit's comma-separated options.
+// sanitize keeps a path usable inside the machine's mount options.
 func sanitize(p string) error {
-	if strings.ContainsAny(p, ",") {
-		return fmt.Errorf("o caminho %s tem vírgula, que o vfkit não aceita", p)
+	if strings.ContainsAny(p, ",\n") {
+		return fmt.Errorf("o caminho %s tem vírgula ou quebra de linha, que a máquina não aceita", p)
 	}
 	return nil
 }

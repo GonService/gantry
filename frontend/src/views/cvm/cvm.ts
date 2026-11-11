@@ -26,7 +26,12 @@ export type Spec = {
   snapDaily?: boolean;
   snapKeep?: number;
   watch?: boolean;
+  noBalloon?: boolean;
 };
+
+// The dynamic memory (balloon): what the machine holds now and what went
+// back to the Mac.
+export type MemoryState = { balloon: boolean; max: number; target: number; returned: number; guestUsed: number; guestCache: number; at: number };
 
 export type Share = { path: string; readOnly?: boolean };
 
@@ -72,7 +77,7 @@ export type CvmView = {
   watching?: boolean;
 };
 
-export type CvmList = { supported: boolean; vfkit: string; home: string; arch: string; default: Spec; machines: CvmView[]; image: string };
+export type CvmList = { supported: boolean; home: string; arch: string; default: Spec; machines: CvmView[]; image: string };
 
 export type Proc = {
   pid: number;

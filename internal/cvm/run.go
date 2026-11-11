@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -29,8 +28,12 @@ const (
 	StatePaused   = "paused"
 )
 
-// rest calls vfkit's REST API on the machine's unix socket.
+// rest calls the machine's control API (state and stop) on its unix socket.
 func rest(ctx context.Context, name, method, body string) ([]byte, error) {
+	return restPath(ctx, name, method, "/vm/state", body)
+}
+
+func restPath(ctx context.Context, name, method, path, body string) ([]byte, error) {
 	sock := filepath.Join(Dir(name), fREST)
 	c := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		var d net.Dialer
@@ -40,7 +43,7 @@ func rest(ctx context.Context, name, method, body string) ([]byte, error) {
 	if body != "" {
 		rd = strings.NewReader(body)
 	}
-	req, _ := http.NewRequestWithContext(ctx, method, "http://vfkit/vm/state", rd)
+	req, _ := http.NewRequestWithContext(ctx, method, "http://cvm"+path, rd)
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -48,7 +51,7 @@ func rest(ctx context.Context, name, method, body string) ([]byte, error) {
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return b, fmt.Errorf("vfkit: %s %s", resp.Status, strings.TrimSpace(string(b)))
+		return b, fmt.Errorf("máquina: %s %s", resp.Status, strings.TrimSpace(string(b)))
 	}
 	return b, nil
 }
@@ -65,7 +68,7 @@ func pid(name string) int {
 	return n
 }
 
-// State asks vfkit how the machine is.
+// State asks the machine's process how the machine is.
 func State(ctx context.Context, name string) string {
 	if !Exists(name) {
 		return StateMissing
@@ -94,8 +97,8 @@ func State(ctx context.Context, name string) string {
 	return StateStarting
 }
 
-// Start boots the machine. vfkit runs on its own session, so the machine
-// stays up when the app closes.
+// Start boots the machine. It runs in a process of its own (this same
+// binary, "cvm-run"), on its own session, so it stays up when the app closes.
 func Start(ctx context.Context, name string, log io.Writer) error {
 	s, err := Load(name)
 	if err != nil {
@@ -104,9 +107,12 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 	if pid(name) != 0 {
 		return nil
 	}
-	vf := Vfkit()
-	if vf == "" {
-		return errors.New("vfkit não encontrado: instale com brew install vfkit")
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if p, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = p
 	}
 	dir := Dir(name)
 	home, _ := os.UserHomeDir()
@@ -115,35 +121,33 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 			return err
 		}
 	}
-	// The sockets of a machine that did not stop cleanly would block vfkit.
+	// The sockets of a machine that did not stop cleanly would be in the way.
 	for _, f := range []string{fREST, fSSH, fDocker, fPodman} {
 		_ = os.Remove(filepath.Join(dir, f))
 	}
-	lf, err := os.OpenFile(filepath.Join(dir, fVfkitLog), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	lf, err := os.OpenFile(filepath.Join(dir, fVMLog), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
 	defer lf.Close()
-	args := Args(s, dir, home, runtime.GOARCH)
-	fmt.Fprintf(lf, "\n--- %s: %s %s\n", time.Now().Format(time.RFC3339), vf, strings.Join(args, " "))
-	cmd := exec.Command(vf, args...)
+	cmd := exec.Command(exe, "cvm-run", name)
 	cmd.Stdout, cmd.Stderr = lf, lf
 	cmd.Dir = dir
 	detach(cmd)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("vfkit: %v", err)
+		return fmt.Errorf("máquina: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, fPID), []byte(strconv.Itoa(cmd.Process.Pid)+"\n"), 0o600); err != nil {
 		return err
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	fmt.Fprintf(log, "vfkit iniciado (pid %d): %d CPU, %d MiB\n", cmd.Process.Pid, s.CPUs, s.MemoryMiB)
+	fmt.Fprintf(log, "Máquina iniciada (pid %d): %d CPU, %d MiB\n", cmd.Process.Pid, s.CPUs, s.MemoryMiB)
 	deadline := time.Now().Add(45 * time.Second)
 	for time.Now().Before(deadline) {
 		select {
 		case err := <-done:
-			return fmt.Errorf("o vfkit parou ao iniciar (%v): %s", err, tail(filepath.Join(dir, fVfkitLog), 6))
+			return fmt.Errorf("a máquina parou ao iniciar (%v): %s", err, tail(filepath.Join(dir, fVMLog), 6))
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(500 * time.Millisecond):
@@ -152,7 +156,23 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 			return nil
 		}
 	}
-	return errors.New("a máquina não respondeu em 45 s: " + tail(filepath.Join(dir, fVfkitLog), 6))
+	return errors.New("a máquina não respondeu em 45 s: " + tail(filepath.Join(dir, fVMLog), 6))
+}
+
+// Memory is the state of the machine's dynamic memory (nil when it is off).
+func Memory(ctx context.Context, name string) (*MemoryState, error) {
+	if pid(name) == 0 {
+		return nil, nil
+	}
+	b, err := restPath(ctx, name, http.MethodGet, "/vm/memoria", "")
+	if err != nil {
+		return nil, err
+	}
+	var m MemoryState
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
 // Stop asks the guest to power off, and forces it after a while.
@@ -263,7 +283,7 @@ func followConsole(ctx context.Context, name string, log io.Writer, timeout time
 		case <-time.After(time.Second):
 		}
 		if pid(name) == 0 {
-			return -1, errors.New("a máquina parou durante a preparação: " + tail(filepath.Join(Dir(name), fVfkitLog), 6))
+			return -1, errors.New("a máquina parou durante a preparação: " + tail(filepath.Join(Dir(name), fVMLog), 6))
 		}
 		f, err := os.Open(p)
 		if err != nil {

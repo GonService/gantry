@@ -414,6 +414,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/cvm/{name}", s.cvmEdit)
 	mux.HandleFunc("GET /api/cvm/{name}/processos", s.cvmProcs)
 	mux.HandleFunc("GET /api/cvm/{name}/sistema", s.cvmSys)
+	mux.HandleFunc("GET /api/cvm/{name}/memoria", s.cvmMemory)
 	mux.HandleFunc("GET /api/cvm/{name}/logs", s.cvmLogs)
 	mux.HandleFunc("GET /api/cvm/{name}/script", s.cvmSavedScript)
 	mux.HandleFunc("POST /api/cvm/{name}/sinal", s.cvmSignal)

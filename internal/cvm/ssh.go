@@ -61,7 +61,7 @@ var logLines = map[string]string{
 }
 
 // Logs returns the last lines of a source: sistema, docker, podman,
-// provisionamento (in the machine) or console and vfkit (on the Mac, they
+// provisionamento (in the machine) or console and vm (on the Mac, they
 // work with the machine stopped too).
 func Logs(ctx context.Context, name, src string, n int) (string, error) {
 	if n <= 0 || n > 5000 {
@@ -70,8 +70,8 @@ func Logs(ctx context.Context, name, src string, n int) (string, error) {
 	switch src {
 	case "console":
 		return tailN(filepath.Join(Dir(name), fConsole), n), nil
-	case "vfkit":
-		return tailN(filepath.Join(Dir(name), fVfkitLog), n), nil
+	case "vm", "vfkit":
+		return tailN(filepath.Join(Dir(name), fVMLog), n), nil
 	}
 	f, ok := logLines[src]
 	if !ok {

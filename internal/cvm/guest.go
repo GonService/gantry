@@ -21,6 +21,12 @@ import (
 func syncScript(s Spec) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
+	// Machines made before the dynamic memory get its vsock bridge here.
+	fmt.Fprintf(&b, `if [ ! -e /etc/systemd/system/gantry-vsock-mem.service ]; then
+printf '[Unit]\nDescription=Gantry: memoria para o Mac\n[Service]\nExecStart=/usr/bin/socat VSOCK-LISTEN:%d,reuseaddr,fork OPEN:/proc/meminfo,rdonly\nRestart=always\nRestartSec=1\n[Install]\nWantedBy=multi-user.target\n' | sudo tee /etc/systemd/system/gantry-vsock-mem.service >/dev/null
+sudo systemctl daemon-reload && sudo systemctl enable --now gantry-vsock-mem.service || true
+fi
+`, portMem)
 	for i, sh := range s.Shares {
 		mode := "rw"
 		if sh.ReadOnly {

@@ -1229,6 +1229,8 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-check input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand); flex: none; }
 .cvm-check.small { font-size: 12.5px; align-items: center; }
 .cvm-check.small input { margin: 0; }
+.cvm-wide { grid-column: 1 / -1; }
+.sys-facts .cvm-back { color: var(--ok); font-weight: 600; }
 .cvm-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .cvm-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .cvm-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }

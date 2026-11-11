@@ -23,6 +23,7 @@ import (
 
 	"gantry/internal/applog"
 	"gantry/internal/config"
+	"gantry/internal/cvm"
 	"gantry/internal/labs"
 	"gantry/internal/server"
 )
@@ -44,6 +45,15 @@ func main() {
 	dir := config.DefaultDir()
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
 		runMCP(dir, os.Args[2:])
+		return
+	}
+	if len(os.Args) > 2 && os.Args[1] == "cvm-run" {
+		// The Container VM runs in its own process of this same binary, so
+		// it stays up when the window closes.
+		if err := cvm.RunMachine(os.Args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 	if len(os.Args) > 1 && os.Args[1] == "importar-unl" {
