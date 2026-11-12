@@ -206,6 +206,8 @@ mkdir -p ~/gantry/meu-lab/equipamentos        # cases 3 and 4: routers and the f
 
 Rather not use the terminal? In the Finder (or the Linux file manager), go to your home folder, create the `gantry` folder and, inside it, the others. The result is the same.
 
+You can also do it all from inside Gantry. It creates the project folder when it generates the project. The subfolders and configuration files (`site/index.html`, `nginx/conf.d/default.conf`, `equipamentos/R1.cfg`) come from the file tree, in the wizard's **Review and generate** and in the project's **File** tab (see [Project files and folders](#project-files-and-folders)).
+
 A project looks like this:
 
 ```
@@ -247,13 +249,14 @@ A static site on Nginx, opened in the browser.
    - **Folder on the host:** Gantry suggests `~/gantry/meu-site`. Use **Choose…** to point to another folder.
    - **Target machine:** this machine (or a server).
    - If a template port is already in use on the machine, its field already comes with the next free one, with the reason below it.
+   - The file tree (on the right, under the folder name) shows what will be created. The Nginx template mounts `./html`, which does not exist yet: it shows under **Mounted by the compose, not there yet**. Click **create folder**, then **+ File** to create `html/index.html`. The file opens in the editor, in place of the compose.
    - Leave **Bring up after generating** ticked and click **Generate project**.
 
 ![Create project: the container templates](images/en/tut-template.png)
 
 ![Create project: review and generate](images/en/tut-review.png)
 
-Gantry writes `compose.yaml` and `.env` to the folder, brings the container up and opens the project page.
+Gantry writes `compose.yaml`, `.env` and the files and folders of the tree to the folder, brings the container up and opens the project page.
 
 ### With the file
 
@@ -288,11 +291,26 @@ Gantry writes `compose.yaml` and `.env` to the folder, brings the container up a
 
 ### Change something
 
-To change the port, open the **File** tab, pick `.env` and change the port variable: `PORTA=8081` in the project made from the template, or `WEB_PORTA=8081` in the hand-written compose. Click **Save and apply**. Only `web` is recreated.
+To change the port, open the **File** tab, click `.env` in the tree and change the port variable: `PORTA=8081` in the project made from the template, or `WEB_PORTA=8081` in the hand-written compose. Click **Save and apply**. Only `web` is recreated.
 
 ![.env in the File tab](images/en/tut-env.png)
 
 If you prefer your own editor (Nvim, VS Code), edit the file right in the folder. Gantry reads the folder again every 3 s and shows **The project files changed**, with the **Apply now** button.
+
+### Project files and folders
+
+The **File** tab shows the whole project folder as a tree, beside the editor:
+
+- **+ File** and **+ Folder** create inside the selected folder. The path can have subfolders that do not exist yet: `nginx/conf.d/default.conf` creates `nginx/`, `conf.d/` and the file at once.
+- The right click (or the **⋯** of the line) has **Rename**, **Copy path** and **Delete**. Renaming with another folder in the path moves the item. `compose.yaml` cannot be renamed or deleted here.
+- **Mounted by the compose, not there yet** lists the compose volumes (`./something:/in/the/container`) that are not in the folder yet. Gantry suggests **create folder** or **create file** by the name (`conf.d` becomes a folder, `nginx.conf` a file), and both buttons are there in case it guesses wrong.
+- Clicking a file opens it in the editor. For a file some service mounts, the button becomes **Save and restart**, which restarts only the services that use the file.
+
+![The File tab tree: a volume that does not exist yet](images/en/tut-files-missing.png)
+
+![The Nginx configuration created and open in the editor](images/en/tut-files.png)
+
+The editor opens any text file of the folder (up to 4 MB). Images and other binaries show in the tree but do not open.
 
 > **A container outside a project.** For a quick test, **Other ways** › **Standalone container** opens the full form (image, ports, volumes, network, variables, limits), as in Portainer. The container does not live in a folder; to keep it and repeat it, use a project.
 

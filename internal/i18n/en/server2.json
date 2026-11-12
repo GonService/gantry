@@ -549,5 +549,13 @@
   "%s.cor: use amarela, azul, verde, rosa ou cinza": "%s.cor: use amarela, azul, verde, rosa or cinza",
   "%s: campo desconhecido %q (use text, pos, size, cor)": "%s: unknown field %q (use text, pos, size, cor)",
   "nota com nome inválido ou repetido": "note with an invalid or repeated name",
-  "nota %s: cor, posição ou tamanho inválido": "note %s: invalid color, position or size"
+  "nota %s: cor, posição ou tamanho inválido": "note %s: invalid color, position or size",
+  " não é um arquivo de texto; o editor só abre texto": " is not a text file; the editor opens only text",
+  "a pasta do projeto não existe mais": "the project folder no longer exists",
+  "arquivo grande demais para o editor (mais de 4 MB)": "file too big for the editor (over 4 MB)",
+  "esse é o compose do projeto (ou a pasta dele): não dá para renomear nem excluir por aqui": "that is the project's compose (or its folder): it cannot be renamed or deleted here",
+  "já existe um arquivo ou pasta com esse nome": "a file or folder with that name already exists",
+  "não existe mais: a árvore estava desatualizada": "no longer there: the tree was out of date",
+  "o caminho sai da pasta do projeto (por um link)": "the path leads out of the project folder (through a link)",
+  "pasta com caminho inválido: %s": "folder with an invalid path: %s"
 }

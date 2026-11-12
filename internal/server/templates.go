@@ -148,7 +148,10 @@ func (s *Server) checkTemplate(w http.ResponseWriter, r *http.Request) {
 		svcs = []svc{}
 	}
 	writeJSON(w, map[string]any{"ok": len(svcs)+len(vms) > 0, "error": map[bool]string{true: "", false: "o modelo não tem serviços nem VMs"}[len(svcs)+len(vms) > 0],
-		"vars": vars, "services": svcs, "vms": vms, "networks": nets, "mixed": p.Gantry, "uses": p.Uses})
+		"vars": vars, "services": svcs, "vms": vms, "networks": nets, "mixed": p.Gantry, "uses": p.Uses,
+		// The binds inside the project folder: Criar projeto offers to
+		// create the ones that are not among its files.
+		"mounts": missingBinds(p.Names, func(n string) []string { return p.Services[n].Binds }, "", map[string]bool{})})
 }
 
 // convertRun turns docker/podman/nerdctl run commands into a compose file.

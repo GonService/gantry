@@ -8,11 +8,14 @@ import { enc, type Host } from "@/lib/app";
 import { LOCALE, t, tn } from "@/lib/i18n";
 import { confirm } from "@/components/dialog";
 import { CodeEditor } from "@/components/editor";
+import { FileTree, type TreeEntry, type TreeKind, type TreeMissing } from "@/components/filetree";
 import { AutoApplyToggle, NixApplyButton, driftText, setDrift, type Drift } from "./drift";
 import { labOp } from "./LabPage";
 import type { Lab } from "./types";
 
-type FileRes = { path: string; content: string; hash: string; missing?: boolean; files?: { name: string; label: string; kind?: string }[] };
+type Tree = { root: string; items: TreeEntry[]; missing: TreeMissing[]; cut: boolean };
+
+type FileRes = { path: string; content: string; hash: string; missing?: boolean };
 
 const KV = ({ k, children }: { k: string; children: React.ReactNode }) => (
   <div>
@@ -37,7 +40,6 @@ export function FileTab({ hst, lab }: { hst: Host; lab: Lab }) {
 function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
   const base = "/hosts/" + enc(hst.name) + "/labs/" + enc(lab.id);
   const [name, setName] = useState("");
-  const [files, setFiles] = useState<FileRes["files"]>([]);
   const [path, setPath] = useState("");
   const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -54,8 +56,12 @@ function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
   const st = useRef({ base: "", hash: "", name: "", text: "", watching: false, lastRead: 0 });
   st.current.name = name;
   st.current.text = text;
+  const [tree, setTree] = useState<Tree | null>(null);
+  const [treeErr, setTreeErr] = useState("");
   const dirty = loaded && text !== diskBase;
-  const extra = !!(files || []).find((x) => x.name === name && x.kind === "extra");
+  // A file that is not a compose nor the .env: saving it restarts the
+  // services that mount it instead of applying the compose.
+  const extra = name !== "" && name !== ".env" && !name.startsWith("/");
   const fq = (n: string) => (n ? "?name=" + enc(n) : "");
 
   const updateDrift = async () => {
@@ -68,12 +74,71 @@ function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
     }
   };
 
+  const loadTree = async () => {
+    try {
+      setTree(await api<Tree>(base + "/arvore"));
+      setTreeErr("");
+    } catch (e) {
+      setTreeErr((e as Error).message);
+    }
+  };
+
+  // switchTo opens another file of the project in the editor.
+  const switchTo = async (v: string, ask = true) => {
+    if (v === st.current.name) return;
+    if (ask && dirty && !(await confirm(t("Trocar de arquivo?"), t("As alterações não salvas deste arquivo serão perdidas."), t("Trocar|arquivo"), true))) return;
+    st.current.hash = "";
+    st.current.base = "";
+    setDiskBase("");
+    setLoaded(false);
+    setName(v);
+  };
+
+  const treeOp = async (body: { op: string; path: string; to?: string }) => {
+    try {
+      return await api<{ ok: boolean; path: string; name: string }>(base + "/arvore", { method: "POST", body });
+    } finally {
+      loadTree();
+    }
+  };
+
+  const onCreate = async (kind: TreeKind, p: string) => {
+    if (kind === "arquivo" && dirty && !(await confirm(t("Trocar de arquivo?"), t("As alterações não salvas deste arquivo serão perdidas."), t("Trocar|arquivo"), true))) return;
+    const r = await treeOp({ op: kind, path: p });
+    gantry.toast(kind === "arquivo" ? t("Arquivo {path} criado", { path: p }) : t("Pasta {path} criada", { path: p }), "ok");
+    if (kind === "arquivo") switchTo(r.name, false);
+  };
+
+  // The relative path of the file open in the editor, to mark it in the tree.
+  const rel = tree && path.startsWith(tree.root + "/") ? path.slice(tree.root.length + 1) : null;
+
+  const onRename = async (from: string, to: string, dir: boolean) => {
+    const r = await treeOp({ op: "renomear", path: from, to });
+    gantry.toast(t("{from} agora é {to}", { from, to }), "ok");
+    if (rel && (rel === from || (dir && rel.startsWith(from + "/")))) {
+      const moved = to + rel.slice(from.length);
+      switchTo(dir ? moved : r.name, false);
+    }
+  };
+
+  const onDelete = async (p: string, dir: boolean) => {
+    await treeOp({ op: "excluir", path: p });
+    gantry.toast(t("{path} excluído", { path: p }), "ok");
+    if (rel && (rel === p || (dir && rel.startsWith(p + "/")))) switchTo("", false);
+  };
+
+  // The compose files (and the folders holding them) stay: they are the project.
+  const fixed = new Set<string>();
+  for (const it of tree?.items || []) {
+    if (it.dir || !(it.name === "" || (it.name || "").startsWith("/"))) continue;
+    for (let p = it.path; p; p = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "") fixed.add(p);
+  }
+
   const load = async (force: boolean) => {
     const want = st.current.name;
     try {
       const f = await api<FileRes>(base + "/file" + fq(want));
       if (want !== st.current.name) return;
-      if (f.files) setFiles(f.files);
       st.current.lastRead = Date.now();
       setLastRead(new Date());
       const cur = st.current;
@@ -119,7 +184,10 @@ function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
         st.current.watching = true;
         setWatching(true);
       });
-      es.addEventListener("change", () => load(false));
+      es.addEventListener("change", () => {
+        load(false);
+        loadTree();
+      });
       const stop = () => {
         es?.close();
         st.current.watching = false;
@@ -129,8 +197,12 @@ function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
       es.onerror = stop;
     }
     const dtimer = setInterval(() => {
-      if (!document.hidden) updateDrift();
+      if (!document.hidden) {
+        updateDrift();
+        loadTree();
+      }
     }, 5000);
+    loadTree();
     return () => {
       clearInterval(timer);
       clearInterval(dtimer);
@@ -200,31 +272,25 @@ function Editor({ hst, lab }: { hst: Host; lab: Lab }) {
           </div>
         ) : null}
       </div>
-      <div className="editor-layout">
+      <div className="editor-layout with-tree">
+        <FileTree
+          title={tree ? tree.root.split("/").pop() || tree.root : t("Arquivos")}
+          hint={tree?.root}
+          items={tree?.items || []}
+          selected={rel}
+          onOpen={(e) => void switchTo(e.name ?? e.path)}
+          onCreate={onCreate}
+          onRename={onRename}
+          onDelete={onDelete}
+          locked={(p) => fixed.has(p)}
+          missing={tree?.missing}
+          cut={tree?.cut}
+          error={treeErr}
+        />
         <section className="editor" aria-label={t("Editor do compose")}>
           <div className="editor-bar">
             <span className="file-pick">
-              <select
-                className="select small file-sel"
-                aria-label={t("Arquivo")}
-                value={name}
-                onChange={async (e) => {
-                  const v = e.target.value;
-                  if (dirty && !(await confirm(t("Trocar de arquivo?"), t("As alterações não salvas deste arquivo serão perdidas."), t("Trocar|arquivo"), true))) return;
-                  st.current.hash = "";
-                  st.current.base = "";
-                  setDiskBase("");
-                  setLoaded(false);
-                  setName(v);
-                }}
-              >
-                {(files || []).map((x) => (
-                  <option key={x.name} value={x.name}>
-                    {x.label}
-                  </option>
-                ))}
-              </select>
-              <span className="mono">{path}</span>
+              <span className="mono">{rel ?? path}</span>
             </span>
             <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span>{!loaded ? (err ? t("erro") : t("carregando…")) : missing && !dirty ? t("arquivo novo") : dirty ? t("alterações não salvas") : t("salvo")}</span>

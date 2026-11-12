@@ -204,6 +204,8 @@ mkdir -p ~/gantry/meu-lab/equipamentos        # casos 3 e 4: roteadores e o lab 
 
 Prefere sem terminal? No Finder (ou no gerenciador de arquivos do Linux), vá à sua pasta pessoal e crie a pasta `gantry` e, dentro dela, as outras. O resultado é o mesmo.
 
+Também dá para fazer tudo de dentro do Gantry. A pasta do projeto ele cria ao gerar o projeto. As subpastas e os arquivos de configuração (`site/index.html`, `nginx/conf.d/default.conf`, `equipamentos/R1.cfg`) saem da árvore de arquivos, no **Revisar e gerar** do assistente e na aba **Arquivo** do projeto (veja [Arquivos e pastas do projeto](#arquivos-e-pastas-do-projeto)).
+
 Um projeto tem esta cara:
 
 ```
@@ -245,13 +247,14 @@ Um site estático no Nginx, aberto no navegador.
    - **Pasta no host:** o Gantry sugere `~/gantry/meu-site`. Use **Escolher…** para apontar outra pasta.
    - **Máquina de destino:** esta máquina (ou um servidor).
    - Se uma porta do modelo já estiver em uso na máquina, o campo dela já vem com a próxima livre, e o motivo aparece embaixo.
+   - A árvore de arquivos (à direita, com o nome da pasta) mostra o que vai ser criado. O modelo do Nginx monta `./html`, que ainda não existe: ela aparece em **O compose monta e ainda não existe**. Clique em **criar pasta** e depois em **+ Arquivo** para criar `html/index.html`. O arquivo abre no editor, no lugar do compose.
    - Deixe marcado **Subir depois de gerar** e clique em **Gerar projeto**.
 
 ![Criar projeto: os modelos de containers](images/pt/tut-template.png)
 
 ![Criar projeto: revisar e gerar](images/pt/tut-review.png)
 
-O Gantry grava o `compose.yaml` e o `.env` na pasta, sobe o container e abre a página do projeto.
+O Gantry grava o `compose.yaml`, o `.env` e os arquivos e pastas da árvore na pasta, sobe o container e abre a página do projeto.
 
 ### Pelo arquivo
 
@@ -286,11 +289,26 @@ O Gantry grava o `compose.yaml` e o `.env` na pasta, sobe o container e abre a p
 
 ### Mudar alguma coisa
 
-Para trocar a porta, abra a aba **Arquivo**, escolha o `.env` e mude a variável da porta: `PORTA=8081` no projeto do modelo, ou `WEB_PORTA=8081` no compose escrito à mão. Clique em **Salvar e aplicar**. Só o `web` é recriado.
+Para trocar a porta, abra a aba **Arquivo**, clique no `.env` na árvore e mude a variável da porta: `PORTA=8081` no projeto do modelo, ou `WEB_PORTA=8081` no compose escrito à mão. Clique em **Salvar e aplicar**. Só o `web` é recriado.
 
 ![O .env na aba Arquivo](images/pt/tut-env.png)
 
 Se preferir editar no seu editor (Nvim, VS Code), edite o arquivo direto na pasta. O Gantry relê a pasta a cada 3 s e avisa **Os arquivos do projeto mudaram**, com o botão **Aplicar agora**.
+
+### Arquivos e pastas do projeto
+
+A aba **Arquivo** mostra a pasta inteira do projeto como uma árvore, ao lado do editor:
+
+- **+ Arquivo** e **+ Pasta** criam dentro da pasta selecionada. O caminho pode ter subpastas que ainda não existem: `nginx/conf.d/default.conf` cria `nginx/`, `conf.d/` e o arquivo de uma vez.
+- O botão direito (ou o **⋯** da linha) tem **Renomear**, **Copiar caminho** e **Excluir**. Renomear com outra pasta no caminho move o item. O `compose.yaml` não pode ser renomeado nem excluído por aqui.
+- **O compose monta e ainda não existe** lista os volumes do compose (`./algo:/no/container`) que ainda não estão na pasta. O Gantry sugere **criar pasta** ou **criar arquivo** pelo nome (`conf.d` vira pasta, `nginx.conf` vira arquivo), e os dois botões estão lá se ele errar.
+- Clicar num arquivo abre no editor. Para um arquivo que algum serviço monta, o botão vira **Salvar e reiniciar**, que reinicia só os serviços que usam o arquivo.
+
+![A árvore da aba Arquivo: um volume que ainda não existe](images/pt/tut-files-missing.png)
+
+![A configuração do Nginx criada e aberta no editor](images/pt/tut-files.png)
+
+O editor abre qualquer arquivo de texto da pasta (até 4 MB). Imagens e outros binários aparecem na árvore, mas não abrem.
 
 > **Um container fora de projeto.** Para um teste rápido, **Outras formas** › **Container avulso** abre o formulário completo (imagem, portas, volumes, rede, variáveis, limites), como no Portainer. O container não fica numa pasta; para guardar e repetir, prefira um projeto.
 

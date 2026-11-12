@@ -1313,3 +1313,37 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-tip .badge { flex: none; }
 .cvm-list .mono { overflow-wrap: anywhere; }
 .cvm-ip { background: none; border: 0; padding: 0; font: inherit; font-family: var(--mono); color: inherit; cursor: copy; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+/* the files of a project, as a tree beside the editor */
+.editor-layout.with-tree > .ftree { flex: 0 0 250px; }
+.ftree { display: flex; flex-direction: column; min-width: 0; max-height: calc(60vh + 44px); overflow: hidden; padding: 0; }
+.ftree-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.ftree-title { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftree-acts { display: flex; gap: 2px; }
+.ftree-acts .btn { padding: 2px 6px; }
+.ftree-filter { margin: 8px 8px 0; padding: 5px 9px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); }
+.ftree-list { flex: 1; overflow: auto; padding: 6px 4px 8px; font-size: 13px; }
+.ftree-row { display: flex; align-items: center; border-radius: 6px; }
+.ftree-row:hover { background: var(--surface-2); }
+.ftree-row.sel { background: var(--brand-soft); }
+.ftree-row.sel .ftree-name { font-weight: 600; }
+.ftree-row.sel .ftree-ico { color: var(--brand); }
+.ftree-row.cwd > .ftree-main .ftree-name { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.ftree-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 4px 0 0; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.ftree-chev { width: 12px; flex: 0 0 12px; display: inline-grid; place-items: center; color: var(--muted); transition: transform .12s; }
+.ftree-chev.open { transform: rotate(90deg); }
+.ftree-ico { flex: 0 0 auto; color: var(--muted); }
+.ftree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftree-more { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 8px; height: 27px; cursor: pointer; border-radius: 6px; font-size: 14px; }
+.ftree-row:hover .ftree-more, .ftree-more:focus-visible { opacity: 1; }
+.ftree-more:hover { color: var(--text); background: var(--border); }
+.ftree-empty { color: var(--muted); font-size: 12px; font-style: italic; height: 24px; display: flex; align-items: center; }
+.ftree-note { padding: 6px 8px; margin: 0; }
+.ftree-missing { border-top: 1px solid var(--border); padding: 8px 10px 10px; max-height: 40%; overflow: auto; }
+.ftree-missing .sub { margin: 0 0 6px; font-size: 12px; }
+.ftree-miss { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+.ftree-miss:last-child { border-bottom: 0; }
+.ftree-miss > .mono { flex: 1 1 100%; overflow-wrap: anywhere; }
+.ftree-miss-acts { display: flex; gap: 4px; }
+.ftree-miss-acts .btn { padding: 1px 7px; font-size: 11.5px; }
+@media (max-width: 900px) { .editor-layout.with-tree > .ftree { flex: 1 1 100%; max-height: 300px; } }

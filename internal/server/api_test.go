@@ -820,9 +820,8 @@ func TestLabFromGitAndEnv(t *testing.T) {
 		Content string
 		Hash    string
 		Missing bool
-		Files   []map[string]string
 	}
-	if c := e.call("GET", "/hosts/fake/labs/dogit/file?name=.env", nil, &f); c != 200 || !f.Missing || len(f.Files) != 2 {
+	if c := e.call("GET", "/hosts/fake/labs/dogit/file?name=.env", nil, &f); c != 200 || !f.Missing {
 		t.Fatalf(".env: %d %+v", c, f)
 	}
 	if c := e.call("PUT", "/hosts/fake/labs/dogit/file?name=.env", map[string]string{"content": "A=1\n", "hash": f.Hash}, nil); c != 200 {
@@ -1022,20 +1021,9 @@ func TestProjectExtraFiles(t *testing.T) {
 	dir := filepath.Join(e.dir, "web")
 	_ = os.MkdirAll(filepath.Join(dir, "conf"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "conf", "app.yml"), []byte("a: 1\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "foto.png"), []byte("x"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte("services:\n  app:\n    image: demo:1\n    volumes: [\"./conf:/etc/app:ro\"]\n  db:\n    image: demo:1\n"), 0o644)
-	var f struct {
-		Path, Content, Hash string
-		Files               []map[string]string
-	}
-	e.call("GET", "/hosts/fake/labs/web/file", nil, &f)
-	names := []string{}
-	for _, x := range f.Files {
-		names = append(names, x["name"])
-	}
-	if got := strings.Join(names, ","); !strings.Contains(got, "conf/app.yml") || strings.Contains(got, "foto.png") {
-		t.Fatalf("arquivos: %s", got)
-	}
+	_ = os.WriteFile(filepath.Join(dir, "foto.png"), []byte("\x89PNG\r\n\x1a\n\x00\x00"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte("services:\n  app:\n    image: demo:1\n    volumes: [\"./conf:/etc/app:ro\", \"./nginx/conf.d:/etc/nginx/conf.d\", \"./prometheus.yml:/etc/prometheus.yml\"]\n  db:\n    image: demo:1\n"), 0o644)
+	var f struct{ Path, Content, Hash string }
 	if c := e.call("GET", "/hosts/fake/labs/web/file?name=conf/app.yml", nil, &f); c != 200 || f.Content != "a: 1\n" {
 		t.Fatalf("ler: %d %+v", c, f)
 	}
@@ -1045,13 +1033,86 @@ func TestProjectExtraFiles(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, "conf", "app.yml")); string(b) != "a: 2\n" {
 		t.Errorf("conteúdo: %q", b)
 	}
-	for _, bad := range []string{"../web/compose.yaml", "/etc/passwd", "foto.png"} {
+	for _, bad := range []string{"../web/compose.yaml", "/etc/passwd", "nada.yml", "conf"} {
 		if c := e.call("GET", "/hosts/fake/labs/web/file?name="+url.QueryEscape(bad), nil, nil); c != http.StatusNotFound {
 			t.Errorf("%s deveria ser recusado, veio %d", bad, c)
 		}
 	}
+	if c := e.call("GET", "/hosts/fake/labs/web/file?name=foto.png", nil, nil); c != http.StatusUnsupportedMediaType {
+		t.Errorf("foto.png (binário) deveria ser recusado, veio %d", c)
+	}
+
+	// The tree: the folder, what the compose mounts and is not there, and
+	// the changes (the compose itself stays).
+	var tr struct {
+		Root  string
+		Items []struct {
+			Path string
+			Dir  bool
+			Name *string
+		}
+		Missing []struct {
+			Path string
+			Dir  bool
+		}
+	}
+	tree := func() string {
+		e.call("GET", "/hosts/fake/labs/web/arvore", nil, &tr)
+		var out []string
+		for _, it := range tr.Items {
+			x := it.Path
+			if it.Dir {
+				x += "/"
+			}
+			out = append(out, x)
+		}
+		return strings.Join(out, " ")
+	}
+	if got := tree(); got != "conf/ conf/app.yml compose.yaml foto.png" || tr.Root != dir {
+		t.Fatalf("árvore: %q em %s", got, tr.Root)
+	}
+	if len(tr.Missing) != 2 || tr.Missing[0].Path != "nginx/conf.d" || !tr.Missing[0].Dir || tr.Missing[1].Path != "prometheus.yml" || tr.Missing[1].Dir {
+		t.Errorf("faltando: %+v", tr.Missing)
+	}
+	var res struct{ Path, Name string }
+	for _, op := range []map[string]string{
+		{"op": "pasta", "path": "nginx/conf.d"},
+		{"op": "arquivo", "path": "nginx/conf.d/default.conf"},
+		{"op": "arquivo", "path": "prometheus.yml"},
+		{"op": "renomear", "path": "conf/app.yml", "to": "conf/app2.yml"},
+		{"op": "excluir", "path": "foto.png"},
+	} {
+		if c := e.call("POST", "/hosts/fake/labs/web/arvore", op, &res); c != 200 {
+			t.Fatalf("%v: %d", op, c)
+		}
+	}
+	if res.Path != "foto.png" {
+		t.Errorf("resposta: %+v", res)
+	}
+	if got := tree(); got != "conf/ conf/app2.yml nginx/ nginx/conf.d/ nginx/conf.d/default.conf compose.yaml prometheus.yml" || len(tr.Missing) != 0 {
+		t.Errorf("depois: %q, faltando %+v", got, tr.Missing)
+	}
+	for _, it := range tr.Items {
+		if it.Path == "compose.yaml" && (it.Name == nil || *it.Name != "") {
+			t.Errorf("o compose abre pelo nome vazio: %v", it.Name)
+		}
+	}
+	for _, bad := range []map[string]string{
+		{"op": "excluir", "path": "compose.yaml"},
+		{"op": "renomear", "path": "compose.yaml", "to": "x.yaml"},
+		{"op": "arquivo", "path": "../fora.txt"},
+		{"op": "pasta", "path": "conf"},
+		{"op": "apagar-tudo", "path": "conf"},
+	} {
+		if c := e.call("POST", "/hosts/fake/labs/web/arvore", bad, nil); c != http.StatusBadRequest {
+			t.Errorf("%v deveria ser recusado, veio %d", bad, c)
+		}
+	}
+	if c := e.call("GET", "/hosts/fake/labs/web/file?name=nginx/conf.d/default.conf", nil, &f); c != 200 || f.Content != "" {
+		t.Errorf("arquivo novo no editor: %d %q", c, f.Content)
+	}
 	var r struct{ Services []string }
-	e.call("POST", "/hosts/fake/labs/web/file/restart?name=conf/app.yml", nil, &r)
+	e.call("POST", "/hosts/fake/labs/web/file/restart?name=conf/app2.yml", nil, &r)
 	if strings.Join(r.Services, ",") != "app" {
 		t.Errorf("serviços a reiniciar: %v", r.Services)
 	}

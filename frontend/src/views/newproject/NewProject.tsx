@@ -13,6 +13,7 @@ import { api, enc } from "@/lib/api";
 import { gantry } from "@/lib/gantry";
 import { t } from "@/lib/i18n";
 import { CodeEditor, FolderInput, useDebounced } from "@/components/editor";
+import { FileTree, type TreeEntry, type TreeKind } from "@/components/filetree";
 import { Loading, ErrorBox } from "@/components/ui";
 import { ToolWarning } from "@/views/tools/ToolsTab";
 import { checkYAML, createLab, envText, loadTemplates, slug, useTemplates, type Check, type Target, type Template } from "@/views/templates/store";
@@ -59,6 +60,10 @@ type St = {
   bothSource: "" | "pronto" | "montar";
   bothTpl: string;
   files: Record<string, string>;
+  // Folders to create with the project (even empty) and the file of the
+  // project open in the editor of the review ("" the compose).
+  dirs: string[];
+  editing: string;
   fromTpl: Template | null;
   yaml: string;
   name: string;
@@ -113,6 +118,8 @@ export function NewProject(p: NewProjectProps) {
     bothSource: "",
     bothTpl: "",
     files: {},
+    dirs: [],
+    editing: "",
     fromTpl: null,
     yaml: "",
     name: "",
@@ -336,7 +343,7 @@ function target(p: NewProjectProps, st: St, eng: Engine | null, ignoreRemote = f
 
 // buildYAML puts together the compose of the project from step 2.
 async function buildYAML(p: NewProjectProps, st: St, list: Template[], eng: Engine | null): Promise<Partial<St>> {
-  const out: Partial<St> = { files: {}, step: 3 };
+  const out: Partial<St> = { files: {}, dirs: [], editing: "", step: 3 };
   const byId = (id: string) => list.find((x) => x.id === id);
   if (st.kind === "both" && st.bothSource === "pronto") {
     const tpl = byId(st.bothTpl);
@@ -852,14 +859,47 @@ function Review({ p, st, set, eng }: StepProps & { eng: Engine | null }) {
         });
         useTemplates.setState({ list: null });
       }
-      await createLab(tgt.host, { name: st.name, dir, compose: st.yaml, env, up: st.up, keychain: st.keychain, files: st.files }, p.mkey);
+      await createLab(tgt.host, { name: st.name, dir, compose: st.yaml, env, up: st.up, keychain: st.keychain, files: st.files, dirs: st.dirs }, p.mkey);
     } catch (e) {
       setErr((e as Error).message);
     }
     setBusy(false);
   };
 
-  const fileList = Object.keys(st.files || {}).sort();
+  // The files of the project as a tree: the compose, the files of the
+  // template (and the ones made here) and the folders to create.
+  const files = st.files || {};
+  const dirs = st.dirs || [];
+  const treeItems: TreeEntry[] = [{ path: "compose.yaml" }, ...Object.keys(files).map((path) => ({ path })), ...dirs.map((path) => ({ path, dir: true }))];
+  const taken = (x: string) => x === "compose.yaml" || x === ".env" || x in files || dirs.includes(x) || Object.keys(files).some((f) => f.startsWith(x + "/")) || dirs.some((d) => d.startsWith(x + "/"));
+  const under = (x: string, base: string) => x === base || x.startsWith(base + "/");
+  const moveTo = (x: string, from: string, to: string) => (under(x, from) ? to + x.slice(from.length) : x);
+  const editorRef = useRef<HTMLElement>(null);
+  const openFile = (path: string) => {
+    set({ editing: path === "compose.yaml" ? "" : path });
+    setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+  const onCreate = async (kind: TreeKind, path: string) => {
+    if (path === ".env") throw new Error(t("O .env sai das variáveis desta página."));
+    if (taken(path)) throw new Error(t("{path} já existe no projeto.", { path }));
+    for (let d = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""; d; d = d.includes("/") ? d.slice(0, d.lastIndexOf("/")) : "") {
+      if (d in files) throw new Error(t("{path} é um arquivo, não uma pasta.", { path: d }));
+    }
+    if (kind === "pasta") return set({ dirs: [...dirs, path] });
+    set({ files: { ...files, [path]: "" } });
+    openFile(path);
+  };
+  const onRename = async (from: string, to: string) => {
+    if (taken(to)) throw new Error(t("{path} já existe no projeto.", { path: to }));
+    const nf: Record<string, string> = {};
+    for (const [k, v] of Object.entries(files)) nf[moveTo(k, from, to)] = v;
+    set({ files: nf, dirs: dirs.map((d) => moveTo(d, from, to)), editing: st.editing ? moveTo(st.editing, from, to) : "" });
+  };
+  const onDelete = async (path: string) => {
+    const nf = Object.fromEntries(Object.entries(files).filter(([k]) => !under(k, path)));
+    set({ files: nf, dirs: dirs.filter((d) => !under(d, path)), editing: st.editing && under(st.editing, path) ? "" : st.editing });
+  };
+  const editing = st.editing && st.editing in files ? st.editing : "";
   return (
     <div className="np-review">
       <div className="deploy-grid">
@@ -946,12 +986,22 @@ function Review({ p, st, set, eng }: StepProps & { eng: Engine | null }) {
               }
             />
           </div>
-          <section className="editor" style={{ marginTop: 16 }} aria-label={t("YAML do projeto")}>
+          <section className="editor" style={{ marginTop: 16, scrollMarginTop: 16 }} aria-label={editing ? t("Arquivo {path}", { path: editing }) : t("YAML do projeto")} ref={editorRef}>
             <div className="editor-bar">
-              <span className="mono">compose.yaml</span>
-              <span className="muted small">{t("pode editar à vontade")}</span>
+              <span className="mono">{editing || "compose.yaml"}</span>
+              {editing ? (
+                <button type="button" className="btn small ghost" onClick={() => set({ editing: "" })}>
+                  {t("Voltar ao compose.yaml")}
+                </button>
+              ) : (
+                <span className="muted small">{t("pode editar à vontade")}</span>
+              )}
             </div>
-            <CodeEditor value={st.yaml} onChange={(y) => set({ yaml: y })} label={t("compose do projeto")} />
+            {editing ? (
+              <CodeEditor key={editing} value={files[editing] ?? ""} onChange={(v) => set({ files: { ...files, [editing]: v } })} label={t("Arquivo {path}", { path: editing })} file={editing} />
+            ) : (
+              <CodeEditor value={st.yaml} onChange={(y) => set({ yaml: y })} label={t("compose do projeto")} />
+            )}
           </section>
           {/^x-vms:/m.test(st.yaml) ? (
             <VMCloudInit yaml={st.yaml} env={envText(st.vals)} files={st.files} onChange={(yaml, files) => set({ yaml, files })} />
@@ -961,17 +1011,23 @@ function Review({ p, st, set, eng }: StepProps & { eng: Engine | null }) {
           <div className="panel panel-pad">
             <h2 style={{ marginBottom: 6 }}>{t("O que vai ser criado")}</h2>
             <CheckSummary r={chk} />
-            {fileList.length ? (
-              <>
-                <h3 className="sub">{t("Arquivos junto do compose")}</h3>
-                <ul className="np-files mono small">
-                  {fileList.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
           </div>
+          <FileTree
+            title={dir.replace(/\/+$/, "").split("/").pop() || dir}
+            hint={dir}
+            items={treeItems}
+            selected={editing || "compose.yaml"}
+            onOpen={(e) => openFile(e.path)}
+            onCreate={onCreate}
+            onRename={onRename}
+            onDelete={onDelete}
+            locked={(x) => x === "compose.yaml"}
+            missing={chk?.mounts}
+            memory
+          />
+          <p className="muted small" style={{ margin: "-6px 2px 0" }}>
+            {t("Os arquivos e as pastas são criados junto com o projeto, na pasta dele. Depois, ficam na aba Arquivo do projeto.")}
+          </p>
         </div>
       </div>
       {err ? <p className="flash flash-err">{err}</p> : null}

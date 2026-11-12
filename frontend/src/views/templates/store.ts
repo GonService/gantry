@@ -14,6 +14,8 @@ export type Check = {
   networks?: string[];
   vars?: CheckVar[];
   uses?: Record<string, Record<string, string>>;
+  // The binds inside the project folder (to create the missing ones).
+  mounts?: { path: string; dir: boolean; services?: string[] }[];
 };
 
 type TplState = { list: Template[] | null; err: string; loading: boolean };
@@ -70,7 +72,7 @@ export type Target = { name: string; ok: boolean; idle?: boolean; runtime?: stri
 
 // createLab writes the project on the host (and brings it up as a job),
 // then opens its page.
-export async function createLab(host: string, body: { name: string; dir: string; compose: string; env: string; up: boolean; keychain: boolean; files: Record<string, string> }, mkey?: string) {
+export async function createLab(host: string, body: { name: string; dir: string; compose: string; env: string; up: boolean; keychain: boolean; files: Record<string, string>; dirs?: string[] }, mkey?: string) {
   const r = await api<{ id: string; job?: string; ok?: boolean; error?: string; output?: string; path?: string }>("/hosts/" + encodeURIComponent(host) + "/labs", {
     method: "POST",
     body: { ...body, job: body.up },

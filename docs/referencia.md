@@ -137,7 +137,9 @@ O Gantry conversa direto com a API do Docker ou do Podman, sem nada hospedado e 
 - **Alertas**
   - Se houver um Prometheus com regras (o Lab de observabilidade já vem com algumas), os alertas disparados aparecem no topo da máquina e do projeto. Silenciar esconde por máquina; Configuração mostra de novo.
 - **Arquivos do projeto**
-  - A aba Arquivo edita, além do compose e do .env, os outros arquivos de texto da pasta (prometheus.yml, rotas do Traefik, dashboards…). Salvar e reiniciar reinicia só os serviços que montam aquele arquivo.
+  - A aba Arquivo mostra a pasta do projeto como uma árvore e edita, além do compose e do .env, qualquer arquivo de texto dela, em qualquer subpasta (prometheus.yml, rotas do Traefik, dashboards…). Salvar e reiniciar reinicia só os serviços que montam aquele arquivo.
+  - Na árvore: **+ Arquivo** e **+ Pasta** (o caminho pode ter subpastas novas, como `nginx/conf.d/default.conf`), e pelo botão direito **Renomear**, **Copiar caminho** e **Excluir**. O compose do projeto fica protegido.
+  - **O compose monta e ainda não existe**: os volumes do compose dentro da pasta que ainda faltam, com **criar arquivo** e **criar pasta**. No **Revisar e gerar** do Criar projeto, a mesma árvore cria os arquivos e as pastas junto com o projeto.
 - **Métricas**
   - Aba Métricas em cada projeto, com gráficos de CPU e memória por container e por VM (15 min a 24 h) e um resumo em tabela com o disco das VMs. Clicar numa série da legenda destaca ela.
   - Página do container: CPU e memória de agora e o histórico.

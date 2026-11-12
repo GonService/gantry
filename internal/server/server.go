@@ -236,6 +236,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/hosts/{host}/labs/{lab}", s.withHost(s.forgetLab))
 	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/file", s.withHost(s.getFile))
 	mux.HandleFunc("PUT /api/hosts/{host}/labs/{lab}/file", s.withHost(s.putFile))
+	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/arvore", s.withHost(s.labTree))
+	mux.HandleFunc("POST /api/hosts/{host}/labs/{lab}/arvore", s.withHost(s.labTreeOp))
 	mux.HandleFunc("POST /api/hosts/{host}/labs/{lab}/file/restart", s.withHost(s.restartForFile))
 	mux.HandleFunc("POST /api/hosts/{host}/labs/{lab}/vms/{vm}/term", s.withHost(s.vmTerm))
 	mux.HandleFunc("GET /api/hosts/{host}/labs/{lab}/vms/{vm}/snapshots", s.withHost(s.vmSnapshots))
@@ -1358,17 +1360,6 @@ func (s *Server) pickFile(ctx context.Context, h *hosts.Host, l labs.Lab, name s
 	return p, false, err
 }
 
-// fileChoices are the files of a lab the editor can switch between.
-func fileChoices(main string, l labs.Lab) []map[string]string {
-	out := []map[string]string{{"name": "", "label": path.Base(main)}}
-	for _, f := range l.Files {
-		if f != main {
-			out = append(out, map[string]string{"name": f, "label": path.Base(f)})
-		}
-	}
-	return append(out, map[string]string{"name": ".env", "label": ".env"})
-}
-
 func hashOf(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
@@ -1398,9 +1389,12 @@ func (s *Server) getFile(w http.ResponseWriter, r *http.Request, h *hosts.Host) 
 			writeErr(w, http.StatusBadGateway, err)
 			return
 		}
+		if isBinary(b) {
+			writeErr(w, http.StatusUnsupportedMediaType, errors.New(path.Base(p)+" não é um arquivo de texto; o editor só abre texto"))
+			return
+		}
 	}
-	main, _ := s.labFile(ctx, h, l)
-	writeJSON(w, map[string]any{"path": p, "content": string(b), "hash": hashOf(b), "missing": missing, "files": s.extraChoices(ctx, h, main, l, fileChoices(main, l))})
+	writeJSON(w, map[string]any{"path": p, "content": string(b), "hash": hashOf(b), "missing": missing})
 }
 
 func (s *Server) putFile(w http.ResponseWriter, r *http.Request, h *hosts.Host) {

@@ -52,9 +52,12 @@ type createReq struct {
 	Compose string `json:"compose"`
 	Env     string `json:"env"`
 	// Files go next to the compose file (configs, dashboards…).
-	Files     map[string]string `json:"files"`
-	Up        bool              `json:"up"`
-	Overwrite bool              `json:"overwrite"`
+	Files map[string]string `json:"files"`
+	// Dirs are folders to create in it, even empty (a bind of the
+	// compose: Podman refuses a bind whose folder does not exist).
+	Dirs      []string `json:"dirs"`
+	Up        bool     `json:"up"`
+	Overwrite bool     `json:"overwrite"`
 	// Job brings the project up in the background (with live output)
 	// instead of answering only when it is up.
 	Job bool `json:"job"`
@@ -155,6 +158,21 @@ func (s *Server) doCreateLab(ctx context.Context, h *hosts.Host, req createReq) 
 	file := path.Join(dir, "compose.yaml")
 	if err := h.WriteFile(ctx, file, []byte(req.Compose)); err != nil {
 		return nil, http.StatusBadGateway, err
+	}
+	for _, rel := range req.Dirs {
+		clean, err := cleanRel(rel)
+		if err != nil {
+			return nil, http.StatusBadRequest, fmt.Errorf("pasta com caminho inválido: %s", rel)
+		}
+		sub := path.Join(dir, clean)
+		if h.Remote() {
+			_, err = h.Run(ctx, "", []string{"mkdir", "-p", sub}, nil)
+		} else {
+			err = os.MkdirAll(sub, 0o755)
+		}
+		if err != nil {
+			return nil, http.StatusBadGateway, fmt.Errorf("não consegui criar %s: %v", sub, err)
+		}
 	}
 	for rel, content := range req.Files {
 		clean := path.Clean(strings.TrimSpace(rel))

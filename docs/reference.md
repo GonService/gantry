@@ -139,7 +139,9 @@ The interface is available in English and Portuguese (gear › General). Some na
 - **Alerts**
   - If there is a Prometheus with rules (the Observability lab comes with some), firing alerts appear at the top of the machine and the project. Silence hides them per machine; Settings shows them again.
 - **Project files**
-  - The File tab edits, besides the compose and `.env`, the other text files in the folder (prometheus.yml, Traefik routes, dashboards…). Save and restart restarts only the services that mount that file.
+  - The File tab shows the project folder as a tree and edits, besides the compose and `.env`, any text file in it, in any subfolder (prometheus.yml, Traefik routes, dashboards…). Save and restart restarts only the services that mount that file.
+  - In the tree: **+ File** and **+ Folder** (the path can have new subfolders, such as `nginx/conf.d/default.conf`), and with the right click **Rename**, **Copy path** and **Delete**. The project's compose is protected.
+  - **Mounted by the compose, not there yet**: the compose volumes inside the folder that are still missing, with **create file** and **create folder**. In Create project's **Review and generate**, the same tree creates the files and folders along with the project.
 - **Metrics**
   - A Metrics tab in each project, with CPU and memory charts per container and per VM (15 min to 24 h) and a summary table with the VM disks. Click a series in the legend to highlight it.
   - Container page: current CPU and memory and the history.
