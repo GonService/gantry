@@ -143,6 +143,20 @@ func leaseIP(leases, mac, name string) string {
 	return byName
 }
 
+// leasesPath is where macOS keeps the addresses it hands out to the VMs.
+var leasesPath = "/var/db/dhcpd_leases"
+
+// Addr is the machine's address on the network it shares with the Mac
+// ("" if macOS has not handed it one): the Mac reaches it directly, as in
+// http://192.168.64.7:8080.
+func Addr(name string) string {
+	b, err := os.ReadFile(leasesPath)
+	if err != nil {
+		return ""
+	}
+	return leaseIP(string(b), mac(name), name)
+}
+
 // portForwarder keeps the Mac's listeners in step with the published ports.
 type portForwarder struct {
 	name   string
@@ -157,7 +171,7 @@ type portForwarder struct {
 }
 
 func newPortForwarder(name string, s Spec, lg *log.Logger) *portForwarder {
-	return &portForwarder{name: name, spec: s, log: lg, leases: "/var/db/dhcpd_leases", open: map[string]io.Closer{}, failed: map[string]bool{}}
+	return &portForwarder{name: name, spec: s, log: lg, leases: leasesPath, open: map[string]io.Closer{}, failed: map[string]bool{}}
 }
 
 // guestIP is the machine's address, read again when a connection fails.

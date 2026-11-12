@@ -114,3 +114,17 @@ func TestPortForwarder(t *testing.T) {
 		t.Fatalf("resposta: %q", l)
 	}
 }
+
+func TestAddr(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "leases")
+	os.WriteFile(p, []byte("{\n\tname=gantry-vm\n\tip_address=192.168.64.9\n\thw_address=1,"+mac("gantry-vm")+"\n}\n"), 0o644)
+	old := leasesPath
+	leasesPath = p
+	defer func() { leasesPath = old }()
+	if ip := Addr("gantry-vm"); ip != "192.168.64.9" {
+		t.Fatalf("ip: %q", ip)
+	}
+	if ip := Addr("outra"); ip != "" {
+		t.Fatalf("achou outra: %q", ip)
+	}
+}

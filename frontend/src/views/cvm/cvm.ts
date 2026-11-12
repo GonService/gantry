@@ -82,6 +82,7 @@ export type CvmView = {
   scriptSum?: string;
   pending?: boolean;
   watching?: boolean;
+  ip?: string;
 };
 
 export type CvmList = { supported: boolean; home: string; arch: string; default: Spec; machines: CvmView[]; image: string; images?: Record<string, string>; labels?: Record<string, string> };

@@ -68,7 +68,9 @@ export function CvmInHost({ list }: { list: CvmList | null }) {
                         {v.name}
                       </a>
                     </div>
-                    <div className="muted small">Container VM · Apple Virtualization</div>
+                    <div className="muted small">
+                      Container VM · Apple Virtualization{on && v.ip ? <span className="mono"> · IP {v.ip}</span> : null}
+                    </div>
                   </td>
                   <td className="small">{label}</td>
                   <td>{osName(v, list)}</td>

@@ -3,7 +3,7 @@
 // Everything here is read only while the page is open and visible.
 import { useEffect, useRef, useState } from "react";
 import { api, enc } from "@/lib/api";
-import { fmtBytes } from "@/lib/format";
+import { copyText, fmtBytes } from "@/lib/format";
 import { fmtUptime } from "@/lib/app";
 import { useStore } from "@/lib/store";
 import { confirm } from "@/components/dialog";
@@ -201,6 +201,7 @@ function SysBlock({ v }: { v: CvmView }) {
         {s?.os ? <span>{s.os}</span> : <span>{v.spec.os === "alpine" ? "Alpine" : v.spec.os === "custom" ? t("sistema próprio") : "Debian 13"}</span>}
         {s?.kernel ? <span>kernel {s.kernel}</span> : null}
         <span>{s?.arch || "arm64"}{v.spec.rosetta ? " + amd64 (Rosetta)" : ""}</span>
+        {running && (s?.ip || v.ip) ? <MachineIP ip={(s?.ip || v.ip) as string} /> : null}
         {running && s?.uptime ? <span>{t("ligada há {uptime}", { uptime: fmtUptime(s.uptime) })}</span> : null}
         {running && s?.load ? <span>{t("carga {load}", { load: s.load })}</span> : null}
         {back ? <span className="cvm-back">{t("devolvendo {n} ao Mac", { n: fmtBytes(back) })}</span> : null}
@@ -764,5 +765,22 @@ function SavedScript({ name }: { name: string }) {
       </div>
       <pre className="cvm-code">{s.script || t("(sem script salvo)")}</pre>
     </section>
+  );
+}
+
+// MachineIP is the machine's address on the network it shares with the Mac:
+// the Mac's browser reaches it directly (http://IP:port). A click copies it.
+function MachineIP({ ip }: { ip: string }) {
+  return (
+    <button
+      type="button"
+      className="cvm-ip mono"
+      title={t("O Mac abre a máquina direto por este endereço (http://{ip}:porta). Clique para copiar.", { ip })}
+      onClick={async () => {
+        if (await copyText(ip)) toast(t("IP copiado: {ip}", { ip }), "ok");
+      }}
+    >
+      IP {ip}
+    </button>
   );
 }

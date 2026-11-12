@@ -1312,3 +1312,4 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-tip { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
 .cvm-tip .badge { flex: none; }
 .cvm-list .mono { overflow-wrap: anywhere; }
+.cvm-ip { background: none; border: 0; padding: 0; font: inherit; font-family: var(--mono); color: inherit; cursor: copy; text-decoration: underline dotted; text-underline-offset: 3px; }

@@ -48,6 +48,8 @@ type cvmView struct {
 	Pending bool          `json:"pending,omitempty"` // CPU or memory changed: applies on restart
 	// Watching: the Mac's file changes are going in (hot reload).
 	Watching bool `json:"watching"`
+	// IP: the machine's address on the network shared with the Mac.
+	IP string `json:"ip,omitempty"`
 }
 
 func cvmOf(ctx context.Context, name string) cvmView {
@@ -64,6 +66,9 @@ func cvmOf(ctx context.Context, name string) cvmView {
 	}
 	v.Pending = cvmPending(name, s)
 	v.Watching = cvm.Watching(name)
+	if v.State == cvm.StateRunning {
+		v.IP = cvm.Addr(name)
+	}
 	return v
 }
 
