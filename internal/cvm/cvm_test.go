@@ -378,3 +378,46 @@ func TestSystems(t *testing.T) {
 		t.Error("aceitou uma imagem que não é https nem caminho")
 	}
 }
+
+// The Podman connection: listed from podman's JSON, and "use as default"
+// adds it when missing and makes it the default.
+func TestPodmanConnection(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	bin := t.TempDir()
+	logf := filepath.Join(bin, "log")
+	script := `#!/bin/sh
+echo "$*" >>` + logf + `
+case "$*" in
+  "system connection list --format json")
+    if grep -q "connection default" ` + logf + `; then
+      echo '[{"Name":"gantry","URI":"unix:///x","Default":true}]'
+    else
+      echo '[{"Name":"outra","URI":"ssh://x","Default":true}]'
+    fi ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(bin, "podman"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+":/usr/bin:/bin")
+	s := Default(4, 8<<30)
+	if err := Save(s); err != nil {
+		t.Fatal(err)
+	}
+	in := Inspect(s.Name)
+	if !in.PodmanCLI || in.PodmanConn || in.PodmanDefault != "outra" || in.PodmanConnN != "gantry" {
+		t.Fatalf("antes: %+v", in)
+	}
+	yes := true
+	if err := Apply(context.Background(), s.Name, Wanted{PodmanUse: &yes}); err != nil {
+		t.Fatal(err)
+	}
+	log, _ := os.ReadFile(logf)
+	if !strings.Contains(string(log), "system connection add gantry unix://") || !strings.Contains(string(log), "system connection default gantry") {
+		t.Fatalf("comandos: %s", log)
+	}
+	if in := Inspect(s.Name); in.PodmanDefault != "gantry" || !in.PodmanConn {
+		t.Fatalf("depois: %+v", in)
+	}
+}

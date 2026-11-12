@@ -98,7 +98,7 @@ export function EnginesTab({ v }: { v: CvmView }) {
                       <b>Docker</b>
                     </td>
                     <td className="mono">{it.dockerSock}</td>
-                    <td className="mono">/run/docker.sock</td>
+                    <td className="mono">{s.custom?.dockerSock || "/run/docker.sock"}</td>
                   </tr>
                 ) : null}
                 {s.podman ? (
@@ -107,7 +107,7 @@ export function EnginesTab({ v }: { v: CvmView }) {
                       <b>Podman</b>
                     </td>
                     <td className="mono">{it.podmanSock}</td>
-                    <td className="mono">/run/podman/podman.sock</td>
+                    <td className="mono">{s.custom?.podmanSock || "/run/podman/podman.sock"}</td>
                   </tr>
                 ) : null}
                 {s.containerd ? (
@@ -136,7 +136,11 @@ export function EnginesTab({ v }: { v: CvmView }) {
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Apontar o terminal do Mac")}</h2>
-            <span className="muted small">{t("contexto atual do docker: {ctx}", { ctx: it.currentContext || "default" })}</span>
+            <span className="muted small">
+              {s.docker ? t("contexto atual do docker: {ctx}", { ctx: it.currentContext || "default" }) : null}
+              {s.docker && s.podman && it.podmanCli ? " · " : null}
+              {s.podman && it.podmanCli ? t("conexão padrão do podman: {c}", { c: it.podmanDefault || t("nenhuma") }) : null}
+            </span>
           </div>
           <div className="cvm-pb">
             {s.docker ? (
@@ -152,6 +156,47 @@ export function EnginesTab({ v }: { v: CvmView }) {
                 ) : (
                   <span className="badge ok">{t("é o contexto atual")}</span>
                 )}
+              </>
+            ) : null}
+            {s.podman ? (
+              <>
+                <span className="cvm-group">{t("Podman: conexão (recomendado)")}</span>
+                {it.podmanCli ? (
+                  <>
+                    <CopyCommand cmd={"podman system connection default " + (it.podmanConnName || "gantry")} />
+                    {it.podmanDefault === it.podmanConnName ? (
+                      <span className="badge ok">{t("é a conexão padrão")}</span>
+                    ) : (
+                      <div>
+                        <button className="btn small" type="button" disabled={busy} onClick={() => void put({ podmanUse: true })}>
+                          {t("Usar como padrão do podman")}
+                        </button>
+                      </div>
+                    )}
+                    <p className="muted small" style={{ margin: 0 }}>
+                      {t("O podman do Mac fala com o Podman da máquina pela conexão {name} (podman system connection).", { name: it.podmanConnName || "gantry" })}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="muted small" style={{ margin: 0 }}>
+                      {t("O Mac não tem o podman. Instale o cliente, ou ligue Comandos da máquina no PATH para usar o podman da máquina.")}
+                    </p>
+                    <CopyCommand cmd="brew install podman" />
+                  </>
+                )}
+                {it.dockerCli ? (
+                  it.podmanContext ? (
+                    <>
+                      <span className="cvm-group">{t("CLI docker falando com o Podman")}</span>
+                      <CopyCommand cmd={"docker context use " + it.podmanContext} />
+                    </>
+                  ) : (
+                    <p className="muted small" style={{ margin: 0 }}>
+                      {t("Para o CLI docker falar com o Podman da máquina, ligue Contexto do Docker para o Podman, ao lado.")}
+                    </p>
+                  )
+                ) : null}
               </>
             ) : null}
             <span className="cvm-group">{t("Só nesta sessão do terminal")}</span>

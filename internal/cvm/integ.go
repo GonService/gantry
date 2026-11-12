@@ -45,6 +45,8 @@ type Integration struct {
 	DockerContext string   `json:"dockerContext"`        // name, when it exists
 	PodmanContext string   `json:"podmanContext"`        // Docker context to the Podman socket
 	PodmanConn    bool     `json:"podmanConn"`           // podman system connection
+	PodmanConnN   string   `json:"podmanConnName"`       // its name
+	PodmanDefault string   `json:"podmanDefault"`        // podman's default connection ("" none)
 	PodmanCLI     bool     `json:"podmanCli"`            // podman on the Mac
 	DockerCLI     string   `json:"dockerCli"`            // the docker the Mac runs ("" none, or a path)
 	Path          bool     `json:"path"`                 // ~/.gantry/bin in the shell's rc
@@ -187,14 +189,11 @@ func Inspect(name string) Integration {
 			in.PodmanContext = pctx
 		}
 		in.Commands = append(in.Commands, "export CONTAINER_HOST=unix://"+in.PodmanSock)
+		in.PodmanConnN = dctx
 		if in.PodmanCLI {
-			if out, err := exec.Command(lookOutside("podman"), "system", "connection", "list", "--format", "{{.Name}}").Output(); err == nil {
-				for _, l := range strings.Fields(string(out)) {
-					if l == dctx {
-						in.PodmanConn = true
-					}
-				}
-			}
+			conns, def := podmanConns()
+			in.PodmanConn = conns[dctx]
+			in.PodmanDefault = def
 		}
 	}
 	in.Path = hasRC()
@@ -210,6 +209,27 @@ func Inspect(name string) Integration {
 		in.Shims = append(in.Shims, e.Name())
 	}
 	return in
+}
+
+// podmanConns lists the Mac's podman connections and the default one.
+func podmanConns() (map[string]bool, string) {
+	out, err := exec.Command(lookOutside("podman"), "system", "connection", "list", "--format", "json").Output()
+	if err != nil {
+		return map[string]bool{}, ""
+	}
+	var l []struct {
+		Name    string
+		Default bool
+	}
+	_ = json.Unmarshal(out, &l)
+	m, def := map[string]bool{}, ""
+	for _, c := range l {
+		m[c.Name] = true
+		if c.Default {
+			def = c.Name
+		}
+	}
+	return m, def
 }
 
 // WriteShims (re)writes the commands of ~/.gantry/bin for the machine.
@@ -252,7 +272,8 @@ type Wanted struct {
 	PodmanContext *bool `json:"podmanContext"`
 	PodmanConn    *bool `json:"podmanConn"`
 	Path          *bool `json:"path"`
-	Use           *bool `json:"use"` // make the Docker context the current one
+	Use           *bool `json:"use"`       // make the Docker context the current one
+	PodmanUse     *bool `json:"podmanUse"` // make the Podman connection the default one
 }
 
 // Apply changes the pieces asked for.
@@ -291,6 +312,20 @@ func Apply(ctx context.Context, name string, w Wanted) error {
 			if out, err := exec.CommandContext(ctx, pm, "system", "connection", "add", dctx, "unix://"+PodmanSocket(name)).CombinedOutput(); err != nil {
 				return fmt.Errorf("podman system connection add: %s", strings.TrimSpace(string(out)))
 			}
+		}
+	}
+	if w.PodmanUse != nil && *w.PodmanUse && s.Podman {
+		pm := lookOutside("podman")
+		if pm == "" {
+			return errors.New("o podman não está instalado no Mac; use a variável CONTAINER_HOST ou o comando podman de ~/.gantry/bin")
+		}
+		if conns, _ := podmanConns(); !conns[dctx] {
+			if out, err := exec.CommandContext(ctx, pm, "system", "connection", "add", dctx, "unix://"+PodmanSocket(name)).CombinedOutput(); err != nil {
+				return fmt.Errorf("podman system connection add: %s", strings.TrimSpace(string(out)))
+			}
+		}
+		if out, err := exec.CommandContext(ctx, pm, "system", "connection", "default", dctx).CombinedOutput(); err != nil {
+			return fmt.Errorf("podman system connection default: %s", strings.TrimSpace(string(out)))
 		}
 	}
 	if w.Use != nil && *w.Use && s.Docker {

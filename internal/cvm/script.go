@@ -26,7 +26,7 @@ var (
 	provisionT       = template.Must(template.New("provision").Parse(provisionTmpl))
 	provisionAlpineT = template.Must(template.New("provision-alpine").Parse(provisionAlpineTmpl))
 	provisionCustomT = template.Must(template.New("provision-custom").Parse(provisionCustomTmpl))
-	userDataT  = template.Must(template.New("user-data").Parse(userDataTmpl))
+	userDataT        = template.Must(template.New("user-data").Parse(userDataTmpl))
 )
 
 // nerdctl-full, pinned with the sums of its SHA256SUMS.

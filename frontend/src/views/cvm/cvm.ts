@@ -41,6 +41,8 @@ export type Share = { path: string; readOnly?: boolean };
 export type CustomOS = { image: string; sum?: string; dockerSock?: string; podmanSock?: string };
 
 export type Integration = {
+  podmanConnName?: string;
+  podmanDefault?: string;
   dockerContext: string;
   podmanContext: string;
   podmanConn: boolean;
