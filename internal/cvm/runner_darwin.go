@@ -66,12 +66,15 @@ func RunMachine(name string) error {
 	if s.Podman {
 		r.forward(portPodman, filepath.Join(dir, fPodman))
 	}
+	r.ports = newPortForwarder(name, s, lg)
 	go r.serve(filepath.Join(dir, fREST))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if r.balloon != nil {
 		go r.memoryLoop(ctx)
 	}
+	// The ports the containers publish show up on the Mac too.
+	go r.ports.loop(ctx)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
@@ -225,6 +228,7 @@ type runner struct {
 	sock    *vz.VirtioSocketDevice
 	balloon *vz.VirtioTraditionalMemoryBalloonDevice
 	log     *log.Logger
+	ports   *portForwarder
 
 	mu        sync.Mutex
 	listeners []net.Listener
@@ -357,6 +361,9 @@ func (r *runner) serve(path string) {
 	})
 	mux.HandleFunc("GET /vm/memoria", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(r.memory())
+	})
+	mux.HandleFunc("GET /vm/portas", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(r.ports.Ports())
 	})
 	_ = http.Serve(ln, mux)
 }

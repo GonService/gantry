@@ -535,11 +535,14 @@ details.ctr-sec[open] > summary { margin-bottom: 10px; }
 .rows-ed { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .rows-ed-row { display: flex; gap: 6px; width: 100%; }
 .rows-ed-row input, .rows-ed-row select { flex: 1; min-width: 0; }
+.rows-ed-head span { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.rows-ed-head .rows-ed-x { flex: none; width: 30px; }
 .sub-tools { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 h3.sub { font-size: 13px; margin: 18px 0 8px; color: var(--muted); }
 .cf-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 @media (max-width: 640px) {
   .rows-ed-row { flex-wrap: wrap; }
+  .rows-ed-head { display: none; }
   .rows-ed-row input, .rows-ed-row select { flex: 1 1 40%; }
 }
 h3.sub { font-family: inherit; font-weight: 600; }

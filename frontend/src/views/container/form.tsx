@@ -465,7 +465,7 @@ function Form({ hst, mode, rt, sp, ins }: { hst: Host; mode: FormProps["mode"]; 
         {rows(
           "ports",
           [
-            { ph: t("IP do host"), label: t("IP do host"), w: "1.2" },
+            { ph: t("opcional"), label: t("IP do host"), w: "1.2" },
             { ph: t("porta host"), label: t("Porta no host"), w: "1" },
             { ph: t("porta ctr"), label: t("Porta no container"), w: "1" },
             {

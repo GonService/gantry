@@ -10,6 +10,16 @@ export function RowsEditor({ rows, cols, addLabel, onChange }: { rows: Row[]; co
   const set = (ri: number, ci: number, v: string) => onChange(rows.map((r, i) => (i === ri ? r.map((x, j) => (j === ci ? v : x)) : r)));
   return (
     <div className="rows-ed">
+      {rows.length ? (
+        <div className="rows-ed-row rows-ed-head" aria-hidden="true">
+          {cols.map((c, ci) => (
+            <span key={ci} style={c.w ? { flex: c.w } : undefined}>
+              {c.label}
+            </span>
+          ))}
+          <span className="rows-ed-x" />
+        </div>
+      ) : null}
       {rows.map((row, ri) => (
         <div className="rows-ed-row" key={ri}>
           {cols.map((c, ci) =>
