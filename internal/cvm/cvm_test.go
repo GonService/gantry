@@ -338,7 +338,7 @@ func TestSystems(t *testing.T) {
 	}
 	s.OS = OSAlpine
 	sc, _ := Script(s, "/Users/ana")
-	for _, want := range []string{"#!/bin/sh", "apk add docker", "vsock ssh 2222 TCP:127.0.0.1:22 sshd", "#!/sbin/openrc-run", "OPEN:/proc/meminfo", "/etc/sudoers.d/gantry"} {
+	for _, want := range []string{"#!/bin/sh", "apk add docker", "vsock ssh 2222 TCP:127.0.0.1:22 sshd", "#!/sbin/openrc-run", "OPEN:/proc/meminfo", "/etc/sudoers.d/gantry", "s/^gantry:![^:]*:/gantry:*:/"} {
 		if !strings.Contains(sc, want) {
 			t.Errorf("alpine sem %q", want)
 		}

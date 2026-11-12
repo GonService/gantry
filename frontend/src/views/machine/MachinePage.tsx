@@ -16,6 +16,7 @@ import { ToolsTab, useMissingTools } from "@/views/tools/ToolsTab";
 import { engKey, forgetMachine, loadCtrs, loadOverview, loadSys, useMachine } from "./store";
 import { useTools } from "@/views/tools/store";
 import { Empty, ConfigTab, ContainersTab, ProjectsTab, SharedTab, VMsTab } from "./tabs";
+import { CvmInHost, useCvmList } from "../cvm/inhost";
 
 export type MachineProps = { mkey: string; mtab?: string; meng?: string; mseg?: string };
 
@@ -154,6 +155,7 @@ function Page({ m, S, tab, meng, mseg }: { m: Machine; S: ReturnType<typeof useA
   const ov = useMachine((x) => x.ov[m.key]);
   const shared = useMachine((x) => x.shared[m.key]);
   const missing = useMissingTools(m.key);
+  const cvms = useCvmList();
   const canTools = m.local || (!!m.primary && m.primary.kind !== "tcp");
   useEffect(() => {
     if (canTools && missing == null) useTools.getState().load(m.key, m.local ? "/local/ferramentas" : "/hosts/" + enc(m.primary!.name) + "/ferramentas");
@@ -297,10 +299,11 @@ function Page({ m, S, tab, meng, mseg }: { m: Machine; S: ReturnType<typeof useA
   const engines = d?.engines ?? [];
   const nCtr = engines.reduce((a, e) => a + (e.containers || 0), 0);
   const vms = d?.vms ?? [];
+  const nCvm = m.local ? cvms?.machines.length || 0 : 0;
   const tabs: [string, string, number | null][] = [
     ["projetos", t("Projetos"), d ? d.projects.length : null],
     ["containers", "Containers", d ? nCtr : null],
-    ["vms", "VMs", d ? vms.length : null],
+    ["vms", "VMs", d ? vms.length + nCvm : null],
   ];
   if (p?.files) tabs.push(["servicos", t("Serviços"), shared?.data ? shared.data.length : null]);
   if (m.local) tabs.push(["engines", "Engines", null]);
@@ -334,7 +337,13 @@ function Page({ m, S, tab, meng, mseg }: { m: Machine; S: ReturnType<typeof useA
       </div>
     );
   else if (!d) body = ov?.err ? <ErrorBox>{ov.err}</ErrorBox> : <Loading />;
-  else if (tab === "vms") body = <VMsTab m={m} d={d} />;
+  else if (tab === "vms")
+    body = (
+      <>
+        {m.local ? <CvmInHost list={cvms} /> : null}
+        <VMsTab m={m} d={d} cvm={nCvm > 0} />
+      </>
+    );
   else if (tab === "containers") body = <ContainersTab m={m} engines={engines} meng={meng} mseg={mseg} />;
   else body = <ProjectsTab m={m} d={d} />;
 

@@ -768,7 +768,7 @@ function netDialog(m: Machine, host: string, c: VMNet) {
   });
 }
 
-export function VMsTab({ m, d }: { m: Machine; d: Overview }) {
+export function VMsTab({ m, d, cvm }: { m: Machine; d: Overview; cvm?: boolean }) {
   const S = useApp();
   const sys = useMachine((s) => s.sys[m.key]?.info) || {};
   const pk = "vms:" + m.key;
@@ -787,7 +787,7 @@ export function VMsTab({ m, d }: { m: Machine; d: Overview }) {
         <NetPanel m={m} />
         <div className="panel panel-pad">
           <div className="block-head" style={{ marginBottom: 6 }}>
-            <p style={{ margin: 0 }}>{t("Nenhuma VM nesta máquina.")}</p>
+            <p style={{ margin: 0 }}>{cvm ? t("Nenhuma VM de projeto nesta máquina.") : t("Nenhuma VM nesta máquina.")}</p>
             <span className="grow" />
             {m.primary ? <CreateMenu label={t("＋ Criar VM")} ways={vmWays(m)} /> : null}
           </div>

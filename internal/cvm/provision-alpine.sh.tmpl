@@ -18,6 +18,9 @@ apk update
 apk add bash sudo ca-certificates curl socat chrony util-linux e2fsprogs e2fsprogs-extra procps coreutils findutils
 echo 'gantry ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/gantry
 chmod 0440 /etc/sudoers.d/gantry
+# O sshd do Alpine (sem PAM) recusa até a chave de uma conta com a senha
+# travada ("!"); "*" deixa a conta sem senha, mas aberta para a chave.
+sed -i -E 's/^gantry:![^:]*:/gantry:*:/' /etc/shadow
 # virtiofs (pastas do Mac), vsock (acesso do Gantry), o balão (memória que
 # volta ao Mac), overlay (camadas das imagens) e binfmt (Rosetta).
 for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt_misc; do

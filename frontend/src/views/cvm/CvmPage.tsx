@@ -198,7 +198,7 @@ function SysBlock({ v }: { v: CvmView }) {
     <div className="panel panel-pad sys">
       <div className="sys-facts">
         <span>{v.name}</span>
-        {s?.os ? <span>{s.os}</span> : <span>Debian 13</span>}
+        {s?.os ? <span>{s.os}</span> : <span>{v.spec.os === "alpine" ? "Alpine" : v.spec.os === "custom" ? t("sistema próprio") : "Debian 13"}</span>}
         {s?.kernel ? <span>kernel {s.kernel}</span> : null}
         <span>{s?.arch || "arm64"}{v.spec.rosetta ? " + amd64 (Rosetta)" : ""}</span>
         {running && s?.uptime ? <span>{t("ligada há {uptime}", { uptime: fmtUptime(s.uptime) })}</span> : null}

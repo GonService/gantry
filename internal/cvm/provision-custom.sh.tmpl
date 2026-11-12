@@ -50,6 +50,9 @@ need mountpoint util-linux
 need sudo sudo
 echo 'gantry ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/gantry
 chmod 0440 /etc/sudoers.d/gantry
+# Um sshd sem PAM recusa até a chave de uma conta com a senha travada
+# ("!"); "*" deixa a conta sem senha, mas aberta para a chave.
+sed -i -E 's/^gantry:![^:]*:/gantry:*:/' /etc/shadow
 for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt_misc; do
   modprobe "$m" 2>/dev/null || true
 done
