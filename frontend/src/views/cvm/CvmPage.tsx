@@ -183,6 +183,14 @@ function Meter({ label, used, total, text, sub }: { label: string; used: number;
   );
 }
 
+// balloonPages: the memory the balloon took back to the Mac, when the guest
+// still counts it in its total (as used). Alpine and Debian do: without
+// this, a machine that gave 4 GB back would look 4 GB fuller.
+function balloonPages(m: MemoryState | null, memTotal?: number) {
+  if (!m?.balloon || !m.returned || !memTotal) return 0;
+  return memTotal > m.target + m.returned / 2 ? m.returned : 0;
+}
+
 function SysBlock({ v }: { v: CvmView }) {
   const [s, setS] = useState<Sys | null>(null);
   const running = v.state === "running";
@@ -194,6 +202,7 @@ function SysBlock({ v }: { v: CvmView }) {
   const sysd = v.disks.find((d) => d.name === "sistema.raw");
   const dataFs = s?.disks?.find((d) => d.path === "/var/lib/gantry");
   const root = s?.disks?.find((d) => d.path === "/");
+  const memUsed = Math.max(0, (s?.memUsed || 0) - balloonPages(m, s?.memTotal));
   return (
     <div className="panel panel-pad sys">
       <div className="sys-facts">
@@ -209,7 +218,7 @@ function SysBlock({ v }: { v: CvmView }) {
       {running ? (
         <div className="meters">
           <Meter label="CPU" used={s?.cpuPct || 0} total={100} text={s?.hasCpu ? t("{pct}% de {n} núcleos", { pct: (s.cpuPct || 0).toFixed(0), n: v.spec.cpus }) : t("{n} núcleos", { n: v.spec.cpus })} />
-          <Meter label={t("Memória")} used={s?.memUsed || 0} total={s?.memTotal || v.spec.memoryMiB * 1048576} text={s?.memUsed ? t("{used} de {total}", { used: fmtBytes(s.memUsed), total: fmtBytes(s.memTotal) }) : fmtBytes(v.spec.memoryMiB * 1048576)}
+          <Meter label={t("Memória")} used={memUsed} total={s?.memTotal || v.spec.memoryMiB * 1048576} text={s?.memUsed ? t("{used} de {total}", { used: fmtBytes(memUsed), total: fmtBytes(s.memTotal) }) : fmtBytes(v.spec.memoryMiB * 1048576)}
             sub={m?.balloon ? t("com a máquina agora: {n} de {max}", { n: fmtBytes(m.target), max: fmtBytes(m.max) }) : undefined}
           />
           <Meter
@@ -249,6 +258,8 @@ function Procs({ name }: { name: string }) {
   const [by, setBy] = useState<"cpu" | "rss">("cpu");
   const [q, setQ] = useState("");
   const [hist, setHist] = useState<number[]>([]);
+  const [bal, setBal] = useState<MemoryState | null>(null);
+  usePoll(async () => setBal(await api<MemoryState | null>("/cvm/" + enc(name) + "/memoria").catch(() => null)), 5000, !paused, [name]);
   usePoll(
     async () => {
       try {
@@ -284,6 +295,8 @@ function Procs({ name }: { name: string }) {
     }
   };
   const mem = (n: number) => ((n / (snap.memTotal || 1)) * 100).toFixed(1) + "%";
+  const back = balloonPages(bal, snap.memTotal);
+  const inUse = Math.max(0, snap.memUsed - back);
   return (
     <div className="cvm-procs">
       <section className="panel">
@@ -345,18 +358,26 @@ function Procs({ name }: { name: string }) {
           <div className="cvm-mem">
             <span className="cvm-legend">
               <b>{t("Memória")}</b>
-              <span className="mono">{t("{used} de {total}", { used: fmtBytes(snap.memUsed), total: fmtBytes(snap.memTotal) })}</span>
+              <span className="mono">{t("{used} de {total}", { used: fmtBytes(inUse), total: fmtBytes(snap.memTotal) })}</span>
             </span>
             <span className="cvm-track big" role="img" aria-label={t("Memória em uso")}>
-              <span className="u" style={{ width: mem(snap.memUsed) }} />
+              <span className="u" style={{ width: mem(inUse) }} />
               <span className="b" style={{ width: mem(snap.memBuffers) }} />
               <span className="c" style={{ width: mem(Math.max(0, snap.memCached)) }} />
+              {back ? <span className="r" style={{ width: mem(back) }} /> : null}
             </span>
             <span className="muted small">
               <i className="sw u" />
               {t("em uso")} <i className="sw b" />
               buffers <i className="sw c" />
               cache
+              {back ? (
+                <>
+                  {" "}
+                  <i className="sw r" />
+                  {t("devolvida ao Mac ({n})", { n: fmtBytes(back) })}
+                </>
+              ) : null}
             </span>
             <span className="cvm-legend" style={{ marginTop: 8 }}>
               <b>Swap</b>

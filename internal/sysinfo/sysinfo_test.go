@@ -3,6 +3,7 @@ package sysinfo
 import (
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -24,5 +25,13 @@ func TestParseMac(t *testing.T) {
 	i := Parse("os=macOS 15.1\ncpus=10\nmem_total=17179869184\nmem_used=8589934592\ncpu_pct=12.5\nfs=100 40 /System/Volumes/Data\nfs=500 10 /Volumes/Meu Disco\n")
 	if i.OS != "macOS 15.1" || i.CPUs != 10 || i.CPUPct != 12.5 || len(i.Disks) != 2 || i.Disks[0].Used != 40 || i.Disks[1].Path != "/Volumes/Meu Disco" {
 		t.Errorf("%+v", i)
+	}
+}
+
+// The awk of busybox (Alpine) makes %d a 32-bit integer: every size above
+// 2 GB came out as 2 GB. Sizes are printed with %.0f.
+func TestScriptNoIntegerFormat(t *testing.T) {
+	if strings.Contains(Script, "%d") {
+		t.Errorf("sysinfo.sh com %q: no busybox, tudo acima de 2 GB vira 2 GB", "%d")
 	}
 }

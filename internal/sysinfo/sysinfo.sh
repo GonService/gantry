@@ -13,7 +13,7 @@ if [ "$os" = Darwin ]; then
 	ps=$(sysctl -n hw.pagesize)
 	vm_stat | awk -v ps="$ps" '
 		/Pages active/ {a=$3} /Pages wired/ {w=$4} /occupied by compressor/ {c=$5}
-		END {gsub("\\.","",a); gsub("\\.","",w); gsub("\\.","",c); printf "mem_used=%d\n", (a+w+c)*ps}'
+		END {gsub("\\.","",a); gsub("\\.","",w); gsub("\\.","",c); printf "mem_used=%.0f\n", (a+w+c)*ps}'
 	top -l 2 -n 0 -s 1 2>/dev/null | awk '/CPU usage/ {idle=$7} END {sub("%","",idle); if (idle!="") printf "cpu_pct=%.1f\n", 100-idle}'
 	# "{ sec = 1760000000, usec = 123 } …": the first number is the boot time.
 	boot=$(sysctl -n kern.boottime | sed -n 's/^{ *sec = \([0-9][0-9]*\).*/\1/p')
@@ -27,8 +27,10 @@ else
 	. /etc/os-release 2>/dev/null && echo "os=$PRETTY_NAME"
 	echo "cpu_model=$(grep -m1 -E 'model name|Model' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//')"
 	echo "cpus=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
-	awk '/^MemTotal/ {t=$2} /^MemAvailable/ {a=$2} END {printf "mem_total=%d\nmem_used=%d\n", t*1024, (t-a)*1024}' /proc/meminfo
-	awk '/^SwapTotal/ {t=$2} /^SwapFree/ {f=$2} END {printf "swap_total=%d\nswap_used=%d\n", t*1024, (t-f)*1024}' /proc/meminfo
+	# %.0f, not the integer format: the awk of busybox (Alpine) keeps it 32-bit,
+	# and every size above 2 GB came out as 2 GB.
+	awk '/^MemTotal/ {t=$2} /^MemAvailable/ {a=$2} END {printf "mem_total=%.0f\nmem_used=%.0f\n", t*1024, (t-a)*1024}' /proc/meminfo
+	awk '/^SwapTotal/ {t=$2} /^SwapFree/ {f=$2} END {printf "swap_total=%.0f\nswap_used=%.0f\n", t*1024, (t-f)*1024}' /proc/meminfo
 	s1=$(head -1 /proc/stat); sleep 0.5; s2=$(head -1 /proc/stat)
 	echo "$s1 $s2" | awk '{t1=0; for(i=2;i<=11;i++) t1+=$i; i1=$5+$6; t2=0; for(i=13;i<=22;i++) t2+=$i; i2=$16+$17;
 		dt=t2-t1; if (dt>0) printf "cpu_pct=%.1f\n", 100*(dt-(i2-i1))/dt}'
@@ -60,7 +62,7 @@ done | awk -v mac="$os" '
 	seen[dev]++ || seen["mp:" mp]++ { next }
 	mac == "Darwin" && n > 0 && (mp == "/" || mp ~ /^\/System\//) { next }  # the system volume, again
 	$2 < 262144 { next }  # under 256 MB: EFI and other small partitions
-	n++ < 8 { printf "fs=%d %d %s\n", $2 * 1024, $3 * 1024, mp }'
+	n++ < 8 { printf "fs=%.0f %.0f %s\n", $2 * 1024, $3 * 1024, mp }'
 command -v qemu-system-x86_64 >/dev/null 2>&1 || command -v qemu-system-aarch64 >/dev/null 2>&1 && echo "qemu=1"
 [ -e /dev/kvm ] && echo "kvm=1"
 exit 0

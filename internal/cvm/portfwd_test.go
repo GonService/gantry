@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -126,5 +127,42 @@ func TestAddr(t *testing.T) {
 	}
 	if ip := Addr("outra"); ip != "" {
 		t.Fatalf("achou outra: %q", ip)
+	}
+}
+
+// The poll of the ports reuses one connection per engine: a new one every
+// 2 s, never closed, was a socat process more inside the machine each time.
+func TestPublishedPortsReuseConnection(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "e.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	conns := 0
+	srv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`[{"Ports":[{"IP":"0.0.0.0","PrivatePort":80,"PublicPort":8080,"Type":"tcp"}]}]`))
+		}),
+		ConnState: func(_ net.Conn, st http.ConnState) {
+			if st == http.StateNew {
+				mu.Lock()
+				conns++
+				mu.Unlock()
+			}
+		},
+	}
+	go func() { _ = srv.Serve(ln) }()
+	defer srv.Close()
+	for i := 0; i < 5; i++ {
+		ps, err := publishedPorts(context.Background(), sock)
+		if err != nil || len(ps) != 1 || ps[0].Port != 8080 {
+			t.Fatalf("%v %v", ps, err)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if conns != 1 {
+		t.Errorf("5 consultas abriram %d conexões; queria 1", conns)
 	}
 }

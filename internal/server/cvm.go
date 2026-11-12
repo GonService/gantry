@@ -549,6 +549,7 @@ func (s *Server) cvmTest(w http.ResponseWriter, r *http.Request) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", sock)
 		})
+		defer c.CloseIdle()
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		t0 := time.Now()
@@ -767,6 +768,7 @@ func cvmBusy(ctx context.Context, name string, sp cvm.Spec) bool {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", sock)
 		})
+		defer c.CloseIdle()
 		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		list, err := c.Containers(cctx)
 		cancel()
@@ -827,6 +829,7 @@ func (s *Server) cvmVolumes(w http.ResponseWriter, r *http.Request) {
 				var d net.Dialer
 				return d.DialContext(ctx, "unix", sock)
 			})
+			defer c.CloseIdle()
 			ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 			vs, err := c.Volumes(ctx)
 			cancel()

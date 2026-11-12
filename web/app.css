@@ -1278,6 +1278,8 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-track .u.hot, .cvm-spark .hot { background: var(--cvm-s); }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 5px 0 8px; vertical-align: -1px; }
 .sw.u { background: var(--cvm-u); } .sw.s { background: var(--cvm-s); } .sw.b { background: var(--cvm-b); } .sw.c { background: var(--cvm-c); }
+/* the memory the balloon gave back to the Mac: hatched, it is not in use */
+.cvm-track .r, .sw.r { background: repeating-linear-gradient(135deg, var(--cvm-c4) 0 3px, transparent 3px 6px); opacity: .7; }
 .cvm-spark { display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: 8px; border-bottom: 1px solid var(--border); }
 .cvm-spark > span { flex: 1; max-width: 10px; border-radius: 2px 2px 0 0; background: var(--cvm-u); transition: height .5s; }
 .cvm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }

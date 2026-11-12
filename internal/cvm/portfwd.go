@@ -33,15 +33,32 @@ type pubPort struct {
 
 func (p pubPort) key() string { return p.Proto + ":" + strconv.Itoa(p.Port) }
 
-// publishedPorts lists the published ports of the running containers of an
-// engine, by its Docker-compatible API (Docker, and Podman's compat API).
-func publishedPorts(ctx context.Context, sock string) ([]pubPort, error) {
+// engineClients keep one client per engine socket. A new client (and
+// Transport) on every poll left its kept-alive connection open forever:
+// one more connection every 2 s per engine, each one a socat process
+// inside the machine (13 thousand of them after a few hours).
+var engineClients sync.Map
+
+func engineHTTP(sock string) *http.Client {
+	if c, ok := engineClients.Load(sock); ok {
+		return c.(*http.Client)
+	}
 	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", sock)
 		},
+		MaxIdleConnsPerHost: 1,
+		IdleConnTimeout:     30 * time.Second,
 	}}
+	got, _ := engineClients.LoadOrStore(sock, c)
+	return got.(*http.Client)
+}
+
+// publishedPorts lists the published ports of the running containers of an
+// engine, by its Docker-compatible API (Docker, and Podman's compat API).
+func publishedPorts(ctx context.Context, sock string) ([]pubPort, error) {
+	c := engineHTTP(sock)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://engine/containers/json", nil)
 	resp, err := c.Do(req)
 	if err != nil {

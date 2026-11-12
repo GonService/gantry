@@ -35,10 +35,12 @@ func rest(ctx context.Context, name, method, body string) ([]byte, error) {
 
 func restPath(ctx context.Context, name, method, path, body string) ([]byte, error) {
 	sock := filepath.Join(Dir(name), fREST)
+	// One connection per call, closed at the end: a kept-alive one would
+	// stay open in the runner for good (a new Transport every call).
 	c := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		var d net.Dialer
 		return d.DialContext(ctx, "unix", sock)
-	}}, Timeout: 5 * time.Second}
+	}, DisableKeepAlives: true}, Timeout: 5 * time.Second}
 	var rd io.Reader
 	if body != "" {
 		rd = strings.NewReader(body)

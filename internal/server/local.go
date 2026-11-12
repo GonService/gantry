@@ -72,6 +72,7 @@ func (s *Server) localStatus(w http.ResponseWriter, r *http.Request) {
 				var d net.Dialer
 				return d.DialContext(ctx, "unix", sock)
 			})
+			defer c.CloseIdle()
 			pctx, pcancel := context.WithTimeout(ctx, 3*time.Second)
 			defer pcancel()
 			if err := c.Ping(pctx); err != nil {
