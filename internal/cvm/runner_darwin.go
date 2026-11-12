@@ -368,20 +368,6 @@ func (r *runner) serve(path string) {
 	_ = http.Serve(ln, mux)
 }
 
-// rosettaShare is the Rosetta folder, when Rosetta is installed.
-func rosettaShare(lg *log.Logger) vz.DirectoryShare {
-	if vz.LinuxRosettaDirectoryShareAvailability() != vz.LinuxRosettaAvailabilityInstalled {
-		lg.Printf("Rosetta não está instalado no Mac (softwareupdate --install-rosetta)")
-		return nil
-	}
-	ros, err := vz.NewLinuxRosettaDirectoryShare()
-	if err != nil {
-		lg.Printf("Rosetta: %v", err)
-		return nil
-	}
-	return ros
-}
-
 // The memory balloon. The guest tells how much it uses (/proc/meminfo
 // through a vsock port); the target is that plus room to breathe. Going up
 // is immediate, coming down is gradual and only after a while stable, so
