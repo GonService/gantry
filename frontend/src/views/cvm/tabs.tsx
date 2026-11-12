@@ -133,6 +133,7 @@ export function EnginesTab({ v }: { v: CvmView }) {
             </div>
           ) : null}
         </section>
+        {v.state === "running" ? <PortsPanel name={v.name} /> : null}
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Apontar o terminal do Mac")}</h2>
@@ -276,6 +277,64 @@ export function EnginesTab({ v }: { v: CvmView }) {
         </section>
       </aside>
     </div>
+  );
+}
+
+// PortsPanel: the ports the containers publish, open on the Mac too
+// (localhost:8080 leads to the 8080 published in the machine).
+type PortsState = { open: string[]; failed: string[]; ip: string; engines: boolean };
+
+function PortsPanel({ name }: { name: string }) {
+  const [p, setP] = useState<PortsState | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      api<PortsState | null>("/cvm/" + enc(name) + "/portas")
+        .then((x) => {
+          if (alive) {
+            setP(x);
+            setErr("");
+          }
+        })
+        .catch((e) => alive && setErr((e as Error).message));
+    void load();
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 3000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [name]);
+  const port = (k: string) => k.split(":")[1];
+  return (
+    <section className="panel">
+      <div className="cvm-ph">
+        <h2>{t("Portas no Mac")}</h2>
+        {p?.ip ? <span className="muted small mono">{t("máquina em {ip}", { ip: p.ip })}</span> : null}
+      </div>
+      <div className="cvm-pb">
+        {err ? <span className="small" style={{ color: "var(--crit)" }}>{err}</span> : null}
+        {p && !p.engines ? <span className="muted small">{t("Os engines da máquina ainda não responderam; as portas aparecem quando eles subirem.")}</span> : null}
+        {p && p.engines && !p.open.length && !p.failed.length ? (
+          <span className="muted small">{t("Nenhum container publica porta agora. Publique com -p 8080:80 (ou Portas, no formulário) e ela abre aqui no Mac.")}</span>
+        ) : null}
+        {p?.open.map((k) =>
+          k.startsWith("tcp:") ? <CopyCommand key={k} cmd={"http://localhost:" + port(k)} /> : (
+            <span key={k} className="mono small">
+              {k}
+            </span>
+          ),
+        )}
+        {p?.failed.length ? (
+          <span className="small" style={{ color: "var(--warn)" }}>
+            {t("O Mac não conseguiu abrir: {list}. Outro programa já usa a porta; veja o log da máquina.", { list: p.failed.join(", ") })}
+          </span>
+        ) : null}
+        {!p?.ip && p?.engines ? <span className="small" style={{ color: "var(--warn)" }}>{t("Ainda não achei o endereço da máquina na rede do Mac (/var/db/dhcpd_leases).")}</span> : null}
+      </div>
+    </section>
   );
 }
 

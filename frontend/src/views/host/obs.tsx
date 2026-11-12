@@ -391,8 +391,15 @@ export function AgentBlock({ hst }: { hst: Host }) {
 
 /* other engines of a server */
 
-type EngineFound = { runtime: string; socket: string; main?: boolean; host?: string };
+export type EngineFound = { runtime: string; socket: string; main?: boolean; host?: string };
 const useEngines = create<Record<string, EngineFound[]>>(() => ({}));
+
+// engineLabel names an engine of the dropdowns: the runtime and where it is
+// (the Gantry host that shows it, or its socket).
+export function engineLabel(e: EngineFound, rtName: (rt: string) => string): string {
+  const where = e.host || (e.socket ? e.socket.replace(/^unix:\/\//, "").replace(/^.*\/(\.gantry\/machines\/)/, "~/$1") : "");
+  return where ? rtName(e.runtime) + " · " + where : rtName(e.runtime);
+}
 
 export async function engineChoices(host: string): Promise<EngineFound[]> {
   const cur = useEngines.getState()[host];

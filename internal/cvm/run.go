@@ -186,6 +186,23 @@ func Start(ctx context.Context, name string, log io.Writer) error {
 
 var errNoRunner = errors.New("falta o gantry-vm ao lado do app (Gantry.app/Contents/MacOS); use o app do Mac completo, ou make desktop")
 
+// Ports is the state of the ports the machine's containers publish on the
+// Mac (nil when the machine is off).
+func Ports(ctx context.Context, name string) (*PortsState, error) {
+	if pid(name) == 0 {
+		return nil, nil
+	}
+	b, err := restPath(ctx, name, http.MethodGet, "/vm/portas", "")
+	if err != nil {
+		return nil, err
+	}
+	var p PortsState
+	if err := json.Unmarshal(b, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 // Memory is the state of the machine's dynamic memory (nil when it is off).
 func Memory(ctx context.Context, name string) (*MemoryState, error) {
 	if pid(name) == 0 {

@@ -363,7 +363,7 @@ func (r *runner) serve(path string) {
 		_ = json.NewEncoder(w).Encode(r.memory())
 	})
 	mux.HandleFunc("GET /vm/portas", func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(r.ports.Ports())
+		_ = json.NewEncoder(w).Encode(r.ports.State())
 	})
 	_ = http.Serve(ln, mux)
 }

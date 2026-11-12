@@ -166,8 +166,9 @@ type portForwarder struct {
 
 	mu     sync.Mutex
 	ip     string
-	open   map[string]io.Closer // proto:port → listener
-	failed map[string]bool      // ports the Mac could not open (logged once)
+	open     map[string]io.Closer // proto:port → listener
+	failed   map[string]bool      // ports the Mac could not open (logged once)
+	answered bool                 // the engines answered the last time
 }
 
 func newPortForwarder(name string, s Spec, lg *log.Logger) *portForwarder {
@@ -202,6 +203,29 @@ func (f *portForwarder) Ports() []string {
 	return out
 }
 
+// PortsState is what the app shows: the ports open on the Mac, the ones
+// the Mac could not open, the machine's address and whether the engines
+// answered.
+type PortsState struct {
+	Open    []string `json:"open"`
+	Failed  []string `json:"failed"`
+	IP      string   `json:"ip"`
+	Engines bool     `json:"engines"`
+}
+
+func (f *portForwarder) State() PortsState {
+	st := PortsState{Open: f.Ports(), Failed: []string{}}
+	f.mu.Lock()
+	for k := range f.failed {
+		st.Failed = append(st.Failed, k)
+	}
+	st.Engines = f.answered
+	f.mu.Unlock()
+	sort.Strings(st.Failed)
+	st.IP = f.guestIP(false)
+	return st
+}
+
 func (f *portForwarder) loop(ctx context.Context) {
 	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
@@ -222,6 +246,9 @@ func (f *portForwarder) loop(ctx context.Context) {
 			ok = true
 			lists = append(lists, l)
 		}
+		f.mu.Lock()
+		f.answered = ok
+		f.mu.Unlock()
 		if !ok {
 			continue // the engines are not up yet (or restarting): keep what is open
 		}

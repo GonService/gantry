@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { gantry } from "@/lib/gantry";
 import { ctrHref, enc, hostHref, RT_NAME, rtQuery, type Host } from "@/lib/app";
 import { ErrorBox, Loading } from "@/components/ui";
-import { engineChoices } from "@/views/host/obs";
+import { engineChoices, engineLabel } from "@/views/host/obs";
 import { EnvEditor, envRows, RowsEditor, type Row } from "./rows";
 import { t } from "@/lib/i18n";
 
@@ -158,9 +158,11 @@ function splitPortSpec(p: string): Row {
     p = p.slice(0, i);
   }
   const parts = p.split(":");
-  if (parts.length === 1) return ["", "", parts[0], proto];
-  if (parts.length === 2) return ["", parts[0], parts[1], proto];
-  return [parts.slice(0, -2).join(":"), parts[parts.length - 2], parts[parts.length - 1], proto];
+  // The row is host port, container port, protocol and host IP, the order
+  // of -p 8080:80 (the IP, rarely used, last).
+  if (parts.length === 1) return ["", parts[0], proto, ""];
+  if (parts.length === 2) return [parts[0], parts[1], proto, ""];
+  return [parts[parts.length - 2], parts[parts.length - 1], proto, parts.slice(0, -2).join(":")];
 }
 function splitVolume(v: string): Row {
   const parts = v.split(":");
@@ -286,8 +288,9 @@ function toSpec(m: Model): Spec {
     openStdin: m.console.includes("i"),
     env: nonEmpty(m.env).map(([k, v]) => k.trim() + "=" + (v || "")),
     labels: obj(m.labels),
-    ports: nonEmpty(m.ports).map(([ip, hp, cp, pr]) => {
-      if (!cp) throw new Error(t("Informe a porta do container em todas as portas."));
+    // A row counts when it has a port or an IP (the protocol alone is the default).
+    ports: m.ports.filter(([hp, cp, , ip]) => [hp, cp, ip].some((v) => v && String(v).trim())).map(([hp, cp, pr, ip]) => {
+      if (!cp) throw new Error(t("Informe a porta do container em todas as linhas (em -p 8080:80, é o 80)."));
       return (ip ? ip + ":" : "") + (hp || ip ? (hp || "") + ":" : "") + cp + "/" + (pr || "tcp");
     }),
     publishAll: m.publishAll,
@@ -401,7 +404,7 @@ function Form({ hst, mode, rt, sp, ins }: { hst: Host; mode: FormProps["mode"]; 
     if (mode === "editar") return;
     engineChoices(hst.name).then((list) => {
       const others = list.filter((e) => e.runtime !== hst.runtime);
-      if (others.length) setEngines([["", t("o deste host ({rt})", { rt: hst.runtime || "docker" })], ...others.map((e) => [e.runtime, RT_NAME[e.runtime] || e.runtime] as [string, string])]);
+      if (others.length) setEngines([["", t("{host}, este ({rt})", { host: hst.name, rt: RT_NAME[hst.runtime || "docker"] || hst.runtime || "docker" })], ...others.map((e) => [e.runtime, engineLabel(e, (rt) => RT_NAME[rt] || rt)] as [string, string])]);
     });
   }, [hst.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -465,9 +468,8 @@ function Form({ hst, mode, rt, sp, ins }: { hst: Host; mode: FormProps["mode"]; 
         {rows(
           "ports",
           [
-            { ph: t("opcional"), label: t("IP do host"), w: "1.2" },
-            { ph: t("porta host"), label: t("Porta no host"), w: "1" },
-            { ph: t("porta ctr"), label: t("Porta no container"), w: "1" },
+            { ph: "8080", label: t("Porta no host"), w: "1" },
+            { ph: "80", label: t("Porta no container"), w: "1" },
             {
               label: t("Protocolo"),
               w: ".7",
@@ -477,6 +479,7 @@ function Form({ hst, mode, rt, sp, ins }: { hst: Host; mode: FormProps["mode"]; 
                 ["sctp", "SCTP"],
               ],
             },
+            { ph: t("todas (opcional)"), label: t("IP do host"), w: "1.2" },
           ],
           t("porta"),
         )}

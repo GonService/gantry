@@ -69,6 +69,7 @@
   "escolha pelo menos um engine: Docker, Podman ou containerd": "pick at least one engine: Docker, Podman or containerd",
   "esse processo não pode receber sinal": "this process cannot receive signals",
   "esse volume fica fora da pasta de volumes do engine": "this volume is outside the engine's volume folder",
+  "esta máquina foi ligada por uma versão anterior do Gantry: desligue e ligue de novo para as portas aparecerem no Mac": "this machine was started by an earlier version of Gantry: turn it off and on again for the ports to show up on the Mac",
   "falta o gantry-vm ao lado do app (Gantry.app/Contents/MacOS); use o app do Mac completo, ou make desktop": "gantry-vm is missing next to the app (Gantry.app/Contents/MacOS); use the full Mac app, or make desktop",
   "formato de imagem desconhecido: %s (use .raw, .img, .qcow2 ou um .tar com o disco)": "unknown image format: %s (use .raw, .img, .qcow2 or a .tar with the disk)",
   "hdiutil (disco do cloud-init): %s %v": "hdiutil (cloud-init disk): %s %v",

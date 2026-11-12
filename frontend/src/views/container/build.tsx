@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { gantry } from "@/lib/gantry";
 import { enc, hostHref, RT_NAME, rtQuery, type Host } from "@/lib/app";
-import { engineChoices } from "@/views/host/obs";
+import { engineChoices, engineLabel } from "@/views/host/obs";
 import { RowsEditor, type Row } from "./rows";
 import { loadResources } from "./resources";
 import { t } from "@/lib/i18n";
@@ -38,7 +38,7 @@ export function BuildPage({ host }: { host: string }) {
     if (!hst) return;
     engineChoices(host).then((list) => {
       const others = list.filter((e) => e.runtime !== hst.runtime && (e.runtime === "docker" || e.runtime === "podman"));
-      if (others.length) setEngines([["", t("o deste host ({rt})", { rt: hst.runtime || "docker" })], ...others.map((e) => [e.runtime, RT_NAME[e.runtime] || e.runtime] as [string, string])]);
+      if (others.length) setEngines([["", t("{host}, este ({rt})", { host: hst.name, rt: RT_NAME[hst.runtime || "docker"] || hst.runtime || "docker" })], ...others.map((e) => [e.runtime, engineLabel(e, (rt) => RT_NAME[rt] || rt)] as [string, string])]);
     });
   }, [host]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!hst) return null;

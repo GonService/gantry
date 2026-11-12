@@ -408,6 +408,19 @@ func (s *Server) cvmMemory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, m)
 }
 
+// cvmPorts is the state of the published ports on the Mac.
+func (s *Server) cvmPorts(w http.ResponseWriter, r *http.Request) {
+	p, err := cvm.Ports(r.Context(), r.PathValue("name"))
+	if err != nil {
+		if strings.Contains(err.Error(), "404") {
+			err = errors.New("esta máquina foi ligada por uma versão anterior do Gantry: desligue e ligue de novo para as portas aparecerem no Mac")
+		}
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, p)
+}
+
 func (s *Server) cvmLogs(w http.ResponseWriter, r *http.Request) {
 	n, _ := strconv.Atoi(r.URL.Query().Get("n"))
 	text, err := cvm.Logs(r.Context(), r.PathValue("name"), r.URL.Query().Get("fonte"), n)
