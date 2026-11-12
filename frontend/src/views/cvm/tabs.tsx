@@ -163,7 +163,14 @@ export function EnginesTab({ v }: { v: CvmView }) {
                 <span className="cvm-group">{t("Podman: conexão (recomendado)")}</span>
                 {it.podmanCli ? (
                   <>
-                    <CopyCommand cmd={"podman system connection default " + (it.podmanConnName || "gantry")} />
+                    {/* Without the connection yet, "default" fails: the command creates it too. */}
+                    <CopyCommand
+                      cmd={
+                        it.podmanConn
+                          ? "podman system connection default " + (it.podmanConnName || "gantry")
+                          : "podman system connection add --default " + (it.podmanConnName || "gantry") + " unix://" + (it.podmanSock || "")
+                      }
+                    />
                     {it.podmanDefault === it.podmanConnName ? (
                       <span className="badge ok">{t("é a conexão padrão")}</span>
                     ) : (
