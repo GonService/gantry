@@ -14,7 +14,7 @@ if ! blkid /dev/vdb >/dev/null 2>&1; then mkfs.ext4 -q -L gantry-dados /dev/vdb;
 mkdir -p /var/lib/gantry
 grep -q 'gantry-dados' /etc/fstab || echo 'LABEL=gantry-dados /var/lib/gantry ext4 defaults,discard,nofail 0 2' >>/etc/fstab
 mountpoint -q /var/lib/gantry || mount /var/lib/gantry
-for d in docker containers; do
+for d in docker containers containerd buildkit; do
   mkdir -p "/var/lib/gantry/$d" "/var/lib/$d"
   grep -q " /var/lib/$d " /etc/fstab || echo "/var/lib/gantry/$d /var/lib/$d none bind,nofail 0 0" >>/etc/fstab
   mountpoint -q "/var/lib/$d" || mount "/var/lib/$d"

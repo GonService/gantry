@@ -21,12 +21,15 @@ import (
 func syncScript(s Spec) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
-	// Machines made before the dynamic memory get its vsock bridge here.
-	fmt.Fprintf(&b, `if [ ! -e /etc/systemd/system/gantry-vsock-mem.service ]; then
+	// Debian machines made before the dynamic memory get its vsock bridge
+	// here (Alpine and custom ones were born with it).
+	if s.System() == OSDebian {
+		fmt.Fprintf(&b, `if [ ! -e /etc/systemd/system/gantry-vsock-mem.service ]; then
 printf '[Unit]\nDescription=Gantry: memoria para o Mac\n[Service]\nExecStart=/usr/bin/socat VSOCK-LISTEN:%d,reuseaddr,fork OPEN:/proc/meminfo,rdonly\nRestart=always\nRestartSec=1\n[Install]\nWantedBy=multi-user.target\n' | sudo tee /etc/systemd/system/gantry-vsock-mem.service >/dev/null
 sudo systemctl daemon-reload && sudo systemctl enable --now gantry-vsock-mem.service || true
 fi
 `, portMem)
+	}
 	for i, sh := range s.Shares {
 		mode := "rw"
 		if sh.ReadOnly {
@@ -41,8 +44,12 @@ fi
 grep -q '^rosetta ' /etc/fstab || echo 'rosetta /opt/rosetta virtiofs ro,nofail 0 0' | sudo tee -a /etc/fstab >/dev/null
 mountpoint -q /opt/rosetta || sudo mount /opt/rosetta 2>/dev/null || true
 if [ -x /opt/rosetta/rosetta ] && [ ! -e /proc/sys/fs/binfmt_misc/rosetta ]; then
+  sudo mkdir -p /etc/binfmt.d
   printf '%s\n' ':rosetta:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/opt/rosetta/rosetta:CF' | sudo tee /etc/binfmt.d/rosetta.conf >/dev/null
-  sudo systemctl restart systemd-binfmt || true
+  if command -v systemctl >/dev/null; then sudo systemctl restart systemd-binfmt || true
+  elif command -v rc-service >/dev/null; then sudo rc-update add binfmt boot >/dev/null 2>&1; sudo rc-service binfmt restart || true
+  fi
+  [ -e /proc/sys/fs/binfmt_misc/rosetta ] || sudo sh -c 'cat /etc/binfmt.d/rosetta.conf >/proc/sys/fs/binfmt_misc/register' || true
 fi
 `)
 	}
@@ -119,7 +126,16 @@ func Platforms(ctx context.Context, name string) ([]Platform, error) {
 	return ps, nil
 }
 
-// QEMUScript installs the QEMU handlers (binfmt) in a running machine.
+// QEMUScriptFor installs the QEMU handlers (binfmt) in a running machine,
+// on the systems where Gantry knows how.
+func QEMUScriptFor(s Spec) (string, error) {
+	if s.System() != OSDebian {
+		return "", errors.New("as outras arquiteturas pelo QEMU, por enquanto, só nas máquinas com Debian")
+	}
+	return QEMUScript, nil
+}
+
+// QEMUScript installs the QEMU handlers on Debian.
 const QEMUScript = "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-user-static || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-user qemu-user-binfmt"
 
 // Creds is what the machine uses of the Mac's credentials.

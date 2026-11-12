@@ -58,7 +58,11 @@ func FinderScript(s Spec, on bool) string {
 	if s.FinderRW {
 		mode = "rw"
 	}
-	b.WriteString("dpkg -s nfs-kernel-server >/dev/null 2>&1 || { sudo apt-get update; sudo apt-get install -y --no-install-recommends nfs-kernel-server; }\n")
+	if s.System() == OSAlpine {
+		b.WriteString("apk info -e nfs-utils >/dev/null 2>&1 || sudo apk add nfs-utils\n")
+	} else {
+		b.WriteString("dpkg -s nfs-kernel-server >/dev/null 2>&1 || { sudo apt-get update; sudo apt-get install -y --no-install-recommends nfs-kernel-server; }\n")
+	}
 	b.WriteString("gw=$(ip route | awk '/^default/ {print $3; exit}')\n")
 	b.WriteString("[ -n \"$gw\" ] || { echo 'sem rota padrão'; exit 1; }\n")
 	b.WriteString("sudo mkdir -p /srv/gantry /etc/exports.d\n: | sudo tee /etc/exports.d/gantry.exports >/dev/null\n")
@@ -68,7 +72,11 @@ func FinderScript(s Spec, on bool) string {
 		fmt.Fprintf(&b, "mountpoint -q %s || sudo mount --bind %s %s\n", dst, src, dst)
 		fmt.Fprintf(&b, "echo \"%s $gw(%s,sync,no_subtree_check,insecure,all_squash,anonuid=0,anongid=0,fsid=%d)\" | sudo tee -a /etc/exports.d/gantry.exports >/dev/null\n", dst, mode, i+1)
 	}
-	b.WriteString("sudo systemctl enable --now nfs-server >/dev/null 2>&1 || sudo systemctl enable --now nfs-kernel-server\n")
+	if s.System() == OSAlpine {
+		b.WriteString("sudo rc-update add nfs default >/dev/null 2>&1; sudo rc-service nfs start >/dev/null 2>&1 || sudo rc-service nfs restart\n")
+	} else {
+		b.WriteString("sudo systemctl enable --now nfs-server >/dev/null 2>&1 || sudo systemctl enable --now nfs-kernel-server\n")
+	}
 	b.WriteString("sudo exportfs -ra\n")
 	b.WriteString("echo \"ip=$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | head -n1)\"\n")
 	return b.String()

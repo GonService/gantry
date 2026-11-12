@@ -1,0 +1,190 @@
+#!/bin/sh
+# Gantry · provisionamento da Container VM {{.Name}} (sistema próprio)
+# Gerado a partir das escolhas na criação. Roda uma vez, como root, dentro da
+# máquina (pelo cloud-init). O mesmo arquivo fica salvo no Mac, ao lado da
+# máquina, e o log de cada execução em /var/log/gantry-provision.log.
+#
+# Num sistema próprio, o Gantry faz o que vale para qualquer Linux com
+# systemd ou OpenRC: o disco de dados, as pastas do Mac, o acesso dele por
+# vsock e as pontes até os sockets dos engines. Instalar e ligar os engines
+# fica nos seus passos (7).
+set -eu
+set -o pipefail 2>/dev/null || true
+exec >>/var/log/gantry-provision.log 2>&1
+passo() { echo; echo "==> $*"; echo "gantry: $*" >/dev/hvc0 2>/dev/null || true; }
+trap 'rc=$?; echo "$rc" >/var/lib/gantry-provision.rc; echo "gantry: fim rc=$rc" >/dev/hvc0 2>/dev/null || true' EXIT
+
+passo "1. O que este sistema tem: init e gerenciador de pacotes"
+if [ -d /run/systemd/system ]; then
+  INIT=systemd
+elif command -v openrc-run >/dev/null 2>&1; then
+  INIT=openrc
+else
+  echo "Este sistema não usa systemd nem OpenRC; o Gantry não sabe criar os serviços dele."
+  exit 1
+fi
+echo "init: $INIT"
+pkg_add() {
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
+  elif command -v apk >/dev/null 2>&1; then
+    apk add "$@"
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y "$@"
+  elif command -v zypper >/dev/null 2>&1; then
+    zypper -n install "$@"
+  elif command -v pacman >/dev/null 2>&1; then
+    pacman -Sy --noconfirm "$@"
+  else
+    return 1
+  fi
+}
+need() {
+  command -v "$1" >/dev/null 2>&1 && return 0
+  pkg_add "$2" || true
+  command -v "$1" >/dev/null 2>&1 || { echo "Falta o comando $1 (pacote $2): ponha na imagem ou instale nos seus passos."; exit 1; }
+}
+need socat socat
+need mkfs.ext4 e2fsprogs
+need mountpoint util-linux
+need sudo sudo
+echo 'gantry ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/gantry
+chmod 0440 /etc/sudoers.d/gantry
+for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt_misc; do
+  modprobe "$m" 2>/dev/null || true
+done
+
+# Um serviço que fica rodando, no init deste sistema: nome, comando, depois de.
+servico() {
+  if [ "$INIT" = systemd ]; then
+    cat >"/etc/systemd/system/$1.service" <<EOF
+[Unit]
+Description=Gantry: $1
+After=network.target ${3:-}
+[Service]
+ExecStart=$2
+Restart=always
+RestartSec=1
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable "$1.service"
+    systemctl restart "$1.service"
+  else
+    bin=${2%% *}
+    args=${2#"$bin"}
+    cat >"/etc/init.d/$1" <<EOF
+#!/sbin/openrc-run
+description="Gantry: $1"
+supervisor=supervise-daemon
+command=$bin
+command_args="$args"
+respawn_delay=1
+respawn_max=0
+depend() {
+  need net
+  ${3:+after $3}
+}
+EOF
+    chmod 0755 "/etc/init.d/$1"
+    rc-update add "$1" default
+    rc-service "$1" restart
+  fi
+}
+# Um script que roda a cada boot.
+no_boot() {
+  if [ "$INIT" = systemd ]; then
+    cat >"/etc/systemd/system/$1.service" <<EOF
+[Unit]
+Description=Gantry: $1
+After=local-fs.target
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '$2'
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable "$1.service"
+  else
+    printf '#!/bin/sh\n%s\n' "$2" >"/etc/local.d/$1.start"
+    chmod 0755 "/etc/local.d/$1.start"
+    rc-update add local default
+  fi
+  sh -c "$2" || true
+}
+
+passo "2. Disco de dados: todo o estado fica nele, fora do sistema"
+if ! blkid /dev/vdb >/dev/null 2>&1; then mkfs.ext4 -q -L gantry-dados /dev/vdb; fi
+mkdir -p /var/lib/gantry
+grep -q 'gantry-dados' /etc/fstab || echo 'LABEL=gantry-dados /var/lib/gantry ext4 defaults,discard,nofail 0 2' >>/etc/fstab
+mountpoint -q /var/lib/gantry || mount /var/lib/gantry
+for d in docker containers containerd buildkit; do
+  mkdir -p "/var/lib/gantry/$d" "/var/lib/$d"
+  grep -q " /var/lib/$d " /etc/fstab || echo "/var/lib/gantry/$d /var/lib/$d none bind,nofail 0 0" >>/etc/fstab
+  mountpoint -q "/var/lib/$d" || mount "/var/lib/$d"
+done
+no_boot gantry-dados-cresce "resize2fs /dev/vdb >/dev/null 2>&1 || true"
+
+passo "3. Pastas do Mac no mesmo caminho (virtiofs)"
+mkdir -p {{.Home}}
+grep -q '^home ' /etc/fstab || echo 'home {{.Home}} virtiofs rw,nofail 0 0' >>/etc/fstab
+mountpoint -q {{.Home}} || mount {{.Home}}
+{{- range $i, $sh := .Shares}}
+mkdir -p {{$sh.Path}}
+grep -q '^share{{$i}} ' /etc/fstab || echo 'share{{$i}} {{$sh.Path}} virtiofs {{if $sh.ReadOnly}}ro{{else}}rw{{end}},nofail 0 0' >>/etc/fstab
+mountpoint -q {{$sh.Path}} || mount {{$sh.Path}} || true
+{{- end}}
+
+passo "4. Acesso do Gantry por vsock"
+mkdir -p /etc/gantry
+servico gantry-vsock-ssh "$(command -v socat) VSOCK-LISTEN:{{.PortSSH}},reuseaddr,fork TCP:127.0.0.1:22"
+# O Mac lê o /proc/meminfo por aqui para devolver a memória livre (balão).
+servico gantry-vsock-mem "$(command -v socat) VSOCK-LISTEN:{{.PortMem}},reuseaddr,fork OPEN:/proc/meminfo,rdonly"
+{{- if .Rosetta}}
+
+passo "5. Rosetta para binários amd64"
+mkdir -p /opt/rosetta
+grep -q '^rosetta ' /etc/fstab || echo 'rosetta /opt/rosetta virtiofs ro,nofail 0 0' >>/etc/fstab
+mountpoint -q /opt/rosetta || mount /opt/rosetta || true
+if [ -x /opt/rosetta/rosetta ]; then
+  mkdir -p /etc/binfmt.d
+  cat >/etc/binfmt.d/rosetta.conf <<'EOF'
+:rosetta:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/opt/rosetta/rosetta:CF
+EOF
+  no_boot gantry-rosetta "mountpoint -q /proc/sys/fs/binfmt_misc || mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc; [ -e /proc/sys/fs/binfmt_misc/rosetta ] || cat /etc/binfmt.d/rosetta.conf >/proc/sys/fs/binfmt_misc/register"
+else
+  echo "Rosetta não está instalado no Mac (softwareupdate --install-rosetta); amd64 fica de fora."
+fi
+{{- end}}
+{{- if .SSHAgent}}
+
+passo "6. ssh-agent do Mac para builds e containers"
+# O Gantry mantém um ssh -R do agente do Mac em
+# /run/host-services/ssh-auth.sock; as chaves não saem do Mac.
+no_boot gantry-host-services "mkdir -p /run/host-services && chown gantry /run/host-services"
+grep -q '^StreamLocalBindUnlink yes' /etc/ssh/sshd_config || echo 'StreamLocalBindUnlink yes' >>/etc/ssh/sshd_config
+if [ "$INIT" = systemd ]; then systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true; else rc-service sshd reload || true; fi
+{{- end}}
+
+passo "7. Passos seus: instalar e ligar os engines"
+{{- if .Extra}}
+{{.Extra}}
+{{- else}}
+echo "(nenhum passo seu: os engines já vêm na imagem)"
+{{- end}}
+{{- if .Docker}}
+
+passo "8. Ponte do Docker: {{.DockerSock}}"
+servico gantry-vsock-docker "$(command -v socat) VSOCK-LISTEN:{{.PortDocker}},reuseaddr,fork UNIX-CONNECT:{{.DockerSock}}"
+{{- end}}
+{{- if .Podman}}
+
+passo "8b. Ponte do Podman: {{.PodmanSock}}"
+servico gantry-vsock-podman "$(command -v socat) VSOCK-LISTEN:{{.PortPodman}},reuseaddr,fork UNIX-CONNECT:{{.PodmanSock}}"
+{{- end}}
+
+passo "Pronto"
+# O cloud-init só serve na primeira vez; não roda mais nos boots.
+touch /etc/cloud/cloud-init.disabled

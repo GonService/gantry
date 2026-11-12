@@ -20,6 +20,9 @@ export type Spec = {
   sshAgent: boolean;
   extra?: string;
   image?: string;
+  // The system: debian (default), alpine, or custom (an image the user brings).
+  os?: "debian" | "alpine" | "custom";
+  custom?: CustomOS;
   autoStart: boolean;
   idleStopMin?: number;
   shares?: Share[];
@@ -34,6 +37,8 @@ export type Spec = {
 export type MemoryState = { balloon: boolean; max: number; target: number; returned: number; guestUsed: number; guestCache: number; at: number };
 
 export type Share = { path: string; readOnly?: boolean };
+
+export type CustomOS = { image: string; sum?: string; dockerSock?: string; podmanSock?: string };
 
 export type Integration = {
   dockerContext: string;
@@ -77,7 +82,7 @@ export type CvmView = {
   watching?: boolean;
 };
 
-export type CvmList = { supported: boolean; home: string; arch: string; default: Spec; machines: CvmView[]; image: string };
+export type CvmList = { supported: boolean; home: string; arch: string; default: Spec; machines: CvmView[]; image: string; images?: Record<string, string>; labels?: Record<string, string> };
 
 export type Proc = {
   pid: number;

@@ -1,0 +1,208 @@
+#!/bin/sh
+# Gantry · provisionamento da Container VM {{.Name}} (Alpine {{.Alpine}})
+# Gerado a partir das escolhas na criação. Roda uma vez, como root, dentro da
+# máquina (pelo cloud-init). O mesmo arquivo fica salvo no Mac, ao lado da
+# máquina, e o log de cada execução em /var/log/gantry-provision.log.
+set -eu
+set -o pipefail 2>/dev/null || true
+exec >>/var/log/gantry-provision.log 2>&1
+passo() { echo; echo "==> $*"; echo "gantry: $*" >/dev/hvc0 2>/dev/null || true; }
+trap 'rc=$?; echo "$rc" >/var/lib/gantry-provision.rc; echo "gantry: fim rc=$rc" >/dev/hvc0 2>/dev/null || true' EXIT
+
+passo "1. Pacotes de base (apk) e módulos do kernel"
+# O community traz o Docker e o Podman.
+if ! grep -q '^[^#].*/community' /etc/apk/repositories; then
+  sed -n 's#/main$#/community#p' /etc/apk/repositories | head -n 1 >>/etc/apk/repositories
+fi
+apk update
+apk add bash sudo ca-certificates curl socat chrony util-linux e2fsprogs e2fsprogs-extra procps coreutils findutils
+echo 'gantry ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/gantry
+chmod 0440 /etc/sudoers.d/gantry
+# virtiofs (pastas do Mac), vsock (acesso do Gantry), o balão (memória que
+# volta ao Mac), overlay (camadas das imagens) e binfmt (Rosetta).
+for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt_misc; do
+  modprobe "$m" 2>/dev/null || true
+  grep -qx "$m" /etc/modules 2>/dev/null || echo "$m" >>/etc/modules
+done
+rc-update add cgroups boot
+rc-service cgroups start || true
+
+passo "2. Disco de dados: todo o estado fica nele, fora do sistema"
+if ! blkid /dev/vdb >/dev/null 2>&1; then mkfs.ext4 -q -L gantry-dados /dev/vdb; fi
+mkdir -p /var/lib/gantry
+grep -q 'gantry-dados' /etc/fstab || echo 'LABEL=gantry-dados /var/lib/gantry ext4 defaults,discard,nofail 0 2' >>/etc/fstab
+mountpoint -q /var/lib/gantry || mount /var/lib/gantry
+for d in docker containers containerd buildkit; do
+  mkdir -p "/var/lib/gantry/$d" "/var/lib/$d"
+  grep -q " /var/lib/$d " /etc/fstab || echo "/var/lib/gantry/$d /var/lib/$d none bind,nofail 0 0" >>/etc/fstab
+  mountpoint -q "/var/lib/$d" || mount "/var/lib/$d"
+done
+# O disco de dados pode crescer depois (Recursos): a cada boot o ext4
+# ocupa o tamanho novo, sem mexer nos dados.
+cat >/etc/local.d/gantry-dados.start <<'EOF'
+#!/bin/sh
+resize2fs /dev/vdb >/dev/null 2>&1 || true
+EOF
+chmod 0755 /etc/local.d/gantry-dados.start
+rc-update add local default
+
+passo "3. Pastas do Mac no mesmo caminho (virtiofs)"
+mkdir -p {{.Home}}
+grep -q '^home ' /etc/fstab || echo 'home {{.Home}} virtiofs rw,nofail 0 0' >>/etc/fstab
+mountpoint -q {{.Home}} || mount {{.Home}}
+{{- range $i, $sh := .Shares}}
+mkdir -p {{$sh.Path}}
+grep -q '^share{{$i}} ' /etc/fstab || echo 'share{{$i}} {{$sh.Path}} virtiofs {{if $sh.ReadOnly}}ro{{else}}rw{{end}},nofail 0 0' >>/etc/fstab
+mountpoint -q {{$sh.Path}} || mount {{$sh.Path}} || true
+{{- end}}
+
+passo "4. Acesso do Gantry por vsock, relógio e limpeza do disco"
+# Relógio certo depois que o Mac acorda: o chrony corrige o salto na hora.
+grep -q '^makestep 1 -1' /etc/chrony/chrony.conf || echo 'makestep 1 -1' >>/etc/chrony/chrony.conf
+rc-update add chronyd default
+rc-service chronyd restart || true
+mkdir -p /etc/gantry
+vsock() {
+  cat >"/etc/init.d/gantry-vsock-$1" <<EOF
+#!/sbin/openrc-run
+description="Gantry: vsock $2 para $3"
+supervisor=supervise-daemon
+command=/usr/bin/socat
+command_args="VSOCK-LISTEN:$2,reuseaddr,fork $3"
+respawn_delay=1
+respawn_max=0
+depend() {
+  need net
+  ${4:+after $4}
+}
+EOF
+  chmod 0755 "/etc/init.d/gantry-vsock-$1"
+  rc-update add "gantry-vsock-$1" default
+  rc-service "gantry-vsock-$1" restart
+}
+vsock ssh {{.PortSSH}} TCP:127.0.0.1:22 sshd
+# O Mac lê o /proc/meminfo por aqui para devolver a memória livre (balão).
+vsock mem {{.PortMem}} OPEN:/proc/meminfo,rdonly
+# O syslog do busybox fica pequeno: 4 MB, com uma cópia.
+echo 'SYSLOGD_OPTS="-t -s 4096 -b 1"' >/etc/conf.d/syslog
+rc-service syslog restart || true
+# O espaço que os containers liberam volta ao Mac (os discos são esparsos).
+cat >/etc/periodic/hourly/gantry-fstrim <<'EOF'
+#!/bin/sh
+fstrim -a >/dev/null 2>&1 || true
+EOF
+chmod 0755 /etc/periodic/hourly/gantry-fstrim
+rc-update add crond default
+rc-service crond restart || true
+{{- if .Rosetta}}
+
+passo "5. Rosetta para binários amd64"
+mkdir -p /opt/rosetta
+grep -q '^rosetta ' /etc/fstab || echo 'rosetta /opt/rosetta virtiofs ro,nofail 0 0' >>/etc/fstab
+mountpoint -q /opt/rosetta || mount /opt/rosetta || true
+if [ -x /opt/rosetta/rosetta ]; then
+  mkdir -p /etc/binfmt.d
+  cat >/etc/binfmt.d/rosetta.conf <<'EOF'
+:rosetta:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/opt/rosetta/rosetta:CF
+EOF
+  rc-update add binfmt boot
+  rc-service binfmt restart || true
+else
+  echo "Rosetta não está instalado no Mac (softwareupdate --install-rosetta); amd64 fica de fora."
+fi
+{{- end}}
+{{- if .Docker}}
+
+passo "6. Docker Engine: pacote do Alpine"
+apk add docker docker-cli-buildx docker-cli-compose
+mkdir -p /etc/docker
+echo '{ "features": { "containerd-snapshotter": true } }' >/etc/docker/daemon.json
+addgroup gantry docker
+rc-update add docker default
+rc-service docker restart
+vsock docker {{.PortDocker}} UNIX-CONNECT:/run/docker.sock docker
+{{- end}}
+{{- if .Podman}}
+
+passo "7. Podman: pacote do Alpine, com a API num serviço do Gantry"
+apk add podman
+cat >/etc/init.d/gantry-podman <<'EOF'
+#!/sbin/openrc-run
+description="Gantry: API do Podman em /run/podman/podman.sock"
+supervisor=supervise-daemon
+command=/usr/bin/podman
+command_args="system service --time=0 unix:///run/podman/podman.sock"
+output_log=/var/log/gantry-podman.log
+error_log=/var/log/gantry-podman.log
+depend() {
+  need net cgroups
+}
+start_pre() {
+  mkdir -p /run/podman
+}
+EOF
+chmod 0755 /etc/init.d/gantry-podman
+rc-update add gantry-podman default
+rc-service gantry-podman restart
+vsock podman {{.PortPodman}} UNIX-CONNECT:/run/podman/podman.sock gantry-podman
+{{- end}}
+{{- if .Containerd}}
+
+passo "7b. containerd + nerdctl {{.Nerdctl}} com BuildKit (release oficial, sha256 conferido)"
+case "$(uname -m)" in
+  aarch64) arch=arm64 sum={{.NerdctlArm64}} ;;
+  x86_64) arch=amd64 sum={{.NerdctlAmd64}} ;;
+  *) echo "arquitetura sem nerdctl: $(uname -m)"; exit 1 ;;
+esac
+f=/tmp/nerdctl-full.tar.gz
+curl -fsSL -o "$f" "https://github.com/containerd/nerdctl/releases/download/v{{.Nerdctl}}/nerdctl-full-{{.Nerdctl}}-linux-$arch.tar.gz"
+echo "$sum  $f" | sha256sum -c -
+tar -C /usr/local -xzf "$f"
+rm -f "$f"
+svc() {
+  cat >"/etc/init.d/$1" <<EOF
+#!/sbin/openrc-run
+description="Gantry: $1"
+supervisor=supervise-daemon
+command=$2
+command_args="$3"
+output_log=/var/log/$1.log
+error_log=/var/log/$1.log
+depend() {
+  need net cgroups
+  ${4:+after $4}
+}
+EOF
+  chmod 0755 "/etc/init.d/$1"
+  rc-update add "$1" default
+  rc-service "$1" restart
+}
+# O nerdctl usa o containerd de /run/containerd; o Docker do Alpine roda o
+# dele em outro lugar, então este é só do nerdctl e do BuildKit.
+svc gantry-containerd /usr/local/bin/containerd ""
+svc gantry-buildkit /usr/local/bin/buildkitd "--oci-worker=false --containerd-worker=true" gantry-containerd
+{{- end}}
+{{- if .SSHAgent}}
+
+passo "8. ssh-agent do Mac para builds e containers"
+# O Gantry mantém um ssh -R do agente do Mac em
+# /run/host-services/ssh-auth.sock; as chaves não saem do Mac.
+cat >/etc/local.d/gantry-host-services.start <<'EOF'
+#!/bin/sh
+mkdir -p /run/host-services
+chown gantry:gantry /run/host-services
+EOF
+chmod 0755 /etc/local.d/gantry-host-services.start
+/etc/local.d/gantry-host-services.start
+grep -q '^StreamLocalBindUnlink yes' /etc/ssh/sshd_config || echo 'StreamLocalBindUnlink yes' >>/etc/ssh/sshd_config
+rc-service sshd reload || true
+{{- end}}
+{{- if .Extra}}
+
+passo "9. Passos seus"
+{{.Extra}}
+{{- end}}
+
+passo "Pronto"
+# O cloud-init só serve na primeira vez; não roda mais nos boots.
+touch /etc/cloud/cloud-init.disabled

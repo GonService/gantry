@@ -335,7 +335,7 @@ body.dock-dragging, body.dock-dragging * { cursor: grabbing !important; user-sel
 .job-prog { display: flex; align-items: center; gap: 10px; padding: 8px 140px 6px 12px; font: 12px/1.4 var(--mono); color: #c3cad2; }
 .job-prog[hidden] { display: none; }
 .job-prog-bar { flex: 0 0 160px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
-.job-prog-fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.job-prog-fill { display: block; height: 100%; width: 0; background: var(--brand); transition: width .3s; }
 .job-prog-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dock-pane pre.out { margin: 0; padding: 12px 16px; flex: 1; overflow: auto; font: 12.5px/1.6 var(--mono); color: #c3cad2; white-space: pre-wrap; }
 .xterm .xterm-viewport { background-color: var(--term-bg) !important; }
@@ -1230,6 +1230,15 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-check.small { font-size: 12.5px; align-items: center; }
 .cvm-check.small input { margin: 0; }
 .cvm-wide { grid-column: 1 / -1; }
+.cvm-os { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .cvm-os { grid-template-columns: 1fr; } }
+.cvm-os-card { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; line-height: 1.45; }
+.cvm-os-card.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+.cvm-os-card input { margin-top: 3px; }
+.cvm-custom { margin-top: 14px; display: grid; gap: 12px; }
+.cvm-custom .cvm-wide .input { max-width: none; }
+.cvm-need { border: 1px solid var(--border); border-left: 3px solid var(--brand); border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+.cvm-need ul { margin: 6px 0 8px; padding-left: 18px; display: grid; gap: 4px; }
 .sys-facts .cvm-back { color: var(--ok); font-weight: 600; }
 .cvm-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .cvm-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -1299,3 +1308,4 @@ aside.panel.cvm-side { display: block; position: sticky; top: 16px; }
 .cvm-row-check.off { opacity: .6; cursor: default; }
 .cvm-tip { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
 .cvm-tip .badge { flex: none; }
+.cvm-list .mono { overflow-wrap: anywhere; }

@@ -3,8 +3,10 @@ hostname: {{.Name}}
 users:
   - name: gantry
     gecos: Gantry
-    groups: [sudo]
-    shell: /bin/bash
+{{- if .Groups}}
+    groups: {{.Groups}}
+{{- end}}
+    shell: {{.Shell}}
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     lock_passwd: true
     ssh_authorized_keys:

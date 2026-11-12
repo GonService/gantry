@@ -52,7 +52,22 @@ func RunFor(ctx context.Context, name, line string, limit time.Duration) (string
 	return string(out), nil
 }
 
-// Log sources.
+// Log sources, by system: journald on Debian, the files of the services on
+// Alpine (busybox syslog and OpenRC), and whichever exists on a custom one.
+var logLinesAlpine = map[string]string{
+	"sistema":         "sudo tail -n %d /var/log/messages",
+	"docker":          "sudo tail -n %d /var/log/docker.log",
+	"podman":          "sudo tail -n %d /var/log/gantry-podman.log",
+	"provisionamento": "sudo tail -n %d /var/log/gantry-provision.log",
+}
+
+var logLinesCustom = map[string]string{
+	"sistema":         "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d; else sudo tail -n %[1]d /var/log/messages; fi",
+	"docker":          "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d -u docker.service -u containerd.service; else sudo tail -n %[1]d /var/log/docker.log; fi",
+	"podman":          "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d -u podman.service -u podman.socket; else sudo tail -n %[1]d /var/log/podman.log; fi",
+	"provisionamento": "sudo tail -n %d /var/log/gantry-provision.log",
+}
+
 var logLines = map[string]string{
 	"sistema":         "sudo journalctl -b --no-pager -o short-iso -n %d",
 	"docker":          "sudo journalctl -b --no-pager -o short-iso -n %d -u docker.service -u containerd.service",
@@ -73,7 +88,16 @@ func Logs(ctx context.Context, name, src string, n int) (string, error) {
 	case "vm", "vfkit":
 		return tailN(filepath.Join(Dir(name), fVMLog), n), nil
 	}
-	f, ok := logLines[src]
+	lines := logLines
+	if s, err := Load(name); err == nil {
+		switch s.System() {
+		case OSAlpine:
+			lines = logLinesAlpine
+		case OSCustom:
+			lines = logLinesCustom
+		}
+	}
+	f, ok := lines[src]
 	if !ok {
 		return "", errors.New("log desconhecido")
 	}

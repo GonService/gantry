@@ -90,7 +90,12 @@ func (s *Server) cvmList(w http.ResponseWriter, r *http.Request) {
 		Default   cvm.Spec  `json:"default"`
 		Machines  []cvmView `json:"machines"`
 		Image     string    `json:"image"`
-	}{Supported: cvm.Supported(), Arch: runtime.GOARCH, Image: cvm.ImageURL(runtime.GOARCH), Machines: []cvmView{}}
+		// The systems offered, with their image on this Mac.
+		Images map[string]string `json:"images"`
+		Labels map[string]string `json:"labels"`
+	}{Supported: cvm.Supported(), Arch: runtime.GOARCH, Image: cvm.ImageURL(runtime.GOARCH), Machines: []cvmView{},
+		Images: map[string]string{cvm.OSDebian: cvm.ImageURL(runtime.GOARCH), cvm.OSAlpine: cvm.AlpineURL(runtime.GOARCH)},
+		Labels: map[string]string{cvm.OSDebian: "Debian 13 (" + cvm.ImageBuild + ")", cvm.OSAlpine: "Alpine " + cvm.AlpineVersion}}
 	out.Home, _ = os.UserHomeDir()
 	info := s.localInfo(ctx)
 	out.Default = cvm.Default(info.CPUs, info.MemTotal)
@@ -633,9 +638,19 @@ func (s *Server) cvmPlatforms(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) cvmQEMU(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
+	spec, err := cvm.Load(name)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	script, err := cvm.QEMUScriptFor(spec)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
 	jid, err := s.startJob("cvm:"+name, "QEMU na Container VM "+name, func(ctx context.Context, out io.Writer) error {
-		fmt.Fprintf(out, "$ %s\n\n", cvm.QEMUScript)
-		o, err := cvm.Run(ctx, name, cvm.QEMUScript)
+		fmt.Fprintf(out, "$ %s\n\n", script)
+		o, err := cvm.Run(ctx, name, script)
 		_, _ = out.Write([]byte(o))
 		if err == nil {
 			sp, _ := cvm.Load(name)
@@ -816,6 +831,10 @@ func (s *Server) cvmFinder(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<10)).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if sp, err := cvm.Load(name); err == nil && req.On && sp.System() == cvm.OSCustom {
+		writeErr(w, http.StatusBadRequest, errors.New("num sistema próprio, os volumes no Finder ficam por sua conta"))
 		return
 	}
 	label := "Volumes de " + name + " no Finder"

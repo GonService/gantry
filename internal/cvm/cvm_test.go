@@ -328,3 +328,53 @@ func TestVsockHelperOptionalUnit(t *testing.T) {
 		t.Fatal("vsock() usa $4 sem valor padrão; com set -u o script para")
 	}
 }
+
+// Each system gets its own script, and a custom one points the bridges at
+// the sockets the user gave.
+func TestSystems(t *testing.T) {
+	s := Default(8, 16<<30)
+	if s.System() != OSDebian || (Spec{}).System() != OSDebian {
+		t.Fatal("o padrão (e as máquinas de antes) é o Debian")
+	}
+	s.OS = OSAlpine
+	sc, _ := Script(s, "/Users/ana")
+	for _, want := range []string{"#!/bin/sh", "apk add docker", "vsock ssh 2222 TCP:127.0.0.1:22 sshd", "#!/sbin/openrc-run", "OPEN:/proc/meminfo", "/etc/sudoers.d/gantry"} {
+		if !strings.Contains(sc, want) {
+			t.Errorf("alpine sem %q", want)
+		}
+	}
+	if strings.Contains(sc, "apt-get") || strings.Contains(sc, "systemctl") {
+		t.Error("o script do alpine usa apt ou systemd")
+	}
+	if ud := UserData(s, "k", sc); !strings.Contains(ud, "groups: [wheel]") || !strings.Contains(ud, "shell: /bin/sh") {
+		t.Errorf("user-data do alpine: %s", ud)
+	}
+	s.QEMU = true
+	if s.Check() == nil {
+		t.Error("alpine com QEMU devia ser recusado")
+	}
+	s.QEMU = false
+
+	s.OS = OSCustom
+	if s.Check() == nil {
+		t.Error("sistema próprio sem imagem devia ser recusado")
+	}
+	s.Custom = &Custom{Image: "https://exemplo/meu.qcow2", DockerSock: "/var/run/docker.sock"}
+	if err := s.Check(); err != nil {
+		t.Fatal(err)
+	}
+	sc, _ = Script(s, "/Users/ana")
+	for _, want := range []string{"UNIX-CONNECT:/var/run/docker.sock", "UNIX-CONNECT:/run/podman/podman.sock", "INIT=systemd", "INIT=openrc"} {
+		if !strings.Contains(sc, want) {
+			t.Errorf("custom sem %q", want)
+		}
+	}
+	s.Custom.Sum = "xyz"
+	if s.Check() == nil {
+		t.Error("aceitou uma soma que não é hexadecimal")
+	}
+	s.Custom = &Custom{Image: "ftp://x"}
+	if s.Check() == nil {
+		t.Error("aceitou uma imagem que não é https nem caminho")
+	}
+}

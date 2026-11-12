@@ -14,5 +14,8 @@
   "sudo journalctl -b --no-pager -o short-iso -n %d -u podman.service -u podman.socket",
   "sudo journalctl -f -n 300 --no-pager",
   "t=$(printf '\\t'); while IFS= read -r l; do p=${l%\"$t\"*}; m=${l##*\"$t\"}; touch -c -m -d \"@$m\" -- \"$p\" 2>/dev/null; done",
-  "if [ ! -e /etc/systemd/system/gantry-vsock-mem.service ]; then\nprintf '[Unit]\\nDescription=Gantry: memoria para o Mac\\n[Service]\\nExecStart=/usr/bin/socat VSOCK-LISTEN:%d,reuseaddr,fork OPEN:/proc/meminfo,rdonly\\nRestart=always\\nRestartSec=1\\n[Install]\\nWantedBy=multi-user.target\\n' | sudo tee /etc/systemd/system/gantry-vsock-mem.service >/dev/null\nsudo systemctl daemon-reload && sudo systemctl enable --now gantry-vsock-mem.service || true\nfi\n"
+  "if [ ! -e /etc/systemd/system/gantry-vsock-mem.service ]; then\nprintf '[Unit]\\nDescription=Gantry: memoria para o Mac\\n[Service]\\nExecStart=/usr/bin/socat VSOCK-LISTEN:%d,reuseaddr,fork OPEN:/proc/meminfo,rdonly\\nRestart=always\\nRestartSec=1\\n[Install]\\nWantedBy=multi-user.target\\n' | sudo tee /etc/systemd/system/gantry-vsock-mem.service >/dev/null\nsudo systemctl daemon-reload && sudo systemctl enable --now gantry-vsock-mem.service || true\nfi\n",
+  "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d; else sudo tail -n %[1]d /var/log/messages; fi",
+  "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d -u docker.service -u containerd.service; else sudo tail -n %[1]d /var/log/docker.log; fi",
+  "if command -v journalctl >/dev/null; then sudo journalctl -b --no-pager -o short-iso -n %[1]d -u podman.service -u podman.socket; else sudo tail -n %[1]d /var/log/podman.log; fi"
 ]

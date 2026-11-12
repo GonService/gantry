@@ -44,7 +44,12 @@ type Spec struct {
 	SSHAgent bool `json:"sshAgent"`
 	// Extra is the user's own steps, run last as root.
 	Extra string `json:"extra,omitempty"`
-	// Image overrides the address of the system image (tar.xz with disk.raw).
+	// OS is the machine's system: "debian" (the default, also for machines
+	// made before the choice), "alpine" (lighter) or "custom" (an image the
+	// user brings, described in Custom).
+	OS     string  `json:"os,omitempty"`
+	Custom *Custom `json:"custom,omitempty"`
+	// Image overrides the address of the system image of Debian or Alpine.
 	Image string `json:"image,omitempty"`
 	// AutoStart: the app starts the machine when it opens.
 	AutoStart bool `json:"autoStart"`
@@ -69,13 +74,63 @@ type Spec struct {
 	SnapKeep  int  `json:"snapKeep,omitempty"`
 }
 
+// The systems a machine can have.
+const (
+	OSDebian = "debian"
+	OSAlpine = "alpine"
+	OSCustom = "custom"
+)
+
+// Custom is a system the user brings. Gantry still makes the disks, the
+// user with the key (cloud-init NoCloud), the vsock bridges and the mounts;
+// installing and starting the engines is the user's steps (Extra).
+type Custom struct {
+	// Image: an https URL or a path on the Mac, of a raw disk (.raw, .img),
+	// a .qcow2, or a tar (.tar, .tar.gz, .tar.xz) with one inside.
+	Image string `json:"image"`
+	// Sum: the image's sha256 or sha512, in hex (checked if given).
+	Sum string `json:"sum,omitempty"`
+	// The engines' sockets inside the machine, which the bridges point at.
+	DockerSock string `json:"dockerSock,omitempty"`
+	PodmanSock string `json:"podmanSock,omitempty"`
+}
+
+// The engines' sockets a custom system gets when the user leaves them blank.
+const (
+	defDockerSock = "/run/docker.sock"
+	defPodmanSock = "/run/podman/podman.sock"
+)
+
+// System is the machine's OS, "debian" when unset.
+func (s Spec) System() string {
+	switch s.OS {
+	case OSAlpine, OSCustom:
+		return s.OS
+	}
+	return OSDebian
+}
+
+// osLabel names the system for the logs.
+func osLabel(s Spec) string {
+	switch s.System() {
+	case OSAlpine:
+		return "Alpine " + AlpineVersion
+	case OSCustom:
+		return "sistema próprio"
+	}
+	return "Debian 13, build " + ImageBuild
+}
+
 // Share is a folder of the Mac in the machine, at the same path.
 type Share struct {
 	Path     string `json:"path"`
 	ReadOnly bool   `json:"readOnly,omitempty"`
 }
 
-var nameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
+var (
+	nameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
+	hexRe  = regexp.MustCompile(`^([0-9a-fA-F]{64}|[0-9a-fA-F]{128})$`)
+)
 
 // Default is the spec offered on a computer with cpus cores and mem bytes.
 func Default(cpus int, mem int64) Spec {
@@ -93,7 +148,7 @@ func Default(cpus int, mem int64) Spec {
 			m = 2048
 		}
 	}
-	return Spec{Name: DefaultName, CPUs: c, MemoryMiB: m, SystemGiB: 10, DataGiB: 128,
+	return Spec{Name: DefaultName, OS: OSDebian, CPUs: c, MemoryMiB: m, SystemGiB: 10, DataGiB: 128,
 		Docker: true, Podman: true, Rosetta: runtime.GOARCH == "arm64", SSHAgent: true, AutoStart: true, IdleStopMin: 0,
 		SnapDaily: true, SnapKeep: 7, Watch: true}
 }
@@ -113,6 +168,33 @@ func (s Spec) Check() error {
 		return errors.New("o disco de dados precisa de pelo menos 8 GiB")
 	case !s.Docker && !s.Podman && !s.Containerd:
 		return errors.New("escolha pelo menos um engine: Docker, Podman ou containerd")
+	}
+	switch s.OS {
+	case "", OSDebian, OSAlpine:
+	case OSCustom:
+		if s.Custom == nil || strings.TrimSpace(s.Custom.Image) == "" {
+			return errors.New("informe a imagem do sistema (URL https ou caminho no Mac)")
+		}
+		c := s.Custom
+		if u := c.Image; !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "~/") {
+			return errors.New("a imagem precisa ser uma URL https ou um caminho no Mac")
+		}
+		if c.Sum != "" && !hexRe.MatchString(c.Sum) {
+			return errors.New("a soma da imagem é um sha256 (64) ou sha512 (128) em hexadecimal")
+		}
+		for _, p := range []string{c.DockerSock, c.PodmanSock} {
+			if p != "" && (!strings.HasPrefix(p, "/") || strings.ContainsAny(p, " ,'\"\n")) {
+				return fmt.Errorf("caminho de socket inválido: %s", p)
+			}
+		}
+	default:
+		return fmt.Errorf("sistema desconhecido: %s", s.OS)
+	}
+	if s.System() == OSAlpine && s.QEMU {
+		return errors.New("no Alpine, as outras arquiteturas pelo QEMU ainda não estão disponíveis; use o Debian ou desmarque")
+	}
+	if s.System() == OSCustom && (s.QEMU || s.Finder) {
+		return errors.New("num sistema próprio, o QEMU e os volumes no Finder ficam por sua conta: desmarque as duas opções")
 	}
 	for _, sh := range s.Shares {
 		if !filepath.IsAbs(sh.Path) || strings.ContainsAny(sh.Path, " ,\n") {

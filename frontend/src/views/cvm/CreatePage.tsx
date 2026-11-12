@@ -102,11 +102,85 @@ function Check({ on, set, children }: { on: boolean; set: (v: boolean) => void; 
   );
 }
 
+// OSPanel chooses the machine's system: Debian or Alpine (Gantry knows how
+// to set them up), or a custom image, with what it must have for Gantry.
+function OSPanel({ list, spec, up }: { list: CvmList; spec: Spec; up: (p: Partial<Spec>) => void }) {
+  const os = spec.os || "debian";
+  const c = spec.custom || { image: "" };
+  const setC = (p: Partial<typeof c>) => up({ custom: { ...c, ...p } });
+  const opts: { id: "debian" | "alpine" | "custom"; title: string; badge?: string; text: string }[] = [
+    { id: "debian", title: list.labels?.debian || "Debian 13", badge: t("recomendado"), text: t("Compatível com tudo: Docker oficial, QEMU, volumes no Finder. Imagem cloud oficial, conferida pelo SHA512.") },
+    { id: "alpine", title: list.labels?.alpine || "Alpine", badge: t("mais leve"), text: t("Uns 60 MB parado e boot em 2 s. Docker, Podman e nerdctl do Alpine; os containers rodam igual. Sem QEMU por enquanto.") },
+    { id: "custom", title: t("Outro sistema"), text: t("Uma imagem sua (raw, qcow2 ou tar). Você instala os engines; o Gantry cuida dos discos, das pastas e das pontes.") },
+  ];
+  return (
+    <section className="panel">
+      <div className="cvm-ph">
+        <h2>{t("Sistema")}</h2>
+        <span className="muted small">{t("O que roda por baixo dos containers")}</span>
+      </div>
+      <div className="cvm-pb">
+        <div className="cvm-os">
+          {opts.map((o) => (
+            <label key={o.id} className={"cvm-os-card" + (os === o.id ? " on" : "")}>
+              <input type="radio" name="cvm-os" checked={os === o.id} onChange={() => up({ os: o.id, qemu: o.id === "debian" ? spec.qemu : false })} />
+              <span>
+                <b>{o.title}</b> {o.badge ? <span className="badge accent">{o.badge}</span> : null}
+                <br />
+                <span className="muted small">{o.text}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {os === "custom" ? (
+          <div className="cvm-custom">
+            <div className="cvm-grid">
+              <label className="cvm-field cvm-wide">
+                <span>{t("Imagem do sistema")}</span>
+                <input className="input mono" value={c.image} placeholder="https://…/disco.qcow2  ou  ~/Imagens/meu-linux.raw" onChange={(e) => setC({ image: e.target.value })} spellCheck={false} />
+                <span className="muted small">{t("URL https ou caminho no Mac. Formatos: .raw, .img, .qcow2, ou um .tar/.tar.gz/.tar.xz com o disco dentro. Para arm64, se o Mac é Apple Silicon.")}</span>
+              </label>
+              <label className="cvm-field cvm-wide">
+                <span>{t("Soma da imagem")}</span>
+                <input className="input mono" value={c.sum || ""} placeholder={t("sha256 ou sha512, em hexadecimal (recomendado)")} onChange={(e) => setC({ sum: e.target.value.trim() })} spellCheck={false} />
+              </label>
+              {spec.docker ? (
+                <label className="cvm-field">
+                  <span>{t("Socket do Docker na máquina")}</span>
+                  <input className="input mono" value={c.dockerSock || ""} placeholder="/run/docker.sock" onChange={(e) => setC({ dockerSock: e.target.value.trim() })} spellCheck={false} />
+                </label>
+              ) : null}
+              {spec.podman ? (
+                <label className="cvm-field">
+                  <span>{t("Socket do Podman na máquina")}</span>
+                  <input className="input mono" value={c.podmanSock || ""} placeholder="/run/podman/podman.sock" onChange={(e) => setC({ podmanSock: e.target.value.trim() })} spellCheck={false} />
+                </label>
+              ) : null}
+            </div>
+            <div className="cvm-need">
+              <b>{t("O que o sistema precisa ter para o Gantry funcionar")}</b>
+              <ul>
+                <li>{t("Boot por UEFI na Virtualization da Apple, com os drivers virtio: disco, rede, vsock, virtiofs e balão de memória (todo kernel Linux recente tem).")}</li>
+                <li>{t("cloud-init lendo o NoCloud (o disco cidata): é por ele que o Gantry cria o usuário gantry com a chave SSH e roda o script.")}</li>
+                <li>{t("systemd ou OpenRC, e o sshd na porta 22. O script instala socat, sudo e e2fsprogs se faltarem (apt, apk, dnf, zypper ou pacman).")}</li>
+                <li>{t("Os engines instalados e ligados nos seus passos, ouvindo nos sockets informados acima. O Gantry liga as pontes vsock: 2222 para o SSH, 2375 para o Docker, 2376 para o Podman e 2379 para a memória.")}</li>
+                <li>{t("O disco de dados chega como /dev/vdb e é montado em /var/lib/gantry, com /var/lib/docker, containers e containerd dentro dele. A sua pasta pessoal chega pelo virtiofs, com a etiqueta home.")}</li>
+              </ul>
+              <span className="muted small">{t("QEMU e volumes no Finder ficam de fora num sistema próprio. Você lê o script inteiro no próximo passo.")}</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spec; set: (s: Spec) => void; next: () => void; recreate: boolean }) {
   const up = (p: Partial<Spec>) => set({ ...spec, ...p });
   const intel = list.arch !== "arm64";
   const engines = engineNames(spec);
   const nameOK = /^[a-z][a-z0-9-]{0,30}$/.test(spec.name);
+  const os = spec.os || "debian";
   return (
     <div className="cvm-cols">
       <div className="cvm-main">
@@ -132,12 +206,9 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
               <span>{t("Hypervisor")}</span>
               <span className="muted small">{t("Apple Virtualization, rodado pelo próprio Gantry: nada a instalar. A memória que a máquina não usa volta ao Mac.")}</span>
             </div>
-            <div className="cvm-field">
-              <span>{t("Sistema")}</span>
-              <span className="muted small">{t("Debian 13, imagem cloud oficial, conferida pelo SHA512")}</span>
-            </div>
           </div>
         </section>
+        <OSPanel list={list} spec={spec} up={up} />
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Engines de containers")}</h2>
@@ -147,17 +218,17 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
             <Check on={spec.docker} set={(v) => up({ docker: v })}>
               <b>Docker Engine</b>
               <br />
-              <span className="muted small">{t("com Buildx e Compose, do repositório oficial")}</span>
+              <span className="muted small">{os === "custom" ? t("você instala nos seus passos; o Gantry liga a ponte até o socket") : os === "alpine" ? t("com Buildx e Compose, pacote do Alpine") : t("com Buildx e Compose, do repositório oficial")}</span>
             </Check>
             <Check on={spec.podman} set={(v) => up({ podman: v })}>
               <b>Podman</b>
               <br />
-              <span className="muted small">{t("pacote do Debian, API compatível com Docker")}</span>
+              <span className="muted small">{os === "custom" ? t("você instala nos seus passos; o Gantry liga a ponte até o socket") : os === "alpine" ? t("pacote do Alpine, API compatível com Docker") : t("pacote do Debian, API compatível com Docker")}</span>
             </Check>
             <Check on={!!spec.containerd} set={(v) => up({ containerd: v })}>
               <b>containerd + nerdctl</b>
               <br />
-              <span className="muted small">{t("com BuildKit, release oficial conferida pelo sha256. Mais perto do que roda no Kubernetes.")}</span>
+              <span className="muted small">{os === "custom" ? t("você instala nos seus passos (o comando nerdctl tem de existir na máquina)") : t("com BuildKit, release oficial conferida pelo sha256. Mais perto do que roda no Kubernetes.")}</span>
             </Check>
           </div>
         </section>
@@ -198,11 +269,17 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
               <br />
               <span className="muted small">{intel ? t("Só em Macs com Apple Silicon.") : t("Roda e constrói imagens linux/amd64.")}</span>
             </Check>
-            <Check on={spec.qemu} set={(v) => up({ qemu: v })}>
-              <b>{t("Outras arquiteturas pelo QEMU")}</b> <span className="badge warn">{t("lento")}</span>
-              <br />
-              <span className="muted small">{t("arm/v7, riscv64, ppc64le, s390x: mais para build do que para rodar.")}</span>
-            </Check>
+            {os === "debian" ? (
+              <Check on={spec.qemu} set={(v) => up({ qemu: v })}>
+                <b>{t("Outras arquiteturas pelo QEMU")}</b> <span className="badge warn">{t("lento")}</span>
+                <br />
+                <span className="muted small">{t("arm/v7, riscv64, ppc64le, s390x: mais para build do que para rodar.")}</span>
+              </Check>
+            ) : (
+              <p className="muted small" style={{ margin: 0 }}>
+                {t("Outras arquiteturas pelo QEMU: por enquanto, só nas máquinas com Debian.")}
+              </p>
+            )}
             <Check on={spec.sshAgent} set={(v) => up({ sshAgent: v })}>
               <b>{t("Repassar o ssh-agent do Mac")}</b>
               <br />
@@ -229,12 +306,19 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
         <section className="panel">
           <div className="cvm-ph">
             <h2>{t("Passos seus")}</h2>
-            <span className="muted small">{t("opcional")}</span>
+            <span className="muted small">{os === "custom" ? t("aqui você instala e liga os engines") : t("opcional")}</span>
           </div>
           <div className="cvm-pb">
             <label className="cvm-field">
               <span>{t("Script extra, roda por último como root")}</span>
-              <textarea className="input" rows={4} value={spec.extra || ""} placeholder="apt-get install -y htop jq" onChange={(e) => up({ extra: e.target.value })} spellCheck={false} />
+              <textarea
+                className="input"
+                rows={os === "custom" ? 8 : 4}
+                value={spec.extra || ""}
+                placeholder={os === "custom" ? "dnf install -y moby-engine && systemctl enable --now docker" : os === "alpine" ? "apk add htop jq" : "apt-get install -y htop jq"}
+                onChange={(e) => up({ extra: e.target.value })}
+                spellCheck={false}
+              />
             </label>
           </div>
         </section>
@@ -244,6 +328,10 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
           <h2>{t("Resumo")}</h2>
         </div>
         <div className="cvm-pb">
+          <span className="cvm-kv">
+            <span className="muted">{t("Sistema")}</span>
+            <span>{os === "custom" ? t("sistema próprio") : list.labels?.[os] || os}</span>
+          </span>
           <span className="cvm-kv">
             <span className="muted">{t("Engines")}</span>
             <span>{engines || t("nenhum")}</span>
@@ -267,7 +355,7 @@ function Choices({ list, spec, set, next, recreate }: { list: CvmList; spec: Spe
             <a className="btn" href={recreate ? cvmHref(spec.name, "recursos") : "#/local/t/engines"}>
               {t("Cancelar")}
             </a>
-            <button className="btn primary" type="button" disabled={!nameOK || (!spec.docker && !spec.podman && !spec.containerd)} onClick={next}>
+            <button className="btn primary" type="button" disabled={!nameOK || (!spec.docker && !spec.podman && !spec.containerd) || (os === "custom" && !(spec.custom?.image || "").trim())} onClick={next}>
               {t("Revisar o script →")}
             </button>
           </div>
@@ -358,9 +446,9 @@ function Review({ list, spec, back, recreate }: { list: CvmList; spec: Spec; bac
             <ol className="cvm-list">
               {recreate ? <li>{t("Desligar a máquina, tirar um snapshot do disco de dados e remover só o disco do sistema")}</li> : null}
               <li>
-                {t("Baixar a imagem do sistema e conferir o SHA512")}
+                {(spec.os || "debian") === "custom" ? t("Pegar a imagem do sistema e conferir a soma, se informada") : t("Baixar a imagem do sistema e conferir a soma")}
                 <br />
-                <span className="mono muted small">{list.image}</span>
+                <span className="mono muted small">{(spec.os || "debian") === "custom" ? spec.custom?.image : list.images?.[spec.os || "debian"] || list.image}</span>
               </li>
               <li>{recreate ? t("Criar um sistema.raw novo (o dados.raw fica) e uma chave SSH nova") : t("Criar sistema.raw e dados.raw (esparsos) e uma chave SSH só desta máquina")}</li>
               <li>{t("Ligar a máquina; os sockets ficam em ~/.gantry/machines/{name}", { name: s.name })}</li>

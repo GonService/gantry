@@ -84,12 +84,8 @@ func create(ctx context.Context, s Spec, approved string, recreate bool, log io.
 	}
 	fmt.Fprintln(log, "a. Apple Virtualization, pelo próprio Gantry (sem programas a instalar)")
 
-	url := s.Image
-	if url == "" {
-		url = ImageURL(runtime.GOARCH)
-	}
-	fmt.Fprintln(log, "b. Imagem do sistema")
-	img, err := fetchImage(ctx, url, log, prog)
+	fmt.Fprintf(log, "b. Imagem do sistema (%s)\n", osLabel(s))
+	img, err := fetchImage(ctx, ImageSource(s, runtime.GOARCH), log, prog)
 	if err != nil {
 		return err
 	}

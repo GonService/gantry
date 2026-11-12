@@ -87,7 +87,7 @@ No need to memorize: the machine's **Tools** tab lists what is missing and shows
 
 ## 2. The Container VM: containers on the Mac
 
-The Mac does not run Linux containers directly: they need a Linux underneath. The **Container VM** is that Linux, created and looked after by Gantry itself. It is a small Debian VM, on Apple Virtualization, just for the engines: **Docker**, **Podman** and **containerd** (with `nerdctl`), one, two or all three. Its containers show up as containers of this Mac, and it keeps running with Gantry closed.
+The Mac does not run Linux containers directly: they need a Linux underneath. The **Container VM** is that Linux, created and looked after by Gantry itself. It is a small VM, on Apple Virtualization, with the system you choose (Debian, Alpine or your own), just for the engines: **Docker**, **Podman** and **containerd** (with `nerdctl`), one, two or all three. Its containers show up as containers of this Mac, and it keeps running with Gantry closed.
 
 What it brings:
 
@@ -102,6 +102,7 @@ What it brings:
 1. Open **This machine** › **Engines** tab › **Create the Container VM**. On a Mac with no engine at all, the sidebar also shows **＋ Create Container VM**.
 2. **Configure:**
    - **Name:** keep `gantry-vm` (lowercase letters, numbers and hyphens).
+   - **System:** what runs underneath the containers (see the table below).
    - **Container engines:** tick the ones you want. You can pick more than one.
    - **Resources:** CPUs, maximum memory and the maximum size of the data disk. The disk is a sparse file: it takes on the Mac only what is used. You can change all of this later.
    - **Architectures and credentials:** amd64 through Rosetta, other architectures through QEMU (slower) and the Mac's ssh-agent.
@@ -110,11 +111,35 @@ What it brings:
 
    ![Create the Container VM: configure](images/en/tut-cvm-config.png)
 
+   | System | When to use it |
+   |---|---|
+   | **Debian 13** (recommended) | Works with everything: Docker from the official repository, other architectures through QEMU, volumes in the Finder. |
+   | **Alpine** (lighter) | About 60 MB idle and a 2 s boot. Docker, Podman and nerdctl on Alpine; the containers run the same (each brings its own C library). No QEMU yet. |
+   | **Another system** | An image of your own: Fedora, Ubuntu, Arch, your company's distribution. You install the engines; Gantry takes care of the disks, the folders and the bridges. |
+
+   The Debian and Alpine versions are pinned (a dated Debian build, one Alpine release): every new machine starts from the same system, and the image sum is checked before it is used.
+
+   **A system of your own.** Under **Another system**, give:
+
+   ![Create the Container VM: a system of your own](images/en/tut-cvm-custom.png)
+
+   - **System image:** an https URL or a path on the Mac, of a `.raw` or `.img` disk, a `.qcow2` (Gantry converts it), or a `.tar`, `.tar.gz` or `.tar.xz` with the disk inside. On an Apple Silicon Mac, the image must be arm64.
+   - **Image sum:** its sha256 or sha512. It is optional but recommended: without it, the image is used as it came.
+   - **Docker socket** and **Podman socket** in the machine: where the engine listens, inside it. Left blank, Gantry uses `/run/docker.sock` and `/run/podman/podman.sock`.
+   - **Your own steps:** here you install and start the engines, with the system's package manager. For example, on Fedora: `dnf install -y moby-engine && systemctl enable --now docker`.
+
+   For Gantry to work, the system needs:
+   - UEFI boot and the virtio drivers (disk, network, vsock, virtiofs and the memory balloon), which every recent Linux kernel has;
+   - cloud-init reading NoCloud: that is how Gantry creates the `gantry` user, with the SSH key, and runs the script;
+   - systemd or OpenRC, and `sshd` on port 22. The script installs `socat`, `sudo` and `e2fsprogs` if missing (through apt, apk, dnf, zypper or pacman).
+
+   With that, Gantry sets up the vsock bridges (2222 for SSH, 2375 for Docker, 2376 for Podman and 2379 for memory), mounts the data disk at `/var/lib/gantry` and your home folder through virtiofs. QEMU and volumes in the Finder are left out on a custom system.
+
 3. **Review the script:** the full `provision.sh`, with its sha256, and the cloud-init in a tab next to it. **Copy sha256** and **Download .sh** let you keep or check it elsewhere. The **What will happen** panel sums up the steps, on the Mac and inside the machine.
 
    ![Create the Container VM: review the script](images/en/tut-cvm-script.png)
 
-4. **Create and start:** Gantry downloads the Debian 13 image (checked by SHA512), creates the disks, starts the machine and shows the provisioning line by line. The first time it takes a few minutes, because it installs the engines.
+4. **Create and start:** Gantry downloads the system image (and checks its sum), creates the disks, starts the machine and shows the provisioning line by line. The first time it takes a few minutes, because it installs the engines.
 
 When it finishes, the machine shows up in the sidebar, under **This machine**, with its power button next to it.
 

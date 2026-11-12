@@ -13,11 +13,19 @@ import (
 //go:embed provision.sh.tmpl
 var provisionTmpl string
 
+//go:embed provision-alpine.sh.tmpl
+var provisionAlpineTmpl string
+
+//go:embed provision-custom.sh.tmpl
+var provisionCustomTmpl string
+
 //go:embed user-data.tmpl
 var userDataTmpl string
 
 var (
-	provisionT = template.Must(template.New("provision").Parse(provisionTmpl))
+	provisionT       = template.Must(template.New("provision").Parse(provisionTmpl))
+	provisionAlpineT = template.Must(template.New("provision-alpine").Parse(provisionAlpineTmpl))
+	provisionCustomT = template.Must(template.New("provision-custom").Parse(provisionCustomTmpl))
 	userDataT  = template.Must(template.New("user-data").Parse(userDataTmpl))
 )
 
@@ -33,7 +41,24 @@ var nerdctlSums = map[string]string{
 // machine, and its sha256.
 func Script(s Spec, home string) (string, string) {
 	var b bytes.Buffer
-	_ = provisionT.Execute(&b, map[string]any{
+	t := provisionT
+	switch s.System() {
+	case OSAlpine:
+		t = provisionAlpineT
+	case OSCustom:
+		t = provisionCustomT
+	}
+	ds, ps := defDockerSock, defPodmanSock
+	if c := s.Custom; c != nil {
+		if c.DockerSock != "" {
+			ds = c.DockerSock
+		}
+		if c.PodmanSock != "" {
+			ps = c.PodmanSock
+		}
+	}
+	_ = t.Execute(&b, map[string]any{
+		"Alpine": AlpineVersion, "DockerSock": ds, "PodmanSock": ps,
 		"Name": s.Name, "Home": home, "Rosetta": s.Rosetta, "QEMU": s.QEMU,
 		"Docker": s.Docker, "Podman": s.Podman, "SSHAgent": s.SSHAgent, "Shares": s.Shares,
 		"Containerd": s.Containerd, "Nerdctl": nerdctlVersion, "NerdctlArm64": nerdctlSums["arm64"], "NerdctlAmd64": nerdctlSums["amd64"],
@@ -53,7 +78,17 @@ func Sum(script string) string {
 // and runs the script once.
 func UserData(s Spec, pubKey, script string) string {
 	var b bytes.Buffer
+	// Debian has the sudo group and bash; Alpine has wheel and ash; a
+	// custom system only gets a user with sudo (the script writes the rule).
+	groups, shell := "[sudo]", "/bin/bash"
+	switch s.System() {
+	case OSAlpine:
+		groups, shell = "[wheel]", "/bin/sh"
+	case OSCustom:
+		groups, shell = "", "/bin/sh"
+	}
 	_ = userDataT.Execute(&b, map[string]any{
+		"Groups": groups, "Shell": shell,
 		"Name": s.Name, "Key": strings.TrimSpace(pubKey),
 		"Script64": base64.StdEncoding.EncodeToString([]byte(script)),
 	})
