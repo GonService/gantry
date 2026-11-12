@@ -56,7 +56,10 @@ sed -i -E 's/^gantry:![^:]*:/gantry:*:/' /etc/shadow
 for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt_misc; do
   modprobe "$m" 2>/dev/null || true
 done
-
+# Encaminhamento de IP ligado desde o boot (antes do Docker, que senão
+# fecha a FORWARD e as portas do Podman e do nerdctl só respondem aqui
+# dentro), sem getty nas seriais e o ssh do Gantry fora do log.
+{{.Tune}}
 # Um serviço que fica rodando, no init deste sistema: nome, comando, depois de.
 servico() {
   if [ "$INIT" = systemd ]; then

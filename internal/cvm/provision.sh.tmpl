@@ -48,7 +48,10 @@ apt-get install -y --no-install-recommends ca-certificates curl gnupg socat chro
 # Relógio certo depois que o Mac acorda: o chrony corrige o salto na hora.
 echo 'makestep 1 -1' >/etc/chrony/conf.d/gantry.conf
 systemctl restart chrony || true
-mkdir -p /etc/gantry
+# Encaminhamento de IP ligado desde o boot (antes do Docker, que senão
+# fecha a FORWARD e as portas do Podman e do nerdctl só respondem aqui
+# dentro), sem getty nas seriais e o ssh do Gantry fora do log.
+{{.Tune}}mkdir -p /etc/gantry
 vsock() {
   cat >"/etc/systemd/system/gantry-vsock-$1.service" <<EOF
 [Unit]

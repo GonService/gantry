@@ -164,8 +164,8 @@ type portForwarder struct {
 	log    *log.Logger
 	leases string // /var/db/dhcpd_leases
 
-	mu     sync.Mutex
-	ip     string
+	mu       sync.Mutex
+	ip       string
 	open     map[string]io.Closer // proto:port → listener
 	failed   map[string]bool      // ports the Mac could not open (logged once)
 	answered bool                 // the engines answered the last time

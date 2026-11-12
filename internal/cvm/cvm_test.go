@@ -421,3 +421,39 @@ esac
 		t.Fatalf("depois: %+v", in)
 	}
 }
+
+// Every system turns IP forwarding on from boot (so dockerd does not close
+// the FORWARD chain on Podman and nerdctl), in the provisioning and again at
+// each start, and each script stays valid shell.
+func TestGuestTune(t *testing.T) {
+	for _, sys := range []string{OSDebian, OSAlpine, OSCustom} {
+		s := Default(4, 8<<30)
+		s.OS = sys
+		s.Podman = true
+		if sys == OSCustom {
+			s.Custom = &Custom{Image: "https://exemplo/meu.qcow2"}
+		}
+		sc, _ := Script(s, "/Users/ana")
+		sync := syncScript(s)
+		for name, body := range map[string]string{"provisionamento": sc, "sync": sync} {
+			for _, want := range []string{"net.ipv4.ip_forward = 1", "-P FORWARD ACCEPT", "Match Address 127.0.0.1", "!syslog"} {
+				if !strings.Contains(body, want) {
+					t.Errorf("%s/%s sem %q", sys, name, want)
+				}
+			}
+			sh := "sh"
+			if sys == OSDebian && name == "provisionamento" {
+				sh = "bash"
+			}
+			if out, err := exec.Command(sh, "-n", "-c", body).CombinedOutput(); err != nil {
+				t.Errorf("%s/%s: %s %v", sys, name, out, err)
+			}
+		}
+		if sys == OSAlpine && strings.Contains(sc, "systemctl") {
+			t.Error("alpine com systemctl")
+		}
+		if sys == OSDebian && strings.Contains(sc, "rc-service sshd") {
+			t.Error("debian com rc-service")
+		}
+	}
+}

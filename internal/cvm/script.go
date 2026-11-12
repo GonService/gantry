@@ -58,7 +58,7 @@ func Script(s Spec, home string) (string, string) {
 		}
 	}
 	_ = t.Execute(&b, map[string]any{
-		"Alpine": AlpineVersion, "DockerSock": ds, "PodmanSock": ps,
+		"Alpine": AlpineVersion, "DockerSock": ds, "PodmanSock": ps, "Tune": guestTune(s.System()),
 		"Name": s.Name, "Home": home, "Rosetta": s.Rosetta, "QEMU": s.QEMU,
 		"Docker": s.Docker, "Podman": s.Podman, "SSHAgent": s.SSHAgent, "Shares": s.Shares,
 		"Containerd": s.Containerd, "Nerdctl": nerdctlVersion, "NerdctlArm64": nerdctlSums["arm64"], "NerdctlAmd64": nerdctlSums["amd64"],

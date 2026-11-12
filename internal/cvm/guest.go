@@ -21,6 +21,7 @@ import (
 func syncScript(s Spec) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
+	b.WriteString(guestTuneSudo(s.System()))
 	// Debian machines made before the dynamic memory get its vsock bridge
 	// here (Alpine and custom ones were born with it).
 	if s.System() == OSDebian {

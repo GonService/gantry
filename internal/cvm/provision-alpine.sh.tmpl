@@ -28,7 +28,10 @@ for m in virtiofs vsock vmw_vsock_virtio_transport virtio_balloon overlay binfmt
   grep -qx "$m" /etc/modules 2>/dev/null || echo "$m" >>/etc/modules
 done
 rc-update add cgroups boot
-rc-service cgroups start || true
+# Encaminhamento de IP ligado desde o boot (antes do Docker, que senão
+# fecha a FORWARD e as portas do Podman e do nerdctl só respondem aqui
+# dentro), sem getty nas seriais e o ssh do Gantry fora do log.
+{{.Tune}}rc-service cgroups start || true
 
 passo "2. Disco de dados: todo o estado fica nele, fora do sistema"
 if ! blkid /dev/vdb >/dev/null 2>&1; then mkfs.ext4 -q -L gantry-dados /dev/vdb; fi
