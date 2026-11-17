@@ -139,21 +139,29 @@ O que ela traz:
 
 4. **Criar e ligar:** o Gantry baixa a imagem do sistema (e confere a soma), cria os discos, liga a máquina e mostra o provisionamento linha a linha. Na primeira vez leva alguns minutos, porque instala os engines.
 
-Quando termina, a máquina aparece na barra lateral, embaixo de **Esta máquina**, com o botão de ligar e desligar ao lado.
+Quando termina, a máquina aparece na barra lateral, embaixo de **Esta máquina**, com o botão de ligar e desligar ao lado. Ela também aparece na aba **VMs** de **Esta máquina**, em **Container VMs**, com o estado, o sistema, os engines, o IP e os botões **Abrir**, **Terminal** e **Desligar**.
+
+![A Container VM na aba VMs de Esta máquina](images/pt/tut-cvm-inhost.png)
 
 ### 2.2 Usar pelo terminal do Mac
 
 A aba **Engines e sockets** da máquina mostra tudo o que você precisa para usar os engines fora do Gantry:
 
 - **Sockets no Mac:** o `docker.sock` e o `podman.sock` da máquina ficam em `~/.gantry/machines/gantry-vm/`. O containerd é usado pelo comando `nerdctl`, em `~/.gantry/bin`.
-- **Apontar o terminal do Mac:** `docker context use gantry` (o recomendado), ou as linhas `export DOCKER_HOST=…` e `export CONTAINER_HOST=…` para uma sessão só. **Usar como padrão do docker** faz a troca de contexto por você.
+- **Apontar o terminal do Mac:**
+  - **Docker:** `docker context use gantry` (o recomendado). **Usar como padrão do docker** faz a troca por você.
+  - **Podman:** `podman system connection add --default gantry unix://…/podman.sock`, com o caminho do socket da sua máquina (o Gantry mostra o comando pronto para copiar). Se a conexão `gantry` já existir, o comando vira `podman system connection default gantry`. **Usar como padrão do podman** faz os dois passos por você.
+  - **Só numa sessão do terminal:** as linhas `export DOCKER_HOST=…` e `export CONTAINER_HOST=…`.
 - **Integração com o Mac:** cada opção é uma caixa que você liga ou desliga:
   - o contexto `gantry` no Docker;
   - um contexto do Docker que fala com o Podman da máquina;
+  - **Conexão no Podman do Mac**, a conexão `gantry` do `podman system connection`;
   - **Comandos da máquina no PATH**, que põe `docker`, `podman` e `nerdctl` de `~/.gantry/bin` no seu terminal, depois dos que o Mac já tiver;
   - **Link em /var/run/docker.sock**, para ferramentas que só procuram esse caminho (pede a senha de administrador).
 
 ![A Container VM: engines e sockets](images/pt/tut-cvm-engines.png)
+
+![Apontar o terminal do Mac: Docker, Podman e nerdctl](images/pt/tut-cvm-podman.png)
 
 Para testar, num terminal do Mac:
 
@@ -164,16 +172,35 @@ podman run --rm docker.io/library/alpine echo "olá do podman"     # com Comando
 nerdctl run --rm docker.io/library/alpine echo "olá do nerdctl"   # idem
 ```
 
-Os projetos do Gantry (os casos abaixo) usam a máquina sozinhos: basta escolher o engine dela ao criar o projeto.
+Os projetos do Gantry (os casos abaixo) usam a máquina sozinhos: basta escolher o engine dela ao criar o projeto. No formulário de um container, cada engine da máquina aparece na lista com o nome dela ao lado.
 
-### 2.3 Ligar, desligar e ajustar
+### 2.3 Abrir os containers no navegador do Mac
+
+Uma porta publicada por um container da máquina (`-p 8080:80`, ou **Portas** no formulário do container) abre de dois jeitos no Mac:
+
+- **`http://localhost:8080`:** o Gantry abre a mesma porta no Mac e repassa para a máquina. Vale para o Docker, o Podman e o nerdctl. Uma porta publicada só em `127.0.0.1` dentro da máquina abre só no `localhost` do Mac.
+- **`http://IP-da-máquina:8080`:** a máquina tem um IP na rede do Mac, mostrado no topo da página dela (**IP 192.168.64.7**, por exemplo). Clique nele para copiar.
+
+O quadro **Portas no Mac**, na aba **Engines e sockets**, lista as portas abertas agora, com o endereço pronto para copiar. Se outro programa do Mac já usa uma porta, o quadro avisa, e o motivo fica no log da máquina.
+
+Para testar, com o `docker context use gantry` do passo anterior:
+
+```sh
+docker run -d --name web -p 8080:80 nginx:alpine
+curl -I http://localhost:8080        # HTTP/1.1 200 OK
+docker rm -f web
+```
+
+> Com o Docker e o Podman juntos na máquina, o Gantry deixa o encaminhamento de IP ligado desde o boot. Sem isso, o Docker fecharia a rede para os containers do Podman e do nerdctl, e as portas deles só responderiam dentro da máquina.
+
+### 2.4 Ligar, desligar e ajustar
 
 - **Ligar e desligar:** pelo botão ao lado da máquina, na barra lateral, ou por **Ligar** e **Desligar** na página dela. Ao suspender o Mac, a máquina pausa junto e volta ao acordar.
-- **Recursos:** CPUs e **Memória máxima** (valem no próximo boot), **Memória dinâmica** (ligada por padrão; vale na hora), **Desligar sem nenhum container rodando por** um tempo, e o disco de dados, que só aumenta. Com a máquina ligada, o painel mostra quanto está com ela agora e quanto foi devolvido ao Mac.
+- **Recursos:** CPUs e **Memória máxima** (valem no próximo boot), **Memória dinâmica** (ligada por padrão; vale na hora), **Desligar sem nenhum container rodando por** um tempo, e o disco de dados, que só aumenta. Com a máquina ligada, o topo da página mostra a memória em uso de verdade, quanto está com a máquina agora (**com a máquina agora**) e quanto foi devolvido ao Mac (**devolvendo … ao Mac**).
 
   ![A Container VM: recursos e memória dinâmica](images/pt/tut-cvm-resources.png)
 
-- **Processos:** o que roda na máquina agora, ao vivo, como no `htop`, separado por container.
+- **Processos:** o que roda na máquina agora, ao vivo, como no `htop`, separado por container. A barra de memória mostra em listras a parte que o balão devolveu ao Mac: o Linux continua contando essa parte, mas ela não está em uso.
 - **Logs e terminal:** os logs do sistema, dos engines e do provisionamento, e um terminal dentro da máquina.
 - **Armazenamento:** as pastas do Mac que a máquina enxerga, os snapshots do disco de dados (e voltar a um deles) e os volumes no Finder.
 - **Multi-arch e credenciais:** as plataformas que a máquina roda e constrói (`docker buildx build --platform linux/amd64,linux/arm64`) e as credenciais do Mac que ela usa.

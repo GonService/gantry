@@ -141,21 +141,29 @@ What it brings:
 
 4. **Create and start:** Gantry downloads the system image (and checks its sum), creates the disks, starts the machine and shows the provisioning line by line. The first time it takes a few minutes, because it installs the engines.
 
-When it finishes, the machine shows up in the sidebar, under **This machine**, with its power button next to it.
+When it finishes, the machine shows up in the sidebar, under **This machine**, with its power button next to it. It also shows in the **VMs** tab of **This machine**, under **Container VMs**, with its state, system, engines, IP and the **Open**, **Terminal** and **Turn off** buttons.
+
+![The Container VM in the VMs tab of This machine](images/en/tut-cvm-inhost.png)
 
 ### 2.2 Use it from the Mac's terminal
 
 The machine's **Engines and sockets** tab shows everything you need to use the engines outside Gantry:
 
 - **Sockets on the Mac:** the machine's `docker.sock` and `podman.sock` live in `~/.gantry/machines/gantry-vm/`. containerd is used through the `nerdctl` command, in `~/.gantry/bin`.
-- **Point the Mac's terminal:** `docker context use gantry` (recommended), or the `export DOCKER_HOST=…` and `export CONTAINER_HOST=…` lines for one session only. **Make it docker's default** switches the context for you.
+- **Point the Mac's terminal:**
+  - **Docker:** `docker context use gantry` (recommended). **Make it docker's default** switches it for you.
+  - **Podman:** `podman system connection add --default gantry unix://…/podman.sock`, with your machine's socket path (Gantry shows the command ready to copy). If the `gantry` connection already exists, the command becomes `podman system connection default gantry`. **Make it podman's default** does both steps for you.
+  - **For one terminal session only:** the `export DOCKER_HOST=…` and `export CONTAINER_HOST=…` lines.
 - **Integration with the Mac:** each option is a box you turn on or off:
   - the `gantry` context in Docker;
   - a Docker context that talks to the machine's Podman;
+  - **Connection in the Mac's Podman**, the `gantry` connection of `podman system connection`;
   - **The machine's commands on the PATH**, which puts `docker`, `podman` and `nerdctl` from `~/.gantry/bin` in your terminal, after the ones the Mac already has;
   - **Link at /var/run/docker.sock**, for tools that only look there (asks for the administrator password).
 
 ![The Container VM: engines and sockets](images/en/tut-cvm-engines.png)
+
+![Point the Mac's terminal: Docker, Podman and nerdctl](images/en/tut-cvm-podman.png)
 
 To test, in a Mac terminal:
 
@@ -166,16 +174,35 @@ podman run --rm docker.io/library/alpine echo "hello from podman"     # with the
 nerdctl run --rm docker.io/library/alpine echo "hello from nerdctl"   # same
 ```
 
-Gantry projects (the cases below) use the machine on their own: just pick its engine when creating the project.
+Gantry projects (the cases below) use the machine on their own: just pick its engine when creating the project. In a container's form, each engine of the machine shows in the list with its name next to it.
 
-### 2.3 Start, stop and adjust
+### 2.3 Open the containers in the Mac's browser
+
+A port published by a container of the machine (`-p 8080:80`, or **Ports** in the container form) opens in two ways on the Mac:
+
+- **`http://localhost:8080`:** Gantry opens the same port on the Mac and forwards it to the machine. It works for Docker, Podman and nerdctl. A port published only on `127.0.0.1` inside the machine opens only on the Mac's `localhost`.
+- **`http://machine-IP:8080`:** the machine has an IP on the Mac's network, shown at the top of its page (**IP 192.168.64.7**, for example). Click it to copy.
+
+The **Ports on the Mac** panel, in the **Engines and sockets** tab, lists the ports open now, with the address ready to copy. If another Mac program already uses a port, the panel warns about it, and the reason is in the machine's log.
+
+To test, with the `docker context use gantry` from the previous step:
+
+```sh
+docker run -d --name web -p 8080:80 nginx:alpine
+curl -I http://localhost:8080        # HTTP/1.1 200 OK
+docker rm -f web
+```
+
+> With Docker and Podman together in the machine, Gantry keeps IP forwarding on from boot. Without it, Docker would close the network to the Podman and nerdctl containers, and their ports would answer only inside the machine.
+
+### 2.4 Start, stop and adjust
 
 - **Start and stop:** with the button next to the machine in the sidebar, or **Turn on** and **Turn off** on its page. When the Mac sleeps, the machine pauses with it and comes back when it wakes.
-- **Resources:** CPUs and **Maximum memory** (they apply on the next boot), **Dynamic memory** (on by default; applies right away), **Turn off with no container running for** a while, and the data disk, which only grows. With the machine on, the panel shows how much it holds now and how much went back to the Mac.
+- **Resources:** CPUs and **Maximum memory** (they apply on the next boot), **Dynamic memory** (on by default; applies right away), **Turn off with no container running for** a while, and the data disk, which only grows. With the machine on, the top of the page shows the memory really in use, how much the machine holds now (**with the machine now**) and how much went back to the Mac (**giving … back to the Mac**).
 
   ![The Container VM: resources and dynamic memory](images/en/tut-cvm-resources.png)
 
-- **Processes:** what runs in the machine now, live, as in `htop`, grouped by container.
+- **Processes:** what runs in the machine now, live, as in `htop`, grouped by container. The memory bar shows striped the part the balloon gave back to the Mac: Linux still counts it, but it is not in use.
 - **Logs and terminal:** the logs of the system, the engines and the provisioning, and a terminal inside the machine.
 - **Storage:** the Mac folders the machine sees, the data disk snapshots (and going back to one) and the volumes in the Finder.
 - **Multi-arch and credentials:** the platforms the machine runs and builds (`docker buildx build --platform linux/amd64,linux/arm64`) and the Mac credentials it uses.
