@@ -16,6 +16,11 @@ import "fmt"
 //   - No getty on the serial ports: the console is hvc0, and busybox init
 //     restarts a getty on a missing ttyAMA0/ttyS0 every second, two lines of
 //     log each time.
+//   - Logs with a limit, so they do not fill the disks: 10 MB × 3 for each
+//     Docker container (new ones; the daemon reads it at its next start),
+//     10 MB for each Podman container, 20 MB for each service log file on
+//     Alpine (cut every hour) and 200 MB of journal on Debian. Without it, a
+//     chatty container grew its log until the disk was full.
 //   - Gantry's own ssh (over vsock, from 127.0.0.1) and the sudo of the log
 //     tab stay out of the log: they come every few seconds and would bury
 //     everything else.
@@ -40,7 +45,27 @@ if [ -f /etc/ssh/sshd_config ] && ! grep -q '^# gantry: ssh do Gantry' /etc/ssh/
     mv /etc/ssh/sshd_config.gantry-antes /etc/ssh/sshd_config
   fi
 fi
-if [ -d /etc/sudoers.d ] && [ ! -e /etc/sudoers.d/gantry-logs ]; then
+if [ -f /etc/docker/daemon.json ] && [ "$(tr -d ' \n' </etc/docker/daemon.json)" = '{"features":{"containerd-snapshotter":true}}' ]; then
+  echo '{ "features": { "containerd-snapshotter": true }, "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' >/etc/docker/daemon.json
+fi
+if [ ! -e /etc/containers/containers.conf.d/90-gantry.conf ]; then
+  mkdir -p /etc/containers/containers.conf.d
+  printf '[containers]\nlog_size_max = 10485760\n' >/etc/containers/containers.conf.d/90-gantry.conf
+fi
+if [ -d /etc/periodic/hourly ] && [ ! -e /etc/periodic/hourly/gantry-logs ]; then
+  cat >/etc/periodic/hourly/gantry-logs <<'EOF'
+#!/bin/sh
+# Gantry: the logs of the services stay under 20 MB (the last lines).
+for f in /var/log/docker.log /var/log/gantry-*.log; do
+  [ -f "$f" ] || continue
+  [ $(wc -c <"$f") -gt 20971520 ] || continue
+  tail -n 20000 "$f" >"$f.tmp" && cat "$f.tmp" >"$f"
+  rm -f "$f.tmp"
+done
+EOF
+  chmod 0755 /etc/periodic/hourly/gantry-logs
+fi
+%[2]sif [ -d /etc/sudoers.d ] && [ ! -e /etc/sudoers.d/gantry-logs ]; then
   printf 'Cmnd_Alias GANTRY_LOGS = /usr/bin/tail, /usr/bin/journalctl, /bin/journalctl\nDefaults!GANTRY_LOGS !syslog\n' >/etc/sudoers.d/gantry-logs
   chmod 0440 /etc/sudoers.d/gantry-logs
   visudo -cf /etc/sudoers.d/gantry-logs >/dev/null 2>&1 || rm -f /etc/sudoers.d/gantry-logs
@@ -56,13 +81,25 @@ var sshdReload = map[string]string{
     fi`,
 }
 
+// journalCap keeps the journal small where there is one (not on Alpine).
+const journalCap = `if [ -d /run/systemd/system ] && [ ! -e /etc/systemd/journald.conf.d/90-gantry.conf ]; then
+  mkdir -p /etc/systemd/journald.conf.d
+  printf '[Journal]\nSystemMaxUse=200M\n' >/etc/systemd/journald.conf.d/90-gantry.conf
+  systemctl restart systemd-journald 2>/dev/null || true
+fi
+`
+
 // guestTune is the script for one system, run as root.
 func guestTune(system string) string {
 	r, ok := sshdReload[system]
 	if !ok {
 		r = sshdReload[OSCustom]
 	}
-	return fmt.Sprintf(guestTuneTmpl, r)
+	j := journalCap
+	if system == OSAlpine {
+		j = ""
+	}
+	return fmt.Sprintf(guestTuneTmpl, r, j)
 }
 
 // guestTuneSudo is guestTune for a line that runs as the gantry user.

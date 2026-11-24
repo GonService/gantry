@@ -113,7 +113,8 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 mkdir -p /etc/docker
-echo '{ "features": { "containerd-snapshotter": true } }' >/etc/docker/daemon.json
+# Os logs dos containers com limite: 10 MB × 3 cada um.
+echo '{ "features": { "containerd-snapshotter": true }, "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' >/etc/docker/daemon.json
 usermod -aG docker gantry
 vsock docker {{.PortDocker}} UNIX-CONNECT:/run/docker.sock docker.service
 systemctl daemon-reload

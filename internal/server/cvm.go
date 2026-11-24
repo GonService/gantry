@@ -697,13 +697,12 @@ func (s *Server) cvmTerm(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	cmd := ""
 	if src := r.URL.Query().Get("logs"); src != "" {
-		units := map[string]string{"sistema": "", "docker": " -u docker.service -u containerd.service", "podman": " -u podman.service -u podman.socket"}
-		u, ok := units[src]
-		if !ok {
-			writeErr(w, http.StatusBadRequest, errors.New("log desconhecido"))
+		c, err := cvm.FollowLogs(r.PathValue("name"), src)
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		cmd = "sudo journalctl -f -n 300 --no-pager" + u
+		cmd = c
 	}
 	t, err := cvm.Shell(ctx, r.PathValue("name"), cmd)
 	if err != nil {

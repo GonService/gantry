@@ -75,6 +75,45 @@ var logLines = map[string]string{
 	"provisionamento": "sudo tail -n %d /var/log/gantry-provision.log",
 }
 
+// Following a log (the Terminal of the logs tab), by system: journalctl -f
+// where there is journald, tail -F of the files where there is not
+// (Alpine has no journalctl).
+var followDebian = map[string]string{
+	"sistema": "sudo journalctl -f -n 300 --no-pager",
+	"docker":  "sudo journalctl -f -n 300 --no-pager -u docker.service -u containerd.service",
+	"podman":  "sudo journalctl -f -n 300 --no-pager -u podman.service -u podman.socket",
+}
+
+var followAlpine = map[string]string{
+	"sistema": "sudo tail -n 300 -F /var/log/messages",
+	"docker":  "sudo tail -n 300 -F /var/log/docker.log",
+	"podman":  "sudo tail -n 300 -F /var/log/gantry-podman.log",
+}
+
+var followCustom = map[string]string{
+	"sistema": "if command -v journalctl >/dev/null; then sudo journalctl -f -n 300 --no-pager; else sudo tail -n 300 -F /var/log/messages; fi",
+	"docker":  "if command -v journalctl >/dev/null; then sudo journalctl -f -n 300 --no-pager -u docker.service -u containerd.service; else sudo tail -n 300 -F /var/log/docker.log; fi",
+	"podman":  "if command -v journalctl >/dev/null; then sudo journalctl -f -n 300 --no-pager -u podman.service -u podman.socket; else sudo tail -n 300 -F /var/log/podman.log; fi",
+}
+
+// FollowLogs is the command that follows a log source of the machine.
+func FollowLogs(name, src string) (string, error) {
+	lines := followDebian
+	if s, err := Load(name); err == nil {
+		switch s.System() {
+		case OSAlpine:
+			lines = followAlpine
+		case OSCustom:
+			lines = followCustom
+		}
+	}
+	c, ok := lines[src]
+	if !ok {
+		return "", errors.New("log desconhecido")
+	}
+	return c, nil
+}
+
 // Logs returns the last lines of a source: sistema, docker, podman,
 // provisionamento (in the machine) or console and vm (on the Mac, they
 // work with the machine stopped too).

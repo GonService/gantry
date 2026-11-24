@@ -122,7 +122,8 @@ fi
 passo "6. Docker Engine: pacote do Alpine"
 apk add docker docker-cli-buildx docker-cli-compose
 mkdir -p /etc/docker
-echo '{ "features": { "containerd-snapshotter": true } }' >/etc/docker/daemon.json
+# Os logs dos containers com limite: 10 MB × 3 cada um.
+echo '{ "features": { "containerd-snapshotter": true }, "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' >/etc/docker/daemon.json
 addgroup gantry docker
 rc-update add docker default
 rc-service docker restart
