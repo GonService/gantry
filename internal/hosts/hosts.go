@@ -757,6 +757,21 @@ func (h *Host) dropIdle() {
 	}
 }
 
+// ShellCmd is an interactive login shell on an ssh:// host, through the
+// connection the app already keeps (no new login). It needs a terminal of
+// this computer around it (ptyx): -tt asks the server for one too.
+func (h *Host) ShellCmd(ctx context.Context) (*exec.Cmd, error) {
+	if h.Kind != SSH {
+		return nil, errors.New("o shell é para hosts ssh://")
+	}
+	if err := h.ensureTunnel(ctx); err != nil {
+		return nil, err
+	}
+	cmd := exec.Command("ssh", "-S", h.ctlPath, "-o", "BatchMode=yes", "-tt", h.dest)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	return cmd, nil
+}
+
 // ctl runs a shell line on the host through the master connection.
 func (h *Host) ctl(ctx context.Context, line string) (string, error) {
 	cmd := exec.CommandContext(ctx, "ssh", "-S", h.ctlPath, "-o", "BatchMode=yes", h.dest, "--", line)

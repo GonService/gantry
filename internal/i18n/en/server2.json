@@ -557,5 +557,7 @@
   "já existe um arquivo ou pasta com esse nome": "a file or folder with that name already exists",
   "não existe mais: a árvore estava desatualizada": "no longer there: the tree was out of date",
   "o caminho sai da pasta do projeto (por um link)": "the path leads out of the project folder (through a link)",
-  "pasta com caminho inválido: %s": "folder with an invalid path: %s"
+  "pasta com caminho inválido: %s": "folder with an invalid path: %s",
+  "o shell é para hosts ssh://": "the shell is for ssh:// hosts",
+  "terminal local indisponível neste sistema": "no local terminal on this system"
 }

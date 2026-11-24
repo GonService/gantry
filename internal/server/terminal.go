@@ -13,6 +13,7 @@ import (
 
 	"gantry/internal/applog"
 	"gantry/internal/hosts"
+	"gantry/internal/ptyx"
 )
 
 // ttySession is what a terminal talks to: an exec in a container or an
@@ -56,6 +57,24 @@ func (s *Server) newTerm(w http.ResponseWriter, r *http.Request, h *hosts.Host) 
 		return
 	}
 	writeJSON(w, map[string]string{"id": s.addTerm(ex)})
+}
+
+// hostShell opens a shell on an ssh:// host, in the dock, through the
+// connection the app keeps with it.
+func (s *Server) hostShell(w http.ResponseWriter, r *http.Request, h *hosts.Host) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	cmd, err := h.ShellCmd(ctx)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	sess, err := ptyx.Start(cmd, 120, 32)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]string{"id": s.addTerm(sess)})
 }
 
 // addTerm registers a session; it closes if nobody attaches in 30 s.

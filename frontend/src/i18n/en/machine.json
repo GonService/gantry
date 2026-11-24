@@ -428,5 +428,7 @@
   "É": "Is",
   "＋ Criar VM": "＋ Create VM",
   "＋ Criar container": "＋ Create container",
-  "＋ Criar projeto": "＋ Create project"
+  "＋ Criar projeto": "＋ Create project",
+  "Abre um shell no host, pela conexão SSH que o Gantry já mantém": "Opens a shell on the host, over the SSH connection Gantry already keeps",
+  "shell em {host}": "shell on {host}"
 }

@@ -392,6 +392,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/registros", s.addRegistry)
 	mux.HandleFunc("DELETE /api/registros/{server}", s.removeRegistry)
 	mux.HandleFunc("POST /api/hosts/{host}/containers/{id}/term", s.withHost(s.newTerm))
+	mux.HandleFunc("POST /api/hosts/{host}/shell", s.withHost(s.hostShell))
 	mux.HandleFunc("GET /api/term/{id}/stream", s.termStream)
 	mux.HandleFunc("POST /api/term/{id}/input", s.termInput)
 	mux.HandleFunc("POST /api/term/{id}/resize", s.termResize)

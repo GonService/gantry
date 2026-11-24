@@ -17,6 +17,7 @@ import { engKey, forgetMachine, loadCtrs, loadOverview, loadSys, useMachine } fr
 import { useTools } from "@/views/tools/store";
 import { Empty, ConfigTab, ContainersTab, ProjectsTab, SharedTab, VMsTab } from "./tabs";
 import { CvmInHost, useCvmList } from "../cvm/inhost";
+import { openTerminal } from "@/shell/dock";
 
 export type MachineProps = { mkey: string; mtab?: string; meng?: string; mseg?: string };
 
@@ -198,6 +199,15 @@ function Page({ m, S, tab, meng, mseg }: { m: Machine; S: ReturnType<typeof useA
         <button className="btn" onClick={(e) => refresh(e.currentTarget)}>
           {t("Atualizar")}
         </button>
+        {remote && p?.kind === "ssh" ? (
+          <button
+            className="btn"
+            title={t("Abre um shell no host, pela conexão SSH que o Gantry já mantém")}
+            onClick={() => openTerminal(p.name, { id: "host-shell-" + p.name, name: m.name || p.name, service: t("shell em {host}", { host: m.name || p.name }), termURL: "/hosts/" + enc(p.name) + "/shell" })}
+          >
+            {t("Terminal")}
+          </button>
+        ) : null}
         {p && p.ok ? (
           <button className="btn" title={t("O que aconteceu com containers, imagens, volumes e redes")} onClick={() => eventsDialog(p.name)}>
             {t("Eventos")}

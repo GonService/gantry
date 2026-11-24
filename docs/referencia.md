@@ -13,6 +13,7 @@ O Gantry conversa direto com a API do Docker ou do Podman, sem nada hospedado e 
   - **Pastas e subpastas** organizam a barra lateral (por cliente, ambiente…). A pasta mostra quantas máquinas tem e quantas estão com problema, mesmo fechada; a 🔍 dela filtra só lá dentro; pastas grandes abrem resumidas (as com problema primeiro) com "ver todas". A busca do topo procura em todas e mostra em que pasta está cada uma.
   - A **engrenagem** ao lado da versão abre a Configuração: **Máquinas** (adicionar, editar, remover, escolher a pasta), **Pastas** (criar, renomear, mover, apagar; só apaga pasta vazia), **Credenciais** (registros de imagens, senhas de SSH desta sessão, onde ficam os segredos) e **Geral** (tema, idioma, versão).
   - Servidores remotos só conectam quando você abre: o app não abre SSH para todos ao iniciar. **Desconectar** fecha a conexão.
+  - **Terminal** (servidores `ssh://`) abre um shell no servidor, no painel de baixo, pela mesma conexão SSH do app: sem novo login, com o tamanho da janela acompanhando. Funciona mesmo sem engine de containers no servidor.
   - A página da máquina mostra o hardware e o uso de CPU, memória e de cada disco (todos os sistemas de arquivos locais: outra partição, um segundo SSD, um disco USB), lidos por um script curto (local ou via SSH, sem agente). Depois vêm as abas:
     - **Projetos** (a aba inicial), do mais recente para o mais antigo, com **Criar projeto**;
     - **Containers**, com uma sub-aba por engine (Docker, Podman, containerd…) e, em cada uma, Containers, Imagens, Volumes e Redes;
