@@ -19,8 +19,12 @@ import "fmt"
 //   - Logs with a limit, so they do not fill the disks: 10 MB × 3 for each
 //     Docker container (new ones; the daemon reads it at its next start),
 //     10 MB for each Podman container, 20 MB for each service log file on
-//     Alpine (cut every hour) and 200 MB of journal on Debian. Without it, a
-//     chatty container grew its log until the disk was full.
+//     Alpine (checked every 15 minutes) and 200 MB of journal on Debian.
+//     Without it, the API service of Podman, failing on every request,
+//     wrote 8.8 GB of log in a day and filled the system disk.
+//   - Files are written to a temporary name and moved in place, and checked
+//     by content, not by existence: with the disk full a write leaves an
+//     empty file, and the next start must write it again, not skip it.
 //   - Gantry's own ssh (over vsock, from 127.0.0.1) and the sudo of the log
 //     tab stay out of the log: they come every few seconds and would bury
 //     everything else.
@@ -46,24 +50,31 @@ if [ -f /etc/ssh/sshd_config ] && ! grep -q '^# gantry: ssh do Gantry' /etc/ssh/
   fi
 fi
 if [ -f /etc/docker/daemon.json ] && [ "$(tr -d ' \n' </etc/docker/daemon.json)" = '{"features":{"containerd-snapshotter":true}}' ]; then
-  echo '{ "features": { "containerd-snapshotter": true }, "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' >/etc/docker/daemon.json
+  echo '{ "features": { "containerd-snapshotter": true }, "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' >/etc/docker/daemon.gantry &&
+    mv /etc/docker/daemon.gantry /etc/docker/daemon.json || rm -f /etc/docker/daemon.gantry
 fi
-if [ ! -e /etc/containers/containers.conf.d/90-gantry.conf ]; then
-  mkdir -p /etc/containers/containers.conf.d
-  printf '[containers]\nlog_size_max = 10485760\n' >/etc/containers/containers.conf.d/90-gantry.conf
+if ! grep -qs log_size_max /etc/containers/containers.conf.d/90-gantry.conf; then
+  mkdir -p /etc/containers/containers.conf.d &&
+    printf '[containers]\nlog_size_max = 10485760\n' >/etc/containers/containers.conf.d/90-gantry.tmp &&
+    mv /etc/containers/containers.conf.d/90-gantry.tmp /etc/containers/containers.conf.d/90-gantry.conf ||
+    rm -f /etc/containers/containers.conf.d/90-gantry.tmp
 fi
-if [ -d /etc/periodic/hourly ] && [ ! -e /etc/periodic/hourly/gantry-logs ]; then
-  cat >/etc/periodic/hourly/gantry-logs <<'EOF'
+rm -f /etc/periodic/hourly/gantry-logs
+if [ -d /etc/periodic/15min ] && ! grep -qs 'gantry-logs v2' /etc/periodic/15min/gantry-logs; then
+  cat >/etc/periodic/15min/gantry-logs.tmp <<'EOF' && chmod 0755 /etc/periodic/15min/gantry-logs.tmp &&
 #!/bin/sh
-# Gantry: the logs of the services stay under 20 MB (the last lines).
+# gantry-logs v2: the logs of the services stay under 20 MB (the last lines).
+# With the disk already full there is no room for the copy: the file is
+# emptied instead, which frees the space at once.
 for f in /var/log/docker.log /var/log/gantry-*.log; do
   [ -f "$f" ] || continue
   [ $(wc -c <"$f") -gt 20971520 ] || continue
-  tail -n 20000 "$f" >"$f.tmp" && cat "$f.tmp" >"$f"
+  if tail -n 20000 "$f" >"$f.tmp" 2>/dev/null; then cat "$f.tmp" >"$f"; else : >"$f"; fi
   rm -f "$f.tmp"
 done
 EOF
-  chmod 0755 /etc/periodic/hourly/gantry-logs
+    mv /etc/periodic/15min/gantry-logs.tmp /etc/periodic/15min/gantry-logs ||
+    rm -f /etc/periodic/15min/gantry-logs.tmp
 fi
 %[2]sif [ -d /etc/sudoers.d ] && [ ! -e /etc/sudoers.d/gantry-logs ]; then
   printf 'Cmnd_Alias GANTRY_LOGS = /usr/bin/tail, /usr/bin/journalctl, /bin/journalctl\nDefaults!GANTRY_LOGS !syslog\n' >/etc/sudoers.d/gantry-logs

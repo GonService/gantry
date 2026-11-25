@@ -449,6 +449,10 @@ func TestGuestTune(t *testing.T) {
 				t.Errorf("%s/%s: %s %v", sys, name, out, err)
 			}
 		}
+		// a file left empty by a full disk is written again on the next start
+		if strings.Contains(sync, "[ ! -e /etc/periodic") || strings.Contains(sync, "[ ! -e /etc/containers") || !strings.Contains(sync, "gantry-logs v2") {
+			t.Errorf("%s: escrita dos limites de log ainda depende só de o arquivo existir", sys)
+		}
 		if sys == OSAlpine && strings.Contains(sc, "systemctl") {
 			t.Error("alpine com systemctl")
 		}
