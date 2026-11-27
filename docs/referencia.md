@@ -232,6 +232,8 @@ Como a conexão funciona:
 
 O usuário remoto precisa ter acesso ao socket. No Docker, isso significa estar no grupo `docker`. No Podman rootless, o `podman.socket` do usuário precisa estar ativo; o app oferece o botão para ativá-lo.
 
+Os projetos que já rodam no servidor aparecem sozinhos, mesmo os que outro Gantry criou (o instalado no próprio servidor, por exemplo). Os de containers vêm pelos rótulos do Compose. Os só de VMs (IOL, Dynamips, VPCS, QEMU) o app encontra nas pastas das VMs do usuário do SSH (`~/.local/state/gantry/vms`); o arquivo compose de cada um vem do próprio servidor, que guarda onde ele está a cada **Subir**, ou do `state.json` do Gantry instalado lá. As VMs precisam ser do mesmo usuário com que o app conecta.
+
 ## containerd e k3s
 
 Esses runtimes não têm a API do Docker, só a linha de comando. O Gantry roda um tradutor (shim) que atende a parte da API do Docker que o app usa e chama o `nerdctl` por baixo. Assim, as mesmas telas funcionam com eles: labs, containers, logs, shell, CPU e memória, imagens, volumes e redes.

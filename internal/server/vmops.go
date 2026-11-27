@@ -28,6 +28,11 @@ func vmNames(p *composex.Project) []string {
 
 func (s *Server) vmsUp(ctx context.Context, h *hosts.Host, project string, p *composex.Project) (string, error) {
 	var b strings.Builder
+	// Where the compose is stays on the machine too, for any other Gantry
+	// that connects to it to find the project (see adoptHostLabs).
+	if k, ok := s.store.Known(h.Name)[project]; ok && len(k.Files) > 0 {
+		_ = vms.SetProjectFiles(ctx, h, project, k.Files)
+	}
 	net, err := s.projectNet(ctx, h, project, p)
 	if err != nil {
 		return "", err

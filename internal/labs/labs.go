@@ -283,6 +283,24 @@ func (s *Store) SetLab(host, id, dir string, files, runtimes, vms []string) {
 	s.save()
 }
 
+// Adopt remembers a lab found on the host (made by another Gantry), unless
+// this one already knows it. It reports whether it added it.
+func (s *Store) Adopt(host, id string, k Known) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.data[host]
+	if m == nil {
+		m = map[string]Known{}
+		s.data[host] = m
+	}
+	if _, ok := m[id]; ok {
+		return false
+	}
+	m[id] = k
+	s.save()
+	return true
+}
+
 // Touch marks a project as just used (an operation through the app).
 func (s *Store) Touch(host, id string) {
 	s.mu.Lock()

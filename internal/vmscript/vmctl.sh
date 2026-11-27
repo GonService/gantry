@@ -2088,6 +2088,30 @@ status() { # one line per VM of the project: name state pid ssh accel ports vnc 
   done
 }
 
+# projects lists the projects that have VMs on this machine, whoever made
+# them (this Gantry, another one, the Gantry of the machine itself):
+#   project <name>          then, for each: vm <name>, file <compose file>
+#   state <state.json of a Gantry of this machine>
+# The compose files are the ones project-set wrote; for projects made
+# before that, the Gantry's state.json says where they are.
+projects() {
+  [ -d "$ROOT" ] || exit 0
+  for p in "$ROOT"/*/; do
+    p=${p%/}
+    found=""
+    for d in "$p"/*/; do
+      [ -f "$d/vm.env" ] || continue
+      [ -n "$found" ] || { echo "project $(basename "$p")"; found=1; }
+      echo "vm $(basename "$d")"
+    done
+    [ -n "$found" ] && [ -f "$p/compose.files" ] && sed 's/^/file /' "$p/compose.files"
+  done
+  for f in "${XDG_CONFIG_HOME:-$HOME/.config}/gantry/state.json" "$HOME/Library/Application Support/gantry/state.json"; do
+    [ -f "$f" ] && echo "state $f"
+  done
+  return 0
+}
+
 # cputime prints the CPU seconds a process has used: from /proc on Linux
 # (ps rounds to whole seconds there), from ps elsewhere (0:01.23).
 cputime() {
@@ -2153,6 +2177,11 @@ case "${1:-}" in
     rm -rf "$D" && say "$N: VM e disco apagados"
     rmdir "$ROOT/$P" 2>/dev/null || true ;;
   status) status ;;
+  projects) projects ;;
+  project-set) # the compose files of the project (GV_FILES, base64, one per line)
+    [ -n "$P" ] || die "falta GV_PROJECT"
+    mkdir -p "$ROOT/$P" && printf '%s' "${GV_FILES:-}" | b64d >"$ROOT/$P/compose.files.tmp" &&
+      mv "$ROOT/$P/compose.files.tmp" "$ROOT/$P/compose.files" ;;
   stats) stats ;;
   keyfile) key ;;
   netinfo) netinfo ;;

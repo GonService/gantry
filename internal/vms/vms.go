@@ -849,6 +849,58 @@ func sortedKeys(m map[string]string) []string {
 	return out
 }
 
+// HostProject is a project with VMs found on the machine, made by any Gantry.
+type HostProject struct {
+	Name  string
+	VMs   []string
+	Files []string // the compose files, when the machine knows them
+}
+
+// Projects lists the projects that have VMs on the host, and the state.json
+// of the Gantry installed on the machine itself, if there is one.
+func Projects(ctx context.Context, h *hosts.Host) ([]HostProject, []string, error) {
+	out, err := Run(ctx, h, "projects", nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	ps, states := parseProjects(out)
+	return ps, states, nil
+}
+
+func parseProjects(out string) ([]HostProject, []string) {
+	var ps []HostProject
+	var states []string
+	for _, l := range strings.Split(out, "\n") {
+		k, v, ok := strings.Cut(strings.TrimRight(l, "\r"), " ")
+		if !ok || v == "" {
+			continue
+		}
+		switch k {
+		case "project":
+			ps = append(ps, HostProject{Name: v})
+		case "vm":
+			if len(ps) > 0 {
+				ps[len(ps)-1].VMs = append(ps[len(ps)-1].VMs, v)
+			}
+		case "file":
+			if len(ps) > 0 && strings.HasPrefix(v, "/") {
+				ps[len(ps)-1].Files = append(ps[len(ps)-1].Files, v)
+			}
+		case "state":
+			states = append(states, v)
+		}
+	}
+	return ps, states
+}
+
+// SetProjectFiles writes on the host where the project's compose files are,
+// so any Gantry that connects to the machine finds the project.
+func SetProjectFiles(ctx context.Context, h *hosts.Host, project string, files []string) error {
+	_, err := Run(ctx, h, "project-set", map[string]string{"GV_PROJECT": project,
+		"GV_FILES": base64.StdEncoding.EncodeToString([]byte(strings.Join(files, "\n") + "\n"))})
+	return err
+}
+
 // Status lists the VMs created for a lab on the host.
 func Status(ctx context.Context, h *hosts.Host, project string) ([]State, error) {
 	out, err := Run(ctx, h, "status", map[string]string{"GV_PROJECT": project})

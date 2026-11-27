@@ -27,6 +27,7 @@ func (s *Server) labsOf(ctx context.Context, h *hosts.Host) ([]labs.Lab, error) 
 	if err != nil {
 		return nil, err
 	}
+	s.adoptHostLabs(ctx, h)
 	ls := labs.Group(cs, s.store.Known(h.Name))
 	rt := h.Runtime()
 	for i := range ls {
